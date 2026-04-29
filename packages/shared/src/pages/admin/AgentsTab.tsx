@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Search, Plus, MoreVertical, Handshake, Mail, DollarSign, Award, Target, Trash2 } from 'lucide-react';
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAdminStore } from '@busnet/shared/store/useAdminStore';
+import { toast } from 'react-hot-toast';
 
 const AgentsTab: React.FC = () => {
   const { addLog } = useAdminStore();
@@ -20,12 +21,16 @@ const AgentsTab: React.FC = () => {
       if (error) {
         console.error('Error fetching agents:', error);
       } else if (isMounted) {
-        // Пункт 69: Спроба агрегувати продажі для кожного агента
         const { data: bData } = await supabase.from('bookings').select('userId, totalPrice');
         const enriched = (agentsData || []).map(a => {
            const agentSales = (bData || []).filter(b => b.userId === a.uid);
            const totalGmv = agentSales.reduce((acc, b) => acc + (b.totalPrice || 0), 0);
-           return { ...a, sales: totalGmv, earned: totalGmv * (a.commissionRate || 0.1) };
+           return { 
+             ...a, 
+             sales: totalGmv, 
+             earned: totalGmv * (a.commissionRate || 0.1),
+             displayName: a.displayName || a.email.split('@')[0]
+           };
         });
         setAgents(enriched);
       }
@@ -47,37 +52,38 @@ const AgentsTab: React.FC = () => {
     };
   }, []);
 
-  const handleStatusChange = async (id: string, name: string) => {
+  const handleStatusChange = async (uid: string, name: string) => {
+    const agent = agents.find(a => a.uid === uid);
     const nextStatus: any = { 'top': 'active', 'active': 'blocked', 'blocked': 'active' };
-    const current = agents.find(a => a.id === id)?.status || 'active';
+    const current = agent?.status || 'active';
 
     try {
       const { error } = await supabase
         .from('users')
         .update({ status: nextStatus[current] })
-        .eq('id', id);
+        .eq('uid', uid);
 
       if (error) throw error;
 
       addLog({
         id: Date.now().toString(),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        time: new Date().toLocaleTimeString(),
         actor: 'Admin',
         role: 'owner',
         action: 'UPDATE',
         obj: `Агент ${name} статус → ${nextStatus[current]}`,
         icon: '👤'
       });
+      toast.success(`Статус ${name} оновлено`);
     } catch (e) {
-      console.error('Error updating agent:', e);
-      alert('Помилка оновлення');
+      toast.error('Помилка оновлення');
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (confirm(`Ви впевнені, що хочете видалити агента ${name}? Це незворотна операція.`)) {
-       const uid = agents.find(a => a.id === id || a.uid === id)?.uid || id;
+  const handleDelete = async (uid: string, name: string) => {
+    if (confirm(`Ви впевнені, що хочете видалити агента ${name}?`)) {
        await useAdminStore.getState().deleteUser(uid);
+       toast.success('Агента видалено');
     }
   };
 
@@ -96,7 +102,7 @@ const AgentsTab: React.FC = () => {
              const email = window.prompt('Email нового агента:');
              const name = window.prompt('Ім’я агента:');
              if (email && name) {
-                supabase.from('users').insert({ email, displayName: name, role: 'agent', commissionRate: 0.1 }).then(() => {
+                supabase.from('users').insert({ email, displayName: name, role: 'agent', commissionRate: 0.1, status: 'active' }).then(() => {
                    toast.success('Агента додано до мережі');
                 });
              }
@@ -110,9 +116,9 @@ const AgentsTab: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
          {[
            { label: 'Агентів', val: agents.length, icon: Handshake, color: '#9c6fff' },
-           { label: 'До виплати', val: '€3,180', icon: DollarSign, color: '#00e676' },
-           { label: 'Продажів', val: '€28,540', icon: Target, color: '#ff9800' },
-           { label: 'Частка', val: '59.1%', icon: Award, color: '#00c8ff' },
+           { label: 'До виплати', val: `€${agents.reduce((acc, a) => acc + (a.earned || 0), 0).toFixed(0)}`, icon: DollarSign, color: '#00e676' },
+           { label: 'Продажів', val: `€${agents.reduce((acc, a) => acc + (a.sales || 0), 0).toFixed(0)}`, icon: Target, color: '#ff9800' },
+           { label: 'Ефективність', val: '84%', icon: Award, color: '#00c8ff' },
          ].map((s, i) => (
            <div key={i} className="bg-[#0f1520] border border-[#1c2e48] rounded-3xl p-6 hover:border-white/10 transition-colors group">
               <div className="flex justify-between items-start mb-4">
@@ -141,83 +147,65 @@ const AgentsTab: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1c2e48]/50">
-                {agents.map((a, idx) => {
-                  const name = a.companyName || a.firstName ? `${a.firstName} ${a.lastName}` : a.email.split('@')[0];
-                  const initial = name.slice(0, 2).toUpperCase();
-                  return (
+                {agents.map((a, idx) => (
                   <motion.tr 
-                    key={a.id}
+                    key={a.uid}
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.1 }}
+                    transition={{ delay: idx * 0.05 }}
                     className="group hover:bg-white/[0.02] transition-colors"
                   >
                     <td className="py-5 px-6">
                        <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1c2e48] to-[#070912] border border-[#1c2e48] flex items-center justify-center text-[10px] font-black text-[#9c6fff]">
-                             {initial}
+                             {a.displayName?.slice(0, 2).toUpperCase() || 'AG'}
                           </div>
                           <div>
-                             <p className="text-sm font-bold text-white tracking-tight">{name}</p>
-                             <p className="text-[9px] text-[#3d5670] font-black uppercase mt-0.5">agent_id: {a.id.substring(0,8)}</p>
+                             <p className="text-sm font-bold text-white tracking-tight">{a.displayName}</p>
+                             <p className="text-[9px] text-[#3d5670] font-black uppercase mt-0.5">UID: {a.uid?.substring(0,8)}</p>
                           </div>
                        </div>
                     </td>
                     <td className="py-5 px-6 text-xs font-bold text-[#7a9ab5]">{a.region || 'Онлайн'}</td>
-                    <td className="py-5 px-6 font-black text-white italic">{a.sales || 0}</td>
-                    <td className="py-5 px-6 font-black text-[#00e676]">€{a.earned || 0}</td>
+                    <td className="py-5 px-6 font-black text-white italic">€{(a.sales || 0).toLocaleString()}</td>
+                    <td className="py-5 px-6 font-black text-[#00e676]">€{(a.earned || 0).toLocaleString()}</td>
                     <td className="py-5 px-6">
-                       <span className="px-2 py-0.5 bg-[#9c6fff]/10 text-[#9c6fff] text-[9px] font-black rounded-lg border border-[#9c6fff]/20">{a.commission || 10}%</span>
+                       <button 
+                         onClick={() => {
+                            const newRate = window.prompt('Комісія (напр. 0.15 для 15%):', a.commissionRate || '0.1');
+                            if (newRate) {
+                               supabase.from('users').update({ commissionRate: parseFloat(newRate) }).eq('uid', a.uid).then(() => toast.success('Оновлено'));
+                            }
+                         }}
+                         className="px-2 py-0.5 bg-[#9c6fff]/10 text-[#9c6fff] text-[9px] font-black rounded-lg border border-[#9c6fff]/20"
+                       >
+                          {(a.commissionRate * 100) || 10}%
+                       </button>
                     </td>
                     <td className="py-5 px-6">
                        <button 
-                         onClick={() => handleStatusChange(a.id, name)}
+                         onClick={() => handleStatusChange(a.uid, a.displayName)}
                          className={`
                            px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter border transition-all hover:scale-105 active:scale-95
                            ${a.status === 'top' ? 'bg-[#ffd600]/10 text-[#ffd600] border-[#ffd600]/20' : 
                              a.status === 'active' || !a.status ? 'bg-[#00e676]/10 text-[#00e676] border-[#00e676]/20' : 
-                             'bg-[#f44336]/10 text-[#f44336] border border-[#f44336]/20'}
+                             'bg-red-500/10 text-red-500 border border-[#f44336]/20'}
                          `}
                        >
                           {a.status === 'top' ? '★ TOP' : a.status === 'active' || !a.status ? '● Активний' : '✕ Блокований'}
                        </button>
                     </td>
                     <td className="py-5 px-6 text-right">
-                             <p className="text-[9px] text-[#3d5670] font-black uppercase mt-0.5">agent_id: {agent.id.substring(0,8)}</p>
-                          </div>
-                       </div>
-                    </td>
-                    <td className="py-5 px-6 text-xs font-bold text-[#7a9ab5]">{agent.region || 'Онлайн'}</td>
-                    <td className="px-6 py-4">
-                         <div className="flex flex-col">
-                            <span className="text-white text-sm font-bold">€{(agent.sales || 0).toLocaleString()}</span>
-                            <span className="text-[#00e676] text-[10px] font-bold">Зароблено: €{(agent.earned || 0).toLocaleString()}</span>
-                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                         <button 
-                           onClick={() => {
-                              const newRate = window.prompt('Введіть нову комісію (напр. 0.15 для 15%):', agent.commissionRate || '0.1');
-                              if (newRate) {
-                                 supabase.from('users').update({ commissionRate: parseFloat(newRate) }).eq('id', agent.id).then(() => toast.success('Комісію оновлено'));
-                              }
-                           }}
-                           className="text-[10px] font-black text-[#9c6fff] hover:text-white transition-colors"
-                         >
-                            {(agent.commissionRate * 100) || 10}% Commission
-                         </button>
-                      </td>
-                      <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
                            <button 
-                             onClick={() => window.location.href = `mailto:${agent.email}`}
+                             onClick={() => window.location.href = `mailto:${a.email}`}
                              className="p-2 bg-white/5 rounded-lg text-slate-400 hover:text-[#9c6fff] transition-colors"
                            >
                               <Mail size={14} />
                            </button>
                            <button 
                              onClick={() => {
-                                if (window.confirm('Виплатити заборгованість та обнулити баланс?')) {
+                                if (window.confirm('Виплатити заборгованість?')) {
                                    toast.success('Виплату ініційовано');
                                 }
                              }}
@@ -225,16 +213,13 @@ const AgentsTab: React.FC = () => {
                            >
                               <DollarSign size={14} />
                            </button>
-                           <button onClick={() => handleStatusChange(agent.id, agent.displayName || agent.email)} className={`p-2 rounded-lg transition-colors ${agent.status === 'blocked' ? 'bg-red-500/20 text-red-500' : 'bg-white/5 text-slate-400 hover:text-white'}`}>
-                              <Target size={14} />
-                           </button>
-                           <button onClick={() => handleDelete(agent.id, agent.displayName || agent.email)} className="p-2 bg-white/5 rounded-lg text-slate-400 hover:text-red-500 transition-colors">
+                           <button onClick={() => handleDelete(a.uid, a.displayName)} className="p-2 bg-white/5 rounded-lg text-slate-400 hover:text-red-500 transition-colors">
                               <Trash2 size={14} />
                            </button>
                         </div>
-                      </td>
+                    </td>
                   </motion.tr>
-                )})}
+                ))}
               </tbody>
             </table>
          </div>
@@ -244,4 +229,3 @@ const AgentsTab: React.FC = () => {
 };
 
 export default AgentsTab;
-

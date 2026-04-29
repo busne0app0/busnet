@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Route as RouteIcon, MapPin, Search, Calendar, Users, Ban, Edit2, CheckCircle, Clock, AlertCircle, ChevronDown, Zap, ShieldCheck, Activity, ArrowRight, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Route as RouteIcon, MapPin, Search, Calendar, Users, Ban, Edit2, CheckCircle, Clock, AlertCircle, ChevronDown, Zap, ShieldCheck, Activity, ArrowRight, Download, ChevronLeft, ChevronRight, Bus } from 'lucide-react';
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAdminStore } from '@busnet/shared/store/useAdminStore';
 import { toast } from 'react-hot-toast';
@@ -35,7 +35,6 @@ const RoutesTab: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [approvingId, setApprovingId] = useState<string | null>(null);
   
-  // Sort and Pagination
   const [sortConfig, setSortConfig] = useState<{ key: keyof TripItem, direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
   const [page, setPage] = useState(1);
   const rowsPerPage = 50;
@@ -147,7 +146,6 @@ const RoutesTab: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* 🚀 Grid Engineering Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
            <div className="flex items-center gap-4 mb-2">
@@ -159,6 +157,7 @@ const RoutesTab: React.FC = () => {
            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] ml-6">
              Route Linkage Matrix · System Topology
            </p>
+        </div>
         <div className="flex gap-4">
             <button 
               onClick={() => {
@@ -166,11 +165,11 @@ const RoutesTab: React.FC = () => {
                 const to = window.prompt('Пункт призначення:');
                 if (from && to) {
                   supabase.from('trips').insert({ 
-                    from, to, 
-                    date: new Date().toISOString().split('T')[0],
+                    departure_city: from, arrival_city: to, 
+                    departure_date: new Date().toISOString().split('T')[0],
                     status: 'active',
                     carrierName: 'Admin System',
-                    seats: 50,
+                    totalSeats: 50,
                     bookedSeats: 0
                   }).then(() => toast.success('Маршрут розгорнуто в мережі'));
                 }
@@ -188,7 +187,6 @@ const RoutesTab: React.FC = () => {
         </div>
       </div>
 
-      {/* 🛡️ Validation Queue (Approvals) */}
       <AnimatePresence>
         {pendingTrips.length > 0 && (
           <motion.div 
@@ -261,7 +259,6 @@ const RoutesTab: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* 🔍 Matrix Query Panel */}
       <div className="glass-mission-control p-6 rounded-[2rem] flex flex-wrap gap-4 items-center">
          <div className="relative flex-1 min-w-[300px]">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
@@ -290,7 +287,6 @@ const RoutesTab: React.FC = () => {
          </div>
       </div>
 
-      {/* 🧾 Topology Ledger */}
       <div className="glass-mission-control rounded-[2.5rem] overflow-hidden">
          <div className="overflow-x-auto no-scrollbar px-6 pb-6">
             <table className="w-full text-left border-separate border-spacing-y-2">
@@ -309,7 +305,7 @@ const RoutesTab: React.FC = () => {
                   <tr><td colSpan={6} className="py-20 text-center text-slate-600 text-[10px] font-black uppercase tracking-[0.4em]">Decrypting Ledger...</td></tr>
                 ) : paginatedTrips.map((trip, idx) => {
                   const sc = STATUS_CONFIG[trip.status] || STATUS_CONFIG.active;
-                  const capacityPct = Math.round((trip.bookedSeats / trip.seats) * 100);
+                  const capacityPct = trip.seats > 0 ? Math.round((trip.bookedSeats / trip.seats) * 100) : 0;
                   return (
                     <motion.tr 
                       key={trip.id} 
@@ -325,7 +321,7 @@ const RoutesTab: React.FC = () => {
                           </div>
                           <div>
                              <div className="text-[11px] font-black text-white uppercase flex items-center gap-2">
-                                {trip.from || 'Node_A'} <ArrowRight size={10} className="text-slate-600" /> {trip.to || 'Node_B'}
+                                {trip.from} <ArrowRight size={10} className="text-slate-600" /> {trip.to}
                              </div>
                              <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">UUID: {trip.id.slice(0, 8)}</div>
                           </div>
@@ -374,7 +370,6 @@ const RoutesTab: React.FC = () => {
               </tbody>
             </table>
          </div>
-         {/* Pagination Controls */}
          {totalPages > 1 && (
            <div className="px-6 py-4 border-t border-white/5 flex items-center justify-between">
              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">

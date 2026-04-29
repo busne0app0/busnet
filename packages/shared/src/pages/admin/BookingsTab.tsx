@@ -4,19 +4,17 @@ import { Search, Filter, Download, MoreVertical, Bus, Users, Calendar, Activity,
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAdminStore } from '@busnet/shared/store/useAdminStore';
 import { exportToCSV } from '@busnet/shared/utils/exportToCSV';
+import { toast } from 'react-hot-toast';
 
 const BookingsTab: React.FC = () => {
   const { bookings: mockBookings } = useAdminStore();
   const [realBookings, setRealBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters & Sort
   const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
   
-  // Pagination
   const [page, setPage] = useState(1);
   const rowsPerPage = 50;
 
@@ -26,12 +24,14 @@ const BookingsTab: React.FC = () => {
     const fetchData = async () => {
       const { data: tripsData } = await supabase
         .from('trips')
-        .select('id, departureCity, arrivalCity');
+        .select('id, departure_city, arrival_city, departureCity, arrivalCity');
       
       const tripsMap: Record<string, string> = {};
       if (tripsData) {
         tripsData.forEach(t => {
-          tripsMap[t.id] = `${t.departureCity} → ${t.arrivalCity}`;
+          const from = t.departure_city || t.departureCity || 'A';
+          const to = t.arrival_city || t.arrivalCity || 'B';
+          tripsMap[t.id] = `${from} → ${to}`;
         });
       }
 
@@ -41,7 +41,7 @@ const BookingsTab: React.FC = () => {
         .order('created_at', { ascending: false });
       
       if (!error && bookingsData && isMounted) {
-        const formatted = bookingsData.map((bData, idx) => {
+        const formatted = bookingsData.map((bData) => {
           const routeStr = tripsMap[bData.tripId] || 'Unknown Vector';
           return {
             id: bData.id,
@@ -49,10 +49,10 @@ const BookingsTab: React.FC = () => {
             passengerName: bData.passengers?.[0] ? `${bData.passengers[0].firstName} ${bData.passengers[0].lastName}` : 'Unknown Entity',
             passengersCount: bData.passengers?.length || 1,
             route: routeStr,
-            date: bData.createdAt ? new Date(bData.createdAt).toLocaleDateString('uk-UA') : 'Pending Sync',
+            date: bData.created_at ? new Date(bData.created_at).toLocaleDateString('uk-UA') : 'Pending Sync',
             seats: bData.passengers?.length || 0,
-            amount: `€${(bData.totalPrice).toFixed(2)}`,
-            status: bData.status === 'confirmed' ? 'active' : bData.status === 'cancelled' ? 'cancelled' : 'completed'
+            amount: `€${(bData.totalPrice || 0).toFixed(2)}`,
+            status: bData.status || 'confirmed'
           };
         });
         setRealBookings(formatted);
@@ -106,7 +106,6 @@ const BookingsTab: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* 🚀 Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
            <div className="flex items-center gap-4 mb-2">
@@ -128,11 +127,10 @@ const BookingsTab: React.FC = () => {
             </button>
             <button 
               onClick={() => {
-                const tripId = window.prompt('Введіть ID рейсу:');
-                const email = window.prompt('Email пасажира:');
-                if (tripId && email) {
+                const tripId = window.prompt('ID рейсу:');
+                if (tripId) {
                    supabase.from('bookings').insert({ tripId, userId: 'manual', status: 'confirmed', totalPrice: 0, passengers: [{ firstName: 'Manual', lastName: 'Entry' }] }).then(() => {
-                      toast.success('Ручне бронювання додано');
+                      toast.success('Бронювання додано');
                    });
                 }
               }}
@@ -143,7 +141,6 @@ const BookingsTab: React.FC = () => {
         </div>
       </div>
 
-      {/* 🔍 Filters */}
       <div className="glass-mission-control p-6 rounded-[2rem] flex flex-wrap gap-4 items-center">
          <div className="relative flex-1 min-w-[300px]">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
@@ -156,18 +153,6 @@ const BookingsTab: React.FC = () => {
          </div>
          <div className="flex gap-4">
             <div className="flex items-center gap-3 px-4 py-3 bg-black/40 border border-white/5 rounded-2xl">
-               <Activity size={14} className="text-slate-500" />
-               <select 
-                 value={filterType}
-                 onChange={(e) => setFilterType(e.target.value)}
-                 className="bg-transparent text-xs font-black uppercase tracking-widest text-slate-300 outline-none cursor-pointer"
-               >
-                  <option value="all">Усі Типи</option>
-                  <option value="payment">Оплата</option>
-                  <option value="refund">Повернення</option>
-               </select>
-            </div>
-            <div className="flex items-center gap-3 px-4 py-3 bg-black/40 border border-white/5 rounded-2xl">
                <Filter size={14} className="text-slate-500" />
                <select 
                  value={filterStatus}
@@ -175,40 +160,31 @@ const BookingsTab: React.FC = () => {
                  className="bg-transparent text-xs font-black uppercase tracking-widest text-slate-300 outline-none cursor-pointer"
                >
                   <option value="all">Усі Статуси</option>
-                  <option value="active">Активні</option>
-                  <option value="completed">Завершені</option>
+                  <option value="confirmed">Підтверджені</option>
+                  <option value="pending">Очікування</option>
                   <option value="cancelled">Скасовані</option>
                </select>
             </div>
          </div>
       </div>
 
-      {/* 🧾 Table */}
       <div className="glass-mission-control rounded-[2.5rem] overflow-hidden">
          <div className="overflow-x-auto no-scrollbar px-6 pb-6 pt-4">
             <table className="w-full text-left border-separate border-spacing-y-2">
               <thead>
                 <tr>
-                  <th onClick={() => handleSort('id')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">
-                    Entity {getSortIcon('id')}
-                  </th>
-                  <th onClick={() => handleSort('route')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">
-                    Vector Path {getSortIcon('route')}
-                  </th>
-                  <th onClick={() => handleSort('date')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">
-                    Sync Date {getSortIcon('date')}
-                  </th>
-                  <th onClick={() => handleSort('amount')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">
-                    Yield {getSortIcon('amount')}
-                  </th>
-                  <th onClick={() => handleSort('status')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">
-                    State {getSortIcon('status')}
-                  </th>
-                  <th className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] text-right">Actions</th>
+                  <th onClick={() => handleSort('passengerName')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">Passenger {getSortIcon('passengerName')}</th>
+                  <th onClick={() => handleSort('route')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">Vector Path {getSortIcon('route')}</th>
+                  <th onClick={() => handleSort('date')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">Sync Date {getSortIcon('date')}</th>
+                  <th onClick={() => handleSort('amount')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">Yield {getSortIcon('amount')}</th>
+                  <th onClick={() => handleSort('status')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">State {getSortIcon('status')}</th>
+                  <th className="px-6 py-4 text-right"></th>
                 </tr>
               </thead>
               <tbody>
-                {paginatedBookings.map((booking, idx) => (
+                {loading ? (
+                   <tr><td colSpan={6} className="py-20 text-center text-slate-600 text-[10px] font-black uppercase tracking-[0.4em]">Decrypting Ledger...</td></tr>
+                ) : paginatedBookings.map((booking, idx) => (
                   <motion.tr 
                     key={booking.id}
                     initial={{ opacity: 0, x: -10 }}
@@ -217,39 +193,39 @@ const BookingsTab: React.FC = () => {
                     className="group"
                   >
                     <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all rounded-l-2xl border-y border-l border-white/5">
-                    <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
-                       <div className="flex items-center gap-2">
-                          <Calendar size={12} className="text-slate-400" />
-                          <span className="text-[11px] font-black text-slate-300">{booking.date}</span>
-                       </div>
+                        <div className="flex items-center gap-3">
+                           <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-black text-[#00D4FF]">
+                              {booking.passengerName?.slice(0, 2).toUpperCase()}
+                           </div>
+                           <div>
+                              <p className="text-[11px] font-black text-white uppercase">{booking.passengerName}</p>
+                              <p className="text-[8px] text-slate-600 font-mono mt-0.5">ID: {booking.id.slice(0,8)}</p>
+                           </div>
+                        </div>
                     </td>
-                    <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5 text-center">
-                       <div className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-black border border-white/10 text-[11px] font-black text-white">
-                          {booking.seats}
-                       </div>
+                    <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
+                        <span className="text-[10px] font-black text-slate-300 uppercase italic">{booking.route}</span>
+                    </td>
+                    <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
+                        <span className="text-[10px] font-black text-slate-400">{booking.date}</span>
                     </td>
                     <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
                        <p className="text-sm font-black text-[#10B981] italic tracking-tighter">{booking.amount}</p>
-                       <p className="text-[9px] text-slate-600 font-black uppercase tracking-widest mt-1">SECURE_PAY</p>
                     </td>
                     <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
                        <span className={`
-                         px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border flex items-center gap-2 w-fit
-                         ${booking.status === 'active' ? 'bg-[#00D4FF]/10 text-[#00D4FF] border-[#00D4FF]/20' : 
-                           booking.status === 'completed' ? 'bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/20' : 
-                           'bg-red-500/10 text-red-500 border border-red-500/20'}
+                         px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border flex items-center gap-2 w-fit
+                         ${booking.status === 'confirmed' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' : 
+                           booking.status === 'pending' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' : 
+                           'bg-red-500/10 text-red-500 border-red-500/20'}
                        `}>
-                          <div className={`w-1.5 h-1.5 rounded-full ${booking.status === 'active' ? 'bg-[#00D4FF] animate-pulse' : booking.status === 'completed' ? 'bg-[#10B981]' : 'bg-red-500'}`} />
                           {booking.status}
                        </span>
                     </td>
                     <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all rounded-r-2xl border-y border-r border-white/5 text-right">
-                       <div className="flex justify-end gap-3 opacity-30 group-hover:opacity-100 transition-all">
-                          <button className="w-10 h-10 bg-black/40 border border-white/10 rounded-xl flex items-center justify-center text-slate-500 hover:text-white hover:border-[#00D4FF]/30 transition-all">
-                             <Search size={16} />
-                          </button>
-                          <button className="w-10 h-10 bg-black/40 border border-white/10 rounded-xl flex items-center justify-center text-slate-500 hover:text-white transition-all">
-                             <MoreVertical size={16} />
+                       <div className="flex justify-end gap-2 opacity-30 group-hover:opacity-100 transition-all">
+                          <button className="p-2 bg-black/40 border border-white/10 rounded-xl text-slate-500 hover:text-white transition-all">
+                             <Search size={14} />
                           </button>
                        </div>
                     </td>
@@ -258,24 +234,23 @@ const BookingsTab: React.FC = () => {
               </tbody>
             </table>
          </div>
-         {/* Pagination Controls */}
          {totalPages > 1 && (
            <div className="px-6 py-4 border-t border-white/5 flex items-center justify-between">
              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-               Сторінка {page} з {totalPages} (Всього: {sortedBookings.length})
+               Сторінка {page} з {totalPages}
              </span>
              <div className="flex gap-2">
                <button 
                  onClick={() => setPage(Math.max(1, page - 1))}
                  disabled={page === 1}
-                 className="p-2 bg-white/5 border border-white/10 rounded-xl text-white disabled:opacity-30 hover:bg-white/10 transition-all"
+                 className="p-2 bg-white/5 border border-white/10 rounded-xl text-white disabled:opacity-30"
                >
                  <ChevronLeft size={16} />
                </button>
                <button 
                  onClick={() => setPage(Math.min(totalPages, page + 1))}
                  disabled={page === totalPages}
-                 className="p-2 bg-white/5 border border-white/10 rounded-xl text-white disabled:opacity-30 hover:bg-white/10 transition-all"
+                 className="p-2 bg-white/5 border border-white/10 rounded-xl text-white disabled:opacity-30"
                >
                  <ChevronRight size={16} />
                </button>
@@ -288,4 +263,3 @@ const BookingsTab: React.FC = () => {
 };
 
 export default BookingsTab;
-

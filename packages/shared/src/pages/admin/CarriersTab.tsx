@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Plus, MoreVertical, Star, Bus, AlertCircle, TrendingUp, Mail, Trash2, Loader2, ShieldCheck, Zap, Globe, Filter, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { supabase } from '@busnet/shared/supabase/config';
 import { exportToCSV } from '@busnet/shared/utils/exportToCSV';
-
 import { useAdminStore } from '@busnet/shared/store/useAdminStore';
+import { toast } from 'react-hot-toast';
 
 interface CarrierUser {
   uid: string;
@@ -56,8 +56,9 @@ const CarriersTab: React.FC = () => {
         .update({ status: nextStatus[current] })
         .eq('uid', uid);
       if (error) throw error;
+      toast.success('Статус оновлено');
     } catch (error) {
-      alert('Error updating status');
+      toast.error('Error updating status');
     }
   };
 
@@ -70,7 +71,6 @@ const CarriersTab: React.FC = () => {
   });
 
   const sortedCarriers = [...filteredCarriers].sort((a, b) => {
-    // For string sorting
     const aVal = String(a[sortConfig.key as keyof CarrierUser] || '');
     const bVal = String(b[sortConfig.key as keyof CarrierUser] || '');
     if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -94,7 +94,6 @@ const CarriersTab: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* 🚀 Partner Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
            <div className="flex items-center gap-4 mb-2">
@@ -116,16 +115,14 @@ const CarriersTab: React.FC = () => {
           </button>
           <motion.button 
             onClick={() => {
-               // Пункт 25: Модалка додавання перевізника
-               const email = window.prompt('Введіть email нового перевізника для розгортання:');
+               const email = window.prompt('Email нового перевізника:');
                if (email) {
-                  supabase.from('users').insert({ email, role: 'carrier', status: 'review' }).then(() => {
+                  supabase.from('users').insert({ email, role: 'carrier', status: 'active' }).then(() => {
                      toast.success('Протокол розгортання ініційовано');
                   });
                }
             }}
-            whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(139, 92, 246, 0.4)' }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.05 }}
             className="px-8 py-3 bg-[#8B5CF6] text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-xl transition-all"
           >
             + Deploy New Carrier
@@ -133,7 +130,6 @@ const CarriersTab: React.FC = () => {
         </div>
       </div>
 
-      {/* 🔍 Advanced Filter Panel */}
       <div className="glass-mission-control p-6 rounded-[2rem] flex flex-wrap gap-4 items-center">
          <div className="relative flex-1 min-w-[300px]">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
@@ -158,14 +154,9 @@ const CarriersTab: React.FC = () => {
                   <option value="blocked">Locked</option>
                </select>
             </div>
-            <div className="px-6 py-3 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-3">
-               <Globe size={14} className="text-[#00D4FF]" />
-               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Global Reach</span>
-            </div>
          </div>
       </div>
 
-      {/* 🛸 Asset List Matrix */}
       <div className="glass-mission-control rounded-[2.5rem] overflow-hidden">
          <div className="overflow-x-auto no-scrollbar">
             {loading ? (
@@ -180,7 +171,6 @@ const CarriersTab: React.FC = () => {
                     <th onClick={() => handleSort('companyName')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">Carrier Identity{getSortIcon('companyName')}</th>
                     <th onClick={() => handleSort('email')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">Network Point{getSortIcon('email')}</th>
                     <th className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em]">Efficiency</th>
-                    <th className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em]">Balance</th>
                     <th onClick={() => handleSort('status')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">Status{getSortIcon('status')}</th>
                     <th className="px-6 py-4 text-right"></th>
                   </tr>
@@ -196,58 +186,35 @@ const CarriersTab: React.FC = () => {
                     >
                       <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all rounded-l-2xl border-y border-l border-white/5">
                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-black border border-white/5 flex items-center justify-center group-hover:border-[#8B5CF6]/40 transition-all duration-500 relative overflow-hidden">
-                               <div className="absolute inset-0 bg-gradient-to-br from-[#8B5CF6]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                               <Bus size={22} className="text-[#8B5CF6] relative z-10" />
+                            <div className="w-12 h-12 rounded-xl bg-black border border-white/5 flex items-center justify-center group-hover:border-[#8B5CF6]/40 transition-all">
+                               <Bus size={22} className="text-[#8B5CF6]" />
                             </div>
                             <div>
-                               <p className="text-sm font-black text-white tracking-tight leading-none group-hover:text-[#00D4FF] transition-colors">{c.companyName || 'Unknown Protocol'}</p>
+                               <p className="text-sm font-black text-white tracking-tight leading-none group-hover:text-[#00D4FF] transition-colors">{c.companyName || c.email.split('@')[0]}</p>
                                <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1.5 flex items-center gap-2">
-                                 <ShieldCheck size={10} className="text-[#10B981]" /> Verified ID: {c.uid.substring(0, 8)}
+                                 <ShieldCheck size={10} className="text-[#10B981]" /> ID: {c.uid.substring(0, 8)}
                                </p>
                             </div>
                          </div>
                       </td>
                       <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
-                         <span className="text-[11px] font-bold text-slate-400 group-hover:text-white transition-colors flex items-center gap-2">
-                           <Mail size={12} className="text-slate-600" /> {c.email}
+                         <span className="text-[11px] font-bold text-slate-400 group-hover:text-white transition-colors">
+                           {c.email}
                          </span>
                       </td>
                       <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
-                         <div className="flex items-center gap-2">
-                            <Star size={14} className="text-[#F59E0B] fill-[#F59E0B] drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                            <span className="text-xs font-black text-white">4.8</span>
-                         </div>
-                      </td>
-                      <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
-                         <button 
-                           onClick={() => handleStatusChange(c.uid)}
-                           className={`
-                             px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all relative overflow-hidden
-                             ${c.status === 'active' || !c.status ? 'text-[#10B981] border-[#10B981]/20 bg-[#10B981]/5' : 
-                               c.status === 'review' ? 'text-[#F59E0B] border-[#F59E0B]/20 bg-[#F59E0B]/5' : 
-                               'text-red-500 border-red-500/20 bg-red-500/5'}
-                           `}
-                         >
                          <div className="flex items-center gap-1">
                             {[1,2,3,4,5].map(s => (
-                              <Star key={s} size={10} className={s <= (idx % 2 === 0 ? 5 : 4) ? "text-yellow-500 fill-yellow-500" : "text-slate-600"} />
+                              <Star key={s} size={10} className={s <= 4 ? "text-yellow-500 fill-yellow-500" : "text-slate-600"} />
                             ))}
-                            <span className="ml-2 text-[10px] font-black text-white">{idx % 2 === 0 ? "5.0" : "4.7"}</span>
+                            <span className="ml-2 text-[10px] font-black text-white">4.8</span>
                          </div>
-                      </td>
-                      <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
-                         <div className="text-[11px] font-black text-[#10B981] tracking-tighter">€0.00</div>
                       </td>
                       <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
                         <button 
-                          onClick={() => {
-                            if (window.confirm('Змінити статус партнера?')) {
-                              handleStatusChange(c.uid);
-                            }
-                          }}
+                          onClick={() => handleStatusChange(c.uid)}
                           className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border border-white/10 bg-black/40 ${
-                            c.status === 'active' ? 'text-[#10B981]' : c.status === 'review' ? 'text-yellow-500' : 'text-red-500'
+                            (c.status || 'active') === 'active' ? 'text-[#10B981]' : (c.status === 'review' ? 'text-yellow-500' : 'text-red-500')
                           }`}
                         >
                           {c.status || 'active'}
@@ -255,24 +222,12 @@ const CarriersTab: React.FC = () => {
                       </td>
                       <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all rounded-r-2xl border-y border-r border-white/5 text-right">
                          <div className="flex justify-end gap-2 opacity-30 group-hover:opacity-100 transition-all">
-                           <button 
-                             onClick={() => (window as any).setAdminTab?.('finance')}
-                             className="p-2.5 bg-black/40 border border-white/10 rounded-xl text-slate-500 hover:text-[#00D4FF] transition-all"
-                           >
-                             <TrendingUp size={14}/>
+                           <button onClick={() => window.location.href=`mailto:${c.email}`} className="p-2.5 bg-black/40 border border-white/10 rounded-xl text-slate-500 hover:text-[#00D4FF] transition-all">
+                             <Mail size={14}/>
                            </button>
                            <button 
                              onClick={() => {
-                               const act = window.prompt('Дія: edit, block, message');
-                               if (act === 'block') handleStatusChange(c.uid);
-                             }}
-                             className="p-2.5 bg-black/40 border border-white/10 rounded-xl text-slate-500 hover:text-[#00D4FF] transition-all"
-                           >
-                             <MoreVertical size={14}/>
-                           </button>
-                           <button 
-                             onClick={() => {
-                               if (window.confirm('Ви впевнені, що хочете видалити цей обліковий запис?')) {
+                               if (window.confirm('Видалити партнера?')) {
                                  useAdminStore.getState().deleteUser(c.uid);
                                }
                              }}
@@ -288,25 +243,16 @@ const CarriersTab: React.FC = () => {
               </table>
             )}
          </div>
-         {/* Pagination Controls */}
          {!loading && totalPages > 1 && (
            <div className="px-6 py-4 border-t border-white/5 flex items-center justify-between">
              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-               Сторінка {page} з {totalPages} (Всього: {sortedCarriers.length})
+               Сторінка {page} з {totalPages}
              </span>
              <div className="flex gap-2">
-               <button 
-                 onClick={() => setPage(Math.max(1, page - 1))}
-                 disabled={page === 1}
-                 className="p-2 bg-white/5 border border-white/10 rounded-xl text-white disabled:opacity-30 hover:bg-white/10 transition-all"
-               >
+               <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="p-2 bg-white/5 border border-white/10 rounded-xl text-white disabled:opacity-30">
                  <ChevronLeft size={16} />
                </button>
-               <button 
-                 onClick={() => setPage(Math.min(totalPages, page + 1))}
-                 disabled={page === totalPages}
-                 className="p-2 bg-white/5 border border-white/10 rounded-xl text-white disabled:opacity-30 hover:bg-white/10 transition-all"
-               >
+               <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="p-2 bg-white/5 border border-white/10 rounded-xl text-white disabled:opacity-30">
                  <ChevronRight size={16} />
                </button>
              </div>
@@ -314,7 +260,6 @@ const CarriersTab: React.FC = () => {
          )}
       </div>
 
-      {/* 🚀 Performance Analytics & Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
          <div className="glass-mission-control rounded-[2.5rem] p-8 luminous-border">
             <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white flex items-center gap-3 mb-10 italic">
@@ -324,7 +269,7 @@ const CarriersTab: React.FC = () => {
                {carriers.slice(0, 3).map((c, i) => (
                  <div key={i}>
                     <div className="flex justify-between items-center mb-3">
-                       <span className="text-[11px] font-black text-white uppercase tracking-widest">{c.companyName || c.email}</span>
+                       <span className="text-[11px] font-black text-white uppercase tracking-widest">{c.companyName || c.email.split('@')[0]}</span>
                        <span className="text-[10px] font-black text-[#F59E0B] tracking-widest">Efficiency: 96%</span>
                     </div>
                     <div className="h-2 bg-black rounded-full overflow-hidden border border-white/5">
@@ -350,7 +295,7 @@ const CarriersTab: React.FC = () => {
                   <h3 className="text-2xl font-black uppercase italic tracking-tighter text-white">Trust Protocols</h3>
                </div>
                <p className="text-[11px] text-slate-500 uppercase tracking-widest leading-relaxed max-w-sm font-bold">
-                 Verification queue is active. 3 new operators require document synchronization.
+                 Verification queue is active. New operators require document synchronization.
                </p>
                <button className="px-8 py-3 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] text-[#00D4FF] hover:bg-[#00D4FF] hover:text-black transition-all">
                   Access Queue →
