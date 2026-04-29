@@ -112,7 +112,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       // Отримуємо дані рейсу для збереження в бронюванні
       const { data: tripData } = await supabase
         .from('trips')
-        .select('carrierId, carrierName, departureCity, arrivalCity, departureDate, departureTime, arrivalTime')
+        .select('carrierId, departureCity, arrivalCity, departureDate, departureTime, arrivalTime')
         .eq('id', selectedTrip.id)
         .single();
 
@@ -126,10 +126,8 @@ export const useBookingStore = create<BookingState>((set, get) => ({
           tripId: selectedTrip.id,
           status: 'confirmed',
           passengers: passengers,
-          seats: passengers.length,
           totalPrice: totalPrice,
           carrierId: tripData?.carrierId || null,
-          carrierName: tripData?.carrierName || null,
           routeFrom: selectedTrip.departureCity || tripData?.departureCity || '',
           routeTo: selectedTrip.arrivalCity || tripData?.arrivalCity || '',
           departureDate: selectedTrip.departureDate || tripData?.departureDate || null,

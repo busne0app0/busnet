@@ -47,10 +47,11 @@ const BookingsTab: React.FC = () => {
             id: bData.id,
             ...bData,
             passengerName: bData.passengers?.[0] ? `${bData.passengers[0].firstName} ${bData.passengers[0].lastName}` : 'Unknown Entity',
+            passengersCount: bData.passengers?.length || 1,
             route: routeStr,
             date: bData.createdAt ? new Date(bData.createdAt).toLocaleDateString('uk-UA') : 'Pending Sync',
             seats: bData.passengers?.length || 0,
-            amount: `€${(bData.totalPrice / 42).toFixed(2)}`,
+            amount: `€${(bData.totalPrice).toFixed(2)}`,
             status: bData.status === 'confirmed' ? 'active' : bData.status === 'cancelled' ? 'cancelled' : 'completed'
           };
         });
@@ -120,18 +121,25 @@ const BookingsTab: React.FC = () => {
         </div>
         <div className="flex gap-4">
             <button 
-              onClick={() => exportToCSV(sortedBookings, 'bookings_ledger')}
+              onClick={() => exportToCSV(sortedBookings, 'bookings_export')}
               className="px-6 py-3 glass-mission-control rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/5 transition-all flex items-center gap-2"
             >
-              <Download size={14} /> Export Secure Log
+              <Download size={14} /> Export Logs
             </button>
-            <motion.button 
-              whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(0, 212, 255, 0.4)' }}
-              whileTap={{ scale: 0.95 }}
-              className="px-8 py-3 bg-[#00D4FF] text-black text-[11px] font-black uppercase tracking-[0.2em] rounded-xl transition-all"
+            <button 
+              onClick={() => {
+                const tripId = window.prompt('Введіть ID рейсу:');
+                const email = window.prompt('Email пасажира:');
+                if (tripId && email) {
+                   supabase.from('bookings').insert({ tripId, userId: 'manual', status: 'confirmed', totalPrice: 0, passengers: [{ firstName: 'Manual', lastName: 'Entry' }] }).then(() => {
+                      toast.success('Ручне бронювання додано');
+                   });
+                }
+              }}
+              className="px-8 py-3 bg-[#00D4FF] text-black text-[11px] font-black uppercase tracking-[0.2em] rounded-xl hover:shadow-[0_0_20px_rgba(0,212,255,0.4)] transition-all"
             >
               + Manual Insertion
-            </motion.button>
+            </button>
         </div>
       </div>
 
@@ -182,19 +190,13 @@ const BookingsTab: React.FC = () => {
               <thead>
                 <tr>
                   <th onClick={() => handleSort('id')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">
-                    Ticket ID {getSortIcon('id')}
-                  </th>
-                  <th onClick={() => handleSort('passengerName')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">
-                    Entity {getSortIcon('passengerName')}
+                    Entity {getSortIcon('id')}
                   </th>
                   <th onClick={() => handleSort('route')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">
                     Vector Path {getSortIcon('route')}
                   </th>
                   <th onClick={() => handleSort('date')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">
                     Sync Date {getSortIcon('date')}
-                  </th>
-                  <th onClick={() => handleSort('seats')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] text-center cursor-pointer hover:text-white transition-colors">
-                    Units {getSortIcon('seats')}
                   </th>
                   <th onClick={() => handleSort('amount')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">
                     Yield {getSortIcon('amount')}
@@ -215,26 +217,6 @@ const BookingsTab: React.FC = () => {
                     className="group"
                   >
                     <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all rounded-l-2xl border-y border-l border-white/5">
-                       <span className="text-[10px] font-black text-[#00D4FF] italic tracking-widest">{booking.id.slice(0, 8)}</span>
-                    </td>
-                    <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
-                      <div className="flex items-center gap-4">
-                         <div className="w-10 h-10 rounded-xl bg-black border border-white/5 flex items-center justify-center text-[10px] font-black text-white group-hover:border-[#00D4FF]/40 transition-all duration-500 uppercase overflow-hidden relative">
-                            <Fingerprint size={16} className="text-[#00D4FF] opacity-20 absolute inset-0 m-auto" />
-                            <span className="relative z-10">{booking.passengerName.slice(0, 2)}</span>
-                         </div>
-                         <div>
-                            <p className="text-sm font-black text-white group-hover:text-[#00D4FF] transition-colors tracking-tight">{booking.passengerName}</p>
-                            <p className="text-[9px] text-slate-600 font-black uppercase mt-1 tracking-widest">UNIT: {booking.seats}</p>
-                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
-                       <div className="flex items-center gap-3 mb-1.5">
-                          <Bus size={14} className="text-[#10B981]" />
-                          <span className="text-sm font-black text-white italic tracking-tight">{booking.route}</span>
-                       </div>
-                    </td>
                     <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
                        <div className="flex items-center gap-2">
                           <Calendar size={12} className="text-slate-400" />

@@ -160,6 +160,25 @@ const RoutesTab: React.FC = () => {
            </p>
         <div className="flex gap-4">
             <button 
+              onClick={() => {
+                const from = window.prompt('Пункт відправлення:');
+                const to = window.prompt('Пункт призначення:');
+                if (from && to) {
+                  supabase.from('trips').insert({ 
+                    from, to, 
+                    date: new Date().toISOString().split('T')[0],
+                    status: 'active',
+                    carrierName: 'Admin System',
+                    seats: 50,
+                    bookedSeats: 0
+                  }).then(() => toast.success('Маршрут розгорнуто в мережі'));
+                }
+              }}
+              className="px-8 py-3 bg-[#00D4FF] text-black text-[11px] font-black uppercase tracking-[0.2em] rounded-xl hover:shadow-[0_0_20px_rgba(0,212,255,0.4)] transition-all"
+            >
+              + Create Route
+            </button>
+            <button 
               onClick={() => exportToCSV(sortedTrips, 'routes_export')}
               className="px-6 py-3 glass-mission-control rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/5 transition-all flex items-center gap-2"
             >
@@ -285,43 +304,48 @@ const RoutesTab: React.FC = () => {
                       className="group"
                     >
                       <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all rounded-l-2xl border-y border-l border-white/5">
-                        <div className="flex items-center gap-4">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${sc.bg} border ${sc.border}`}>
-                            <RouteIcon size={16} className={sc.color} />
+                        <div className="flex items-center gap-3">
+                          <div className="p-2.5 bg-white/5 rounded-xl text-[#00D4FF]">
+                             <RouteIcon size={16} />
                           </div>
                           <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-black text-white italic">{trip.from}</span>
-                              <ArrowRight size={12} className="text-slate-600 group-hover:text-[#00D4FF] transition-colors" />
-                              <span className="text-sm font-black text-white italic">{trip.to}</span>
+                             <div className="text-[11px] font-black text-white uppercase flex items-center gap-2">
+                                {trip.from || 'Node_A'} <ArrowRight size={10} className="text-slate-600" /> {trip.to || 'Node_B'}
+                             </div>
+                             <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">UUID: {trip.id.slice(0, 8)}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
+                         <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center">
+                               <Bus size={12} className="text-slate-400" />
                             </div>
-                            <p className="text-[9px] text-slate-600 font-mono mt-1">LINK_ID: {trip.id.slice(0, 8)}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5 text-[10px] font-black text-slate-400 uppercase tracking-widest">{trip.carrierName}</td>
-                      <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5 text-[10px] font-black text-slate-500 flex items-center gap-2">
-                        <Calendar size={12} /> {trip.date}
+                            <span className="text-[10px] font-black text-slate-300 uppercase">{trip.carrierName}</span>
+                         </div>
                       </td>
                       <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
-                        <div className="flex flex-col gap-2">
-                          <div className="flex justify-between items-center pr-4">
-                             <span className="text-xs font-black text-[#00D4FF] italic">€{trip.price}</span>
-                             <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{trip.bookedSeats}/{trip.seats}</span>
-                          </div>
-                          <div className="h-1 w-24 bg-black rounded-full overflow-hidden border border-white/5">
-                             <motion.div 
-                               initial={{ width: 0 }}
-                               animate={{ width: `${capacityPct}%` }}
-                               className={`h-full ${capacityPct > 80 ? 'bg-[#10B981]' : 'bg-[#00D4FF]'}`} 
-                             />
-                          </div>
-                        </div>
+                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{trip.date}</div>
                       </td>
                       <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
-                        <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${sc.bg} ${sc.color} ${sc.border}`}>
-                          {sc.label}
-                        </span>
+                         <div className="space-y-2">
+                            <div className="flex justify-between text-[8px] font-black uppercase tracking-widest">
+                               <span className="text-slate-500">Завантаження</span>
+                               <span className={capacityPct > 80 ? "text-red-500" : "text-[#00D4FF]"}>{capacityPct}%</span>
+                            </div>
+                            <div className="w-32 h-1 bg-white/5 rounded-full overflow-hidden">
+                               <motion.div 
+                                 initial={{ width: 0 }}
+                                 animate={{ width: `${capacityPct}%` }}
+                                 className={`h-full ${capacityPct > 80 ? "bg-red-500" : "bg-[#00D4FF]"}`} 
+                               />
+                            </div>
+                         </div>
+                      </td>
+                      <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
+                         <div className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest inline-block border border-white/10 ${sc.bg} ${sc.color}`}>
+                            {sc.label}
+                         </div>
                       </td>
                       <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all rounded-r-2xl border-y border-r border-white/5 text-right">
                         <div className="flex justify-end gap-2 opacity-30 group-hover:opacity-100 transition-all">

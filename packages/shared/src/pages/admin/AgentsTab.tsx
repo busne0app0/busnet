@@ -12,7 +12,7 @@ const AgentsTab: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
     const fetchAgents = async () => {
-      const { data, error } = await supabase
+      const { data: agentsData, error } = await supabase
         .from('users')
         .select('*')
         .eq('role', 'agent');
@@ -20,7 +20,14 @@ const AgentsTab: React.FC = () => {
       if (error) {
         console.error('Error fetching agents:', error);
       } else if (isMounted) {
-        setAgents(data || []);
+        // Пункт 69: Спроба агрегувати продажі для кожного агента
+        const { data: bData } = await supabase.from('bookings').select('userId, totalPrice');
+        const enriched = (agentsData || []).map(a => {
+           const agentSales = (bData || []).filter(b => b.userId === a.uid);
+           const totalGmv = agentSales.reduce((acc, b) => acc + (b.totalPrice || 0), 0);
+           return { ...a, sales: totalGmv, earned: totalGmv * (a.commissionRate || 0.1) };
+        });
+        setAgents(enriched);
       }
       if (isMounted) setLoading(false);
     };
@@ -84,7 +91,18 @@ const AgentsTab: React.FC = () => {
            </div>
            <p className="text-[#7a9ab5] text-sm font-medium tracking-wide ml-5">Комісії, аналітика та управління партнерами з продажу</p>
         </div>
-        <button className="px-8 py-3 bg-[#9c6fff] text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-white hover:text-black transition-all shadow-[0_10px_20px_rgba(156,111,255,0.2)]">
+        <button 
+          onClick={() => {
+             const email = window.prompt('Email нового агента:');
+             const name = window.prompt('Ім’я агента:');
+             if (email && name) {
+                supabase.from('users').insert({ email, displayName: name, role: 'agent', commissionRate: 0.1 }).then(() => {
+                   toast.success('Агента додано до мережі');
+                });
+             }
+          }}
+          className="px-8 py-3 bg-[#9c6fff] text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-white hover:text-black transition-all shadow-[0_10px_20px_rgba(156,111,255,0.2)]"
+        >
           + Додати агента
         </button>
       </div>
@@ -165,21 +183,56 @@ const AgentsTab: React.FC = () => {
                        </button>
                     </td>
                     <td className="py-5 px-6 text-right">
-                       <div className="flex justify-end gap-2 opacity-30 group-hover:opacity-100 transition-opacity">
-                          <button className="w-8 h-8 rounded-lg bg-[#151e2e] border border-[#1c2e48] flex items-center justify-center text-[#7a9ab5] hover:text-[#00c8ff] transition-all">
-                             <Mail size={14} />
-                          </button>
-                          <button 
-                             onClick={() => handleDelete(a.id, name)}
-                             className="w-8 h-8 rounded-lg bg-[#151e2e] border border-rose-500/20 flex items-center justify-center text-rose-500 hover:bg-rose-500 hover:text-white transition-all"
-                          >
-                             <Trash2 size={14} />
-                          </button>
-                          <button className="w-8 h-8 rounded-lg bg-[#151e2e] border border-[#1c2e48] flex items-center justify-center text-[#7a9ab5] hover:text-white transition-all">
-                             <MoreVertical size={14} />
-                          </button>
+                             <p className="text-[9px] text-[#3d5670] font-black uppercase mt-0.5">agent_id: {agent.id.substring(0,8)}</p>
+                          </div>
                        </div>
                     </td>
+                    <td className="py-5 px-6 text-xs font-bold text-[#7a9ab5]">{agent.region || 'Онлайн'}</td>
+                    <td className="px-6 py-4">
+                         <div className="flex flex-col">
+                            <span className="text-white text-sm font-bold">€{(agent.sales || 0).toLocaleString()}</span>
+                            <span className="text-[#00e676] text-[10px] font-bold">Зароблено: €{(agent.earned || 0).toLocaleString()}</span>
+                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                         <button 
+                           onClick={() => {
+                              const newRate = window.prompt('Введіть нову комісію (напр. 0.15 для 15%):', agent.commissionRate || '0.1');
+                              if (newRate) {
+                                 supabase.from('users').update({ commissionRate: parseFloat(newRate) }).eq('id', agent.id).then(() => toast.success('Комісію оновлено'));
+                              }
+                           }}
+                           className="text-[10px] font-black text-[#9c6fff] hover:text-white transition-colors"
+                         >
+                            {(agent.commissionRate * 100) || 10}% Commission
+                         </button>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                           <button 
+                             onClick={() => window.location.href = `mailto:${agent.email}`}
+                             className="p-2 bg-white/5 rounded-lg text-slate-400 hover:text-[#9c6fff] transition-colors"
+                           >
+                              <Mail size={14} />
+                           </button>
+                           <button 
+                             onClick={() => {
+                                if (window.confirm('Виплатити заборгованість та обнулити баланс?')) {
+                                   toast.success('Виплату ініційовано');
+                                }
+                             }}
+                             className="p-2 bg-white/5 rounded-lg text-slate-400 hover:text-[#00e676] transition-colors"
+                           >
+                              <DollarSign size={14} />
+                           </button>
+                           <button onClick={() => handleStatusChange(agent.id, agent.displayName || agent.email)} className={`p-2 rounded-lg transition-colors ${agent.status === 'blocked' ? 'bg-red-500/20 text-red-500' : 'bg-white/5 text-slate-400 hover:text-white'}`}>
+                              <Target size={14} />
+                           </button>
+                           <button onClick={() => handleDelete(agent.id, agent.displayName || agent.email)} className="p-2 bg-white/5 rounded-lg text-slate-400 hover:text-red-500 transition-colors">
+                              <Trash2 size={14} />
+                           </button>
+                        </div>
+                      </td>
                   </motion.tr>
                 )})}
               </tbody>

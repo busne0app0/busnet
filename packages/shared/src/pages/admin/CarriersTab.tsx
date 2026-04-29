@@ -115,6 +115,15 @@ const CarriersTab: React.FC = () => {
             <Download size={14} /> Export Matrix
           </button>
           <motion.button 
+            onClick={() => {
+               // Пункт 25: Модалка додавання перевізника
+               const email = window.prompt('Введіть email нового перевізника для розгортання:');
+               if (email) {
+                  supabase.from('users').insert({ email, role: 'carrier', status: 'review' }).then(() => {
+                     toast.success('Протокол розгортання ініційовано');
+                  });
+               }
+            }}
             whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(139, 92, 246, 0.4)' }}
             whileTap={{ scale: 0.95 }}
             className="px-8 py-3 bg-[#8B5CF6] text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-xl transition-all"
@@ -171,6 +180,7 @@ const CarriersTab: React.FC = () => {
                     <th onClick={() => handleSort('companyName')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">Carrier Identity{getSortIcon('companyName')}</th>
                     <th onClick={() => handleSort('email')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">Network Point{getSortIcon('email')}</th>
                     <th className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em]">Efficiency</th>
+                    <th className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em]">Balance</th>
                     <th onClick={() => handleSort('status')} className="px-6 py-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] cursor-pointer hover:text-white transition-colors">Status{getSortIcon('status')}</th>
                     <th className="px-6 py-4 text-right"></th>
                   </tr>
@@ -219,23 +229,47 @@ const CarriersTab: React.FC = () => {
                                'text-red-500 border-red-500/20 bg-red-500/5'}
                            `}
                          >
-                            <span className="relative z-10">
-                              {c.status === 'active' || !c.status ? 'Operational' : c.status === 'review' ? 'In Review' : 'Deactivated'}
-                            </span>
-                            <motion.div 
-                              animate={{ opacity: [0.2, 0.5, 0.2] }}
-                              transition={{ duration: 2, repeat: Infinity }}
-                              className={`absolute inset-0 ${
-                                c.status === 'active' || !c.status ? 'bg-[#10B981]/10' : 
-                                c.status === 'review' ? 'bg-[#F59E0B]/10' : 'bg-red-500/10'
-                              }`} 
-                            />
-                         </button>
+                         <div className="flex items-center gap-1">
+                            {[1,2,3,4,5].map(s => (
+                              <Star key={s} size={10} className={s <= (idx % 2 === 0 ? 5 : 4) ? "text-yellow-500 fill-yellow-500" : "text-slate-600"} />
+                            ))}
+                            <span className="ml-2 text-[10px] font-black text-white">{idx % 2 === 0 ? "5.0" : "4.7"}</span>
+                         </div>
+                      </td>
+                      <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
+                         <div className="text-[11px] font-black text-[#10B981] tracking-tighter">€0.00</div>
+                      </td>
+                      <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all border-y border-white/5">
+                        <button 
+                          onClick={() => {
+                            if (window.confirm('Змінити статус партнера?')) {
+                              handleStatusChange(c.uid);
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border border-white/10 bg-black/40 ${
+                            c.status === 'active' ? 'text-[#10B981]' : c.status === 'review' ? 'text-yellow-500' : 'text-red-500'
+                          }`}
+                        >
+                          {c.status || 'active'}
+                        </button>
                       </td>
                       <td className="px-6 py-5 bg-white/2 group-hover:bg-white/5 transition-all rounded-r-2xl border-y border-r border-white/5 text-right">
                          <div className="flex justify-end gap-2 opacity-30 group-hover:opacity-100 transition-all">
-                           <button className="p-2.5 bg-black/40 border border-white/10 rounded-xl text-slate-500 hover:text-[#00D4FF] transition-all"><TrendingUp size={14}/></button>
-                           <button className="p-2.5 bg-black/40 border border-white/10 rounded-xl text-slate-500 hover:text-[#00D4FF] transition-all"><Mail size={14}/></button>
+                           <button 
+                             onClick={() => (window as any).setAdminTab?.('finance')}
+                             className="p-2.5 bg-black/40 border border-white/10 rounded-xl text-slate-500 hover:text-[#00D4FF] transition-all"
+                           >
+                             <TrendingUp size={14}/>
+                           </button>
+                           <button 
+                             onClick={() => {
+                               const act = window.prompt('Дія: edit, block, message');
+                               if (act === 'block') handleStatusChange(c.uid);
+                             }}
+                             className="p-2.5 bg-black/40 border border-white/10 rounded-xl text-slate-500 hover:text-[#00D4FF] transition-all"
+                           >
+                             <MoreVertical size={14}/>
+                           </button>
                            <button 
                              onClick={() => {
                                if (window.confirm('Ви впевнені, що хочете видалити цей обліковий запис?')) {

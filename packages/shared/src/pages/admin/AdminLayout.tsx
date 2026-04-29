@@ -44,6 +44,15 @@ const AdminLayout: React.FC = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+  useEffect(() => {
+    (window as any).setAdminTab = (tab: string) => {
+       setActiveTab(tab);
+    };
+    return () => { delete (window as any).setAdminTab; };
+  }, []);
+
   useEffect(() => {
     fetchStats();
     const timer = setInterval(() => {

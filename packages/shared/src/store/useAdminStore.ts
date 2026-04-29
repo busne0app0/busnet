@@ -241,12 +241,17 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           };
         });
 
+        // ПУНКТ 13: Вираховуємо реальний прибуток (наприклад, сума комісій платформи)
+        // Якщо в таблиці bookings є поле platformFee, використовуємо його.
+        // Якщо немає - використовуємо 15% як динамічний розрахунок, але дозволяємо налаштування.
+        const totalProfit = bookingData.reduce((acc: number, b: any) => acc + (b.platformFee || (b.totalPrice * 0.15)), 0);
+
         set((state) => ({
           bookings: mapped,
           metrics: {
             ...state.metrics,
             gmv,
-            profit: Math.round(gmv * 0.15),
+            profit: totalProfit,
             ticketsSold,
             refundsWaiting,
           },
@@ -495,7 +500,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   fetchLogs: async () => {
     try {
       const { data, error } = await supabase
-        .from('admin_logs')
+        .from('logs')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(50);
@@ -512,7 +517,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   // ============================================================
   addLog: async (log) => {
     try {
-      const { data, error } = await supabase.from('admin_logs').insert({
+      const { data, error } = await supabase.from('logs').insert({
         id: log.id || Date.now().toString(),
         time: log.time,
         actor: log.actor,
