@@ -43,12 +43,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setError: (error) => set({ error }),
 
   login: async (email, password) => {
+    console.log('[AuthStore] Attempting login for:', email);
     set({ loading: true, error: null });
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      if (error) {
+        console.error('[AuthStore] Login error:', error.message, error.status);
+        throw error;
+      }
+      console.log('[AuthStore] Login successful for:', email);
     } catch (err: any) {
-      set({ error: err.message, loading: false });
+      console.error('[AuthStore] Login catch error:', err);
+      set({ error: err.message || 'Помилка входу', loading: false });
       throw err;
     }
   },
@@ -143,7 +149,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           }
 
           if (userData) {
-            console.log('[initAuth] User loaded:', userData.email, 'role:', userData.role);
+            console.log('[initAuth] User loaded successfully:', userData.email, 'role:', userData.role);
             set({
               user: userData as User,
               isAuthenticated: true,
@@ -155,6 +161,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             return;
           }
 
+          console.warn('[initAuth] User profile not found in DB, starting self-healing for:', session.user.email);
           // Self-healing
           const meta = session.user.user_metadata || {};
           const fallbackUser: any = {
@@ -167,7 +174,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             status: 'active',
           };
 
-          await supabase.from('users').insert(fallbackUser);
+          const { error: insertError } = await supabase.from('users').insert(fallbackUser);
+          if (insertError) {
+            console.error('[initAuth] Self-healing insert failed:', insertError);
+          } else {
+            console.log('[initAuth] Self-healing successful for:', session.user.email);
+          }
           
           set({
             user: fallbackUser as User,
