@@ -122,7 +122,7 @@ export default function AuthPage() {
           await waitForUserAndRedirect();
         } else if (role === 'carrier') {
           await registerCarrier({ email, companyName, phone }, password);
-          toast.success('Запит надіслано на перевірку');
+          toast.success('Вітаємо у Busnet! Ваш кабінет готовий.');
           await waitForUserAndRedirect();
         } else if (role === 'agent') {
           await registerUser({ email, firstName, lastName, phone, role: 'agent' }, password);

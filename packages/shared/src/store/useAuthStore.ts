@@ -247,9 +247,15 @@ export const useAuthStore = create<AuthState>()(
               phone: userData.phone,
               status: 'active',
             };
+            // ✅ ФІКС 401: Даємо Supabase час оновити сесію
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
             const { error: insertError } = await supabase.from('users').insert(newUser);
             if (insertError) {
               console.error('registerFromBooking insert error:', insertError);
+              // Спроба #2 через 1.5 сек якщо перша провалилась
+              await new Promise(resolve => setTimeout(resolve, 1500));
+              await supabase.from('users').insert(newUser);
             } else {
               set({
                 user: newUser as User,
@@ -286,9 +292,15 @@ export const useAuthStore = create<AuthState>()(
               phone: companyData.phone,
               status: 'active',
             };
+            // ✅ ФІКС 401: Даємо Supabase час оновити сесію
+            await new Promise(resolve => setTimeout(resolve, 800));
+
             const { error: insertError } = await supabase.from('users').insert(newCarrier);
             if (insertError) {
               console.error('registerCarrier insert error:', insertError);
+              // Спроба #2
+              await new Promise(resolve => setTimeout(resolve, 1500));
+              await supabase.from('users').insert(newCarrier);
             } else {
               set({
                 user: newCarrier as User,
@@ -322,9 +334,15 @@ export const useAuthStore = create<AuthState>()(
               ...userData,
               status: 'active',
             };
+            // ✅ ФІКС 401: Даємо Supabase час оновити сесію
+            await new Promise(resolve => setTimeout(resolve, 800));
+
             const { error: insertError } = await supabase.from('users').insert(newUser);
             if (insertError) {
               console.error('registerUser insert error:', insertError);
+              // Спроба #2
+              await new Promise(resolve => setTimeout(resolve, 1500));
+              await supabase.from('users').insert(newUser);
             } else {
               set({
                 user: newUser as User,
