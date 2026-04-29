@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAdminStore } from '@busnet/shared/store/useAdminStore';
 import { Settings, Shield, Bell, Zap, Key, Cpu, Activity, Globe, Database, Fingerprint } from 'lucide-react';
 import { supabase } from '@busnet/shared/supabase/config';
+import { toast } from 'react-hot-toast';
 
 const SettingsTab: React.FC = () => {
   const { settings, updateSettings, addLog } = useAdminStore();

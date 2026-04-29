@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import ErrorBoundary from '@busnet/shared/components/common/ErrorBoundary';
+import { ErrorBoundary } from '@busnet/shared/components/common/ErrorBoundary';
 import { ProtectedRoute } from '@busnet/shared/components/common/ProtectedRoute';
 import { SearchProvider } from '@busnet/shared/context/SearchContext';
 import { LanguageProvider } from '@busnet/shared/context/LanguageContext';
