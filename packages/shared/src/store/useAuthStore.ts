@@ -155,51 +155,41 @@ export const useAuthStore = create<AuthState>()(
               return;
             }
 
-            // 5. Юзера НЕМАЄ в БД
-            console.warn('[initAuth] User not found in DB for uid:', session.user.id, 'email:', session.user.email);
+            // 5. Юзера НЕМАЄ в БД — Система Самовідновлення (Self-Healing)
+            console.warn('[initAuth] User not found in DB. Creating fallback profile...', session.user.id);
+            
+            const meta = session.user.user_metadata || {};
+            const fallbackUser: any = {
+              uid: session.user.id,
+              email: session.user.email || '',
+              role: meta.role || 'passenger',
+              firstName: meta.firstName || meta.full_name?.split(' ')[0] || 'User',
+              lastName: meta.lastName || meta.full_name?.split(' ').slice(1).join(' ') || '',
+              phone: meta.phone || '',
+              status: 'active',
+            };
 
-            // Для Google OAuth нових користувачів — створюємо passenger автоматично
-            if (event === 'SIGNED_IN' && session.user.app_metadata?.provider === 'google') {
-              const meta = session.user.user_metadata || {};
-              const newUser: any = {
-                uid: session.user.id,
-                email: session.user.email || '',
-                role: 'passenger',
-                firstName: meta.full_name?.split(' ')[0] || meta.name?.split(' ')[0] || 'User',
-                lastName: meta.full_name?.split(' ').slice(1).join(' ') || '',
-                phone: meta.phone || '',
-                status: 'active',
-              };
-
-              const { error: insertError } = await supabase.from('users').insert(newUser);
-              if (insertError) {
-                console.error('[initAuth] Failed to create Google user profile:', insertError);
-                set({ loading: false, error: 'Failed to create user profile' });
-                return;
-              }
-
+            const { error: insertError } = await supabase.from('users').insert(fallbackUser);
+            if (!insertError) {
+              console.log('[initAuth] Fallback profile created successfully');
               set({
                 isAuthenticated: true,
-                user: newUser,
-                activeRole: 'passenger' as Role,
+                user: fallbackUser,
+                activeRole: fallbackUser.role as Role,
                 loading: false,
               });
               return;
+            } else {
+              console.error('[initAuth] Critical: Failed to create fallback profile:', insertError);
             }
 
-            // Перевіряємо чи щойно створений користувач
-            const isBrandNew = (Date.now() - new Date(session.user.created_at).getTime()) < 15000;
-            
-            if (!isBrandNew) {
-              set({
-                loading: false,
-                isAuthenticated: false,
-                error: 'User record not found. Please contact support.',
-              });
-            } else {
-              // Якщо він новий, але ще не завантажився - залишаємо loading state для registerUser
-              console.log('[initAuth] Brand new user but DB record still missing. Keeping loading state.');
-            }
+            set({
+              loading: false,
+              isAuthenticated: true, // Ми все одно авторизовані в Auth
+              user: { uid: session.user.id, email: session.user.email || '', role: 'passenger' } as any,
+              activeRole: 'passenger',
+              error: 'Profile synchronization pending...'
+            });
 
           } catch (err) {
             console.error('[initAuth] Unexpected error:', err);
