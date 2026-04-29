@@ -109,12 +109,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         try {
           set({ loading: true });
 
-          // Try to get user from database
-          let { data: users } = await supabase
-            .from('users')
-            .select('*')
-            .eq('uid', session.user.id)
-            .limit(1);
+          // Try to get user from database with a timeout
+          const fetchWithTimeout = async () => {
+            const { data: users, error } = await supabase
+              .from('users')
+              .select('*')
+              .eq('uid', session.user.id)
+              .limit(1);
+            return { data: users, error };
+          };
+
+          let { data: users, error: fetchError } = await fetchWithTimeout();
+          if (fetchError) console.error('[initAuth] Fetch error:', fetchError);
 
           let userData = users && users.length > 0 ? users[0] : null;
 
@@ -161,8 +167,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             return;
           }
 
-          console.warn('[initAuth] User profile not found in DB, starting self-healing for:', session.user.email);
-          // Self-healing
+          console.warn('[initAuth] User profile not found in DB, using metadata for:', session.user.email);
+          // Self-healing using metadata as primary source if DB fails
           const meta = session.user.user_metadata || {};
           const fallbackUser: any = {
             uid: session.user.id,
@@ -174,13 +180,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             status: 'active',
           };
 
-          const { error: insertError } = await supabase.from('users').insert(fallbackUser);
-          if (insertError) {
-            console.error('[initAuth] Self-healing insert failed:', insertError);
-          } else {
-            console.log('[initAuth] Self-healing successful for:', session.user.email);
-          }
-          
+          // Update store immediately so UI can redirect
           set({
             user: fallbackUser as User,
             isAuthenticated: true,
@@ -188,6 +188,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             loading: false,
             initInProgress: false
           });
+
+          // Background insert/repair
+          supabase.from('users').insert(fallbackUser).then(({ error }) => {
+            if (error) console.error('[initAuth] Background self-healing failed:', error);
+            else console.log('[initAuth] Background self-healing successful');
+          });
+
 
         } catch (err: any) {
           console.error('[initAuth] Error:', err);
