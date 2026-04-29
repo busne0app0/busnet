@@ -1,28 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@busnet/shared/supabase/config';
-import { useBookingStore } from '@busnet/shared/store/useBookingStore';
-import { useAuthStore } from '@busnet/shared/store/useAuthStore';
-import { useAdminStore } from '@busnet/shared/store/useAdminStore';
+import { supabase } from '../supabase/config';
+import { useBookingStore } from '../store/useBookingStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { useAdminStore } from '../store/useAdminStore';
 import { Mail, Lock, LogIn, ArrowRight, ShieldCheck, UserCheck, History } from 'lucide-react';
 import { Booking } from '../types';
 
 // Layout & Tabs
-import DashboardLayout from '@busnet/shared/components/dashboard/DashboardLayout';
-import OverviewTab from '@busnet/shared/components/dashboard/OverviewTab';
-import HistoryTab from '@busnet/shared/components/dashboard/HistoryTab';
+import DashboardLayout from '../components/dashboard/DashboardLayout';
+import OverviewTab from '../components/dashboard/OverviewTab';
+import HistoryTab from '../components/dashboard/HistoryTab';
 
 // ... (Rest of imports remain the same)
-import TicketsTab from '@busnet/shared/components/dashboard/TicketsTab';
-import PassengersTab from '@busnet/shared/components/dashboard/PassengersTab';
-import BonusesTab from '@busnet/shared/components/dashboard/BonusesTab';
-import ProfileTab from '@busnet/shared/components/dashboard/ProfileTab';
-import SettingsTab from '@busnet/shared/components/dashboard/SettingsTab';
-import NotificationsTab from '@busnet/shared/components/dashboard/NotificationsTab';
-import ForumTab from '@busnet/shared/components/dashboard/ForumTab';
-import SupportTab from '@busnet/shared/components/dashboard/SupportTab';
-import SearchTab from '@busnet/shared/components/dashboard/SearchTab';
+import TicketsTab from '../components/dashboard/TicketsTab';
+import PassengersTab from '../components/dashboard/PassengersTab';
+import BonusesTab from '../components/dashboard/BonusesTab';
+import ProfileTab from '../components/dashboard/ProfileTab';
+import SettingsTab from '../components/dashboard/SettingsTab';
+import NotificationsTab from '../components/dashboard/NotificationsTab';
+import ForumTab from '../components/dashboard/ForumTab';
+import SupportTab from '../components/dashboard/SupportTab';
+import SearchTab from '../components/dashboard/SearchTab';
 
 
 

@@ -8,6 +8,8 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   activeRole: Role | null;
+  initInProgress: boolean;
+  authSubscription: any;
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -22,15 +24,14 @@ interface AuthState {
   updateUserProfile: (updates: Partial<User>) => Promise<void>;
 }
 
-let authSubscription: any = null;
-let initInProgress = false;
-
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   loading: true,
   error: null,
   activeRole: null,
+  initInProgress: false,
+  authSubscription: null,
 
   setUser: (user) => set({ 
     user, 
@@ -85,16 +86,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   initAuth: () => {
+    const { authSubscription, initInProgress } = get();
     if (authSubscription || initInProgress) return () => {};
-    initInProgress = true;
+    
+    set({ initInProgress: true });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('[initAuth] Auth event:', event, session?.user?.email);
 
         if (!session) {
-          set({ user: null, isAuthenticated: false, activeRole: null, loading: false });
-          initInProgress = false;
+          set({ user: null, isAuthenticated: false, activeRole: null, loading: false, initInProgress: false });
           return;
         }
 
@@ -148,8 +150,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               activeRole: (userData.role as Role) || 'passenger',
               loading: false,
               error: null,
+              initInProgress: false
             });
-            initInProgress = false;
             return;
           }
 
@@ -172,21 +174,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             isAuthenticated: true,
             activeRole: fallbackUser.role as Role,
             loading: false,
+            initInProgress: false
           });
 
         } catch (err: any) {
           console.error('[initAuth] Error:', err);
-          set({ loading: false });
-        } finally {
-          initInProgress = false;
+          set({ loading: false, initInProgress: false });
         }
       }
     );
 
-    authSubscription = subscription;
+    set({ authSubscription: subscription });
     return () => {
       subscription.unsubscribe();
-      authSubscription = null;
+      set({ authSubscription: null, initInProgress: false });
     };
   },
 

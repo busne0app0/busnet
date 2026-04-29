@@ -4,11 +4,11 @@ import {
   Mail, Lock, Smartphone, Building2, Briefcase,
   ArrowRight, Loader2, User, ChevronDown, X
 } from 'lucide-react';
-import { useAuthStore } from '@busnet/shared/store/useAuthStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { toast } from 'react-hot-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Role } from '../types';
-import { supabase } from '@busnet/shared/supabase/config';
+import { supabase } from '../supabase/config';
 
 // ✅ ФІКС: Замість busy-polling використовуємо Zustand store subscription
 // Підписка реагує точно коли стан змінився — без CPU навантаження
