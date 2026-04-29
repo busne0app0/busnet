@@ -1,0 +1,16 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+# .env rules — НЕ комітити секрети в git!
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Scratch утиліти — одноразові скрипти, не повинні бути в репо
+scratch/
+
+.vercel

@@ -1,0 +1,49 @@
+{
+  "name": "BUSNET Ecosystem",
+  "short_name": "BUSNET",
+  "description": "Єдина платформа для пасажирів, перевізників та агентів",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07090e",
+  "theme_color": "#00c8e0",
+  "icons": [
+    {
+      "src": "/logo192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Пасажир",
+      "short_name": "Пасажир",
+      "url": "/auth?role=passenger",
+      "description": "Кабінет пасажира"
+    },
+    {
+      "name": "Перевізник",
+      "short_name": "Перевізник",
+      "url": "/auth?role=carrier",
+      "description": "Кабінет перевізника"
+    },
+    {
+      "name": "Агент",
+      "short_name": "Агент",
+      "url": "/auth?role=agent",
+      "description": "Робоче місце агента"
+    },
+    {
+      "name": "BUSNET ADMIN",
+      "short_name": "Адмін",
+      "url": "/auth?role=admin",
+      "description": "Панель управління"
+    }
+  ]
+}
