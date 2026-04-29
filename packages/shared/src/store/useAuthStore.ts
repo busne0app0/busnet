@@ -1,286 +1,220 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { supabase } from '@busnet/shared/supabase/config';
-import { User, Role, CarrierBalance, AgentBalance } from '../types';
+import { supabase } from '../supabase/config';
+import { User, Role } from '../types';
 
 interface AuthState {
-  isAuthenticated: boolean;
   user: User | null;
-  activeRole: Role | null;
-  carrierBalance: CarrierBalance | null;
-  agentBalance: AgentBalance | null;
+  isAuthenticated: boolean;
   loading: boolean;
   error: string | null;
-
-  login: (email: string, password: string) => Promise<void>;
-  registerFromBooking: (userData: Omit<User, 'role' | 'uid' | 'status'>, password: string) => Promise<void>;
-  registerCarrier: (companyData: { companyName: string; email: string; phone: string }, password: string) => Promise<void>;
-  registerUser: (userData: Partial<User>, password: string) => Promise<void>;
-  signInWithGoogle: (requestedRole?: Role, additionalData?: Partial<User>) => Promise<void>;
-  loginWithPhone: (phoneNumber: string) => Promise<void>;
+  activeRole: Role | null;
+  setUser: (user: User | null) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
   logout: () => Promise<void>;
-  updateUserProfile: (data: Partial<User>) => Promise<void>;
-  setActiveRole: (role: Role) => void;
   initAuth: () => () => void;
+  registerCarrier: (companyData: any, password: string) => Promise<void>;
+  registerFromBooking: (userData: any, password?: string) => Promise<void>;
+  loginWithPhone: (phone: string) => Promise<void>;
 }
 
-let authSubscription: { unsubscribe: () => void } | null = null;
+let authSubscription: any = null;
 let initInProgress = false;
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      isAuthenticated: false,
-      user: null,
-      activeRole: null,
-      carrierBalance: null,
-      agentBalance: null,
-      loading: true,
-      error: null,
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: null,
+  isAuthenticated: false,
+  loading: true,
+  error: null,
+  activeRole: null,
 
-      setActiveRole: (role: Role) => set({ activeRole: role }),
+  setUser: (user) => set({ 
+    user, 
+    isAuthenticated: !!user,
+    activeRole: (user?.role as Role) || null 
+  }),
+  
+  setLoading: (loading) => set({ loading }),
+  setError: (error) => set({ error }),
 
-      initAuth: () => {
-        if (authSubscription || initInProgress) return () => {};
-        initInProgress = true;
+  logout: async () => {
+    set({ loading: true });
+    try {
+      await supabase.auth.signOut();
+      set({ 
+        user: null, 
+        isAuthenticated: false, 
+        activeRole: null,
+        loading: false,
+        error: null 
+      });
+    } catch (err: any) {
+      set({ error: err.message, loading: false });
+    }
+  },
 
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (!session) {
-            set({ isAuthenticated: false, user: null, loading: false });
+  initAuth: () => {
+    if (authSubscription || initInProgress) return () => {};
+    initInProgress = true;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('[initAuth] Auth event:', event, session?.user?.email);
+
+        if (!session) {
+          set({ user: null, isAuthenticated: false, activeRole: null, loading: false });
+          initInProgress = false;
+          return;
+        }
+
+        try {
+          set({ loading: true });
+
+          // Try to get user from database
+          let { data: users, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('uid', session.user.id)
+            .limit(1);
+
+          let userData = users && users.length > 0 ? users[0] : null;
+
+          // Fallback check by email
+          if (!userData && session.user.email) {
+            const { data: byEmailUsers } = await supabase
+              .from('users')
+              .select('*')
+              .eq('email', session.user.email)
+              .limit(1);
+            
+            const byEmail = byEmailUsers && byEmailUsers.length > 0 ? byEmailUsers[0] : null;
+
+            if (byEmail) {
+              const { data: updatedUsers } = await supabase
+                .from('users')
+                .update({ uid: session.user.id })
+                .eq('email', session.user.email)
+                .select()
+                .limit(1);
+              userData = (updatedUsers && updatedUsers.length > 0) ? updatedUsers[0] : byEmail;
+            }
           }
-        });
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          if (!session?.user) {
-            set({ isAuthenticated: false, user: null, activeRole: null, loading: false });
-            return;
-          }
-
-          try {
-            set({ loading: true });
-
-            let { data: users, error } = await supabase
+          // Retry logic
+          if (!userData) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            const { data: retryUsers } = await supabase
               .from('users')
               .select('*')
               .eq('uid', session.user.id)
               .limit(1);
-
-            let userData = users && users.length > 0 ? users[0] : null;
-
-            if (!userData) {
-              const { data: byEmailUsers } = await supabase
-                .from('users')
-                .select('*')
-                .eq('email', session.user.email ?? '')
-                .limit(1);
-              
-              const byEmail = byEmailUsers && byEmailUsers.length > 0 ? byEmailUsers[0] : null;
-
-              if (byEmail) {
-                const { data: updatedUsers } = await supabase
-                  .from('users')
-                  .update({ uid: session.user.id })
-                  .eq('email', session.user.email ?? '')
-                  .select()
-                  .limit(1);
-                userData = (updatedUsers && updatedUsers.length > 0) ? updatedUsers[0] : byEmail;
-              }
-            }
-
-            if (!userData) {
-              await new Promise(resolve => setTimeout(resolve, 2000));
-              const { data: retryUsers } = await supabase
-                .from('users')
-                .select('*')
-                .eq('uid', session.user.id)
-                .limit(1);
-              userData = retryUsers && retryUsers.length > 0 ? retryUsers[0] : null;
-            }
-
-            if (userData) {
-              set({
-                isAuthenticated: true,
-                user: { ...userData, uid: session.user.id },
-                activeRole: userData.role as Role,
-                loading: false,
-                error: null,
-              });
-              return;
-            }
-
-            // Self-healing block
-            const meta = session.user.user_metadata || {};
-            const fallbackUser: any = {
-              uid: session.user.id,
-              email: session.user.email || '',
-              role: meta.role || 'passenger',
-              firstName: meta.firstName || meta.full_name?.split(' ')[0] || 'User',
-              lastName: meta.lastName || meta.full_name?.split(' ').slice(1).join(' ') || '',
-              phone: meta.phone || '',
-              status: 'active',
-            };
-
-            const { error: insertError } = await supabase.from('users').insert(fallbackUser);
-            if (!insertError) {
-              set({
-                isAuthenticated: true,
-                user: fallbackUser,
-                activeRole: fallbackUser.role as Role,
-                loading: false,
-              });
-            } else {
-              set({ loading: false, isAuthenticated: true, user: fallbackUser, activeRole: fallbackUser.role });
-            }
-
-          } catch (err) {
-            set({ loading: false });
+            userData = retryUsers && retryUsers.length > 0 ? retryUsers[0] : null;
           }
-        });
 
-        authSubscription = subscription;
-        initInProgress = false;
-
-        return () => {
-          subscription.unsubscribe();
-          authSubscription = null;
-        };
-      },
-
-      login: async (email, password) => {
-        set({ loading: true, error: null });
-        try {
-          const { error } = await supabase.auth.signInWithPassword({ email, password });
-          if (error) throw error;
-        } catch (err: any) {
-          set({ error: err.message, loading: false });
-          throw err;
-        }
-      },
-
-      registerFromBooking: async (userData, password) => {
-        set({ loading: true, error: null });
-        try {
-          const { data, error } = await supabase.auth.signUp({
-            email: userData.email,
-            password,
-            options: { data: { ...userData, role: 'passenger' } },
-          });
-          if (error) throw error;
-          if (data.user) {
-            const newUser = { uid: data.user.id, ...userData, role: 'passenger', status: 'active' };
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            await supabase.from('users').insert(newUser);
+          if (userData) {
+            set({
+              user: userData as User,
+              isAuthenticated: true,
+              activeRole: (userData.role as Role) || 'passenger',
+              loading: false,
+              error: null,
+            });
+            initInProgress = false;
+            return;
           }
-        } catch (err: any) {
-          set({ error: err.message, loading: false });
-          throw err;
-        }
-      },
 
-      registerCarrier: async (companyData, password) => {
-        set({ loading: true, error: null });
-        try {
-          const { data, error } = await supabase.auth.signUp({
-            email: companyData.email,
-            password,
-            options: { 
-              data: { 
-                companyName: companyData.companyName,
-                phone: companyData.phone,
-                role: 'carrier' 
-              } 
-            },
+          // Self-healing: if user is authed but no DB record exists
+          const meta = session.user.user_metadata || {};
+          const fallbackUser: any = {
+            uid: session.user.id,
+            email: session.user.email || '',
+            role: meta.role || 'passenger',
+            firstName: meta.firstName || meta.full_name?.split(' ')[0] || 'User',
+            lastName: meta.lastName || meta.full_name?.split(' ').slice(1).join(' ') || '',
+            phone: meta.phone || '',
+            status: 'active',
+          };
+
+          const { error: insertError } = await supabase.from('users').insert(fallbackUser);
+          
+          set({
+            user: fallbackUser as User,
+            isAuthenticated: true,
+            activeRole: fallbackUser.role as Role,
+            loading: false,
           });
-          if (error) throw error;
-          if (data.user) {
-            const newCarrier = { uid: data.user.id, ...companyData, role: 'carrier', status: 'active' };
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            await supabase.from('users').insert(newCarrier);
-          }
-        } catch (err: any) {
-          set({ error: err.message, loading: false });
-          throw err;
-        }
-      },
 
-      registerUser: async (userData, password) => {
-        set({ loading: true, error: null });
-        try {
-          const { data, error } = await supabase.auth.signUp({
-            email: userData.email!,
-            password,
-            options: { data: userData },
-          });
-          if (error) throw error;
-          if (data.user) {
-            const newUser = { uid: data.user.id, ...userData, status: 'active' };
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            await supabase.from('users').insert(newUser);
-          }
         } catch (err: any) {
-          set({ error: err.message, loading: false });
-          throw err;
-        }
-      },
-
-      signInWithGoogle: async (requestedRole, additionalData) => {
-        set({ loading: true, error: null });
-        try {
-          const { error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: { 
-              redirectTo: window.location.origin,
-              queryParams: { access_type: 'offline', prompt: 'consent' }
-            }
-          });
-          if (error) throw error;
-        } catch (err: any) {
-          set({ error: err.message, loading: false });
-          throw err;
-        }
-      },
-
-      loginWithPhone: async (phone) => {
-        set({ loading: true, error: null });
-        try {
-          const { error } = await supabase.auth.signInWithOtp({ phone });
-          if (error) throw error;
+          console.error('[initAuth] Error:', err);
           set({ loading: false });
-        } catch (err: any) {
-          set({ error: err.message, loading: false });
-          throw err;
+        } finally {
+          initInProgress = false;
         }
-      },
+      }
+    );
 
-      logout: async () => {
-        set({ loading: true });
-        try {
-          await supabase.auth.signOut();
-          set({ user: null, isAuthenticated: false, activeRole: null, loading: false });
-        } catch (err) {
-          set({ loading: false });
-        }
-      },
+    authSubscription = subscription;
+    return () => {
+      subscription.unsubscribe();
+      authSubscription = null;
+    };
+  },
 
-      updateUserProfile: async (data) => {
-        const { user } = get();
-        if (!user) return;
-        try {
-          const { error } = await supabase.from('users').update(data).eq('uid', user.uid);
-          if (error) throw error;
-          set({ user: { ...user, ...data } });
-        } catch (err: any) {
-          console.error('Update profile error:', err);
-        }
-      },
-    }),
-    {
-      name: 'auth-storage',
-      partialize: (state) => ({ 
-        isAuthenticated: state.isAuthenticated, 
-        user: state.user,
-        activeRole: state.activeRole 
-      }),
+  registerCarrier: async (companyData, password) => {
+    set({ loading: true, error: null });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: companyData.email,
+        password,
+        options: { 
+          data: { 
+            companyName: companyData.companyName,
+            phone: companyData.phone,
+            role: 'carrier' 
+          } 
+        },
+      });
+      if (error) throw error;
+      if (data.user) {
+        const newCarrier = { uid: data.user.id, ...companyData, role: 'carrier', status: 'active' };
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await supabase.from('users').insert(newCarrier);
+      }
+    } catch (err: any) {
+      set({ error: err.message, loading: false });
+      throw err;
     }
-  )
-);
+  },
+
+  registerFromBooking: async (userData, password) => {
+    set({ loading: true, error: null });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: userData.email,
+        password: password || Math.random().toString(36).slice(-12),
+        options: { data: { ...userData, role: 'passenger' } },
+      });
+      if (error) throw error;
+      if (data.user) {
+        const newPassenger = { uid: data.user.id, ...userData, role: 'passenger', status: 'active' };
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await supabase.from('users').insert(newPassenger);
+      }
+    } catch (err: any) {
+      set({ error: err.message, loading: false });
+      throw err;
+    }
+  },
+
+  loginWithPhone: async (phone) => {
+    set({ loading: true, error: null });
+    try {
+      const { error } = await supabase.auth.signInWithOtp({ phone });
+      if (error) throw error;
+      set({ loading: false });
+    } catch (err: any) {
+      set({ error: err.message, loading: false });
+      throw err;
+    }
+  },
+}));
