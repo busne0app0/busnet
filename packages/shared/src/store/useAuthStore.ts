@@ -59,38 +59,42 @@ export const useAuthStore = create<AuthState>()(
           try {
             set({ loading: true });
 
-            let { data: userData, error } = await supabase
+            let { data: users, error } = await supabase
               .from('users')
               .select('*')
               .eq('uid', session.user.id)
-              .single();
+              .limit(1);
+
+            let userData = users && users.length > 0 ? users[0] : null;
 
             if (!userData) {
-              const { data: byEmail } = await supabase
+              const { data: byEmailUsers } = await supabase
                 .from('users')
                 .select('*')
                 .eq('email', session.user.email ?? '')
-                .single();
+                .limit(1);
+              
+              const byEmail = byEmailUsers && byEmailUsers.length > 0 ? byEmailUsers[0] : null;
 
               if (byEmail) {
-                const { data: updated } = await supabase
+                const { data: updatedUsers } = await supabase
                   .from('users')
                   .update({ uid: session.user.id })
                   .eq('email', session.user.email ?? '')
                   .select()
-                  .single();
-                userData = updated || byEmail;
+                  .limit(1);
+                userData = (updatedUsers && updatedUsers.length > 0) ? updatedUsers[0] : byEmail;
               }
             }
 
             if (!userData) {
               await new Promise(resolve => setTimeout(resolve, 2000));
-              const { data: retryData } = await supabase
+              const { data: retryUsers } = await supabase
                 .from('users')
                 .select('*')
                 .eq('uid', session.user.id)
-                .single();
-              userData = retryData;
+                .limit(1);
+              userData = retryUsers && retryUsers.length > 0 ? retryUsers[0] : null;
             }
 
             if (userData) {
