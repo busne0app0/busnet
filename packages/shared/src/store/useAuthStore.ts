@@ -11,11 +11,15 @@ interface AuthState {
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   initAuth: () => () => void;
+  registerUser: (userData: any, password: string) => Promise<void>;
   registerCarrier: (companyData: any, password: string) => Promise<void>;
   registerFromBooking: (userData: any, password?: string) => Promise<void>;
   loginWithPhone: (phone: string) => Promise<void>;
+  updateUserProfile: (updates: Partial<User>) => Promise<void>;
 }
 
 let authSubscription: any = null;
@@ -37,6 +41,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
 
+  login: async (email, password) => {
+    set({ loading: true, error: null });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    } catch (err: any) {
+      set({ error: err.message, loading: false });
+      throw err;
+    }
+  },
+
   logout: async () => {
     set({ loading: true });
     try {
@@ -50,6 +65,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
     } catch (err: any) {
       set({ error: err.message, loading: false });
+    }
+  },
+
+  signInWithGoogle: async () => {
+    set({ loading: true, error: null });
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/bridge`
+        }
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      set({ error: err.message, loading: false });
+      throw err;
     }
   },
 
@@ -71,7 +102,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           set({ loading: true });
 
           // Try to get user from database
-          let { data: users, error } = await supabase
+          let { data: users } = await supabase
             .from('users')
             .select('*')
             .eq('uid', session.user.id)
@@ -79,7 +110,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
           let userData = users && users.length > 0 ? users[0] : null;
 
-          // Fallback check by email
           if (!userData && session.user.email) {
             const { data: byEmailUsers } = await supabase
               .from('users')
@@ -100,7 +130,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             }
           }
 
-          // Retry logic
           if (!userData) {
             await new Promise(resolve => setTimeout(resolve, 1500));
             const { data: retryUsers } = await supabase
@@ -112,6 +141,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           }
 
           if (userData) {
+            console.log('[initAuth] User loaded:', userData.email, 'role:', userData.role);
             set({
               user: userData as User,
               isAuthenticated: true,
@@ -123,7 +153,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             return;
           }
 
-          // Self-healing: if user is authed but no DB record exists
+          // Self-healing
           const meta = session.user.user_metadata || {};
           const fallbackUser: any = {
             uid: session.user.id,
@@ -135,7 +165,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             status: 'active',
           };
 
-          const { error: insertError } = await supabase.from('users').insert(fallbackUser);
+          await supabase.from('users').insert(fallbackUser);
           
           set({
             user: fallbackUser as User,
@@ -158,6 +188,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       subscription.unsubscribe();
       authSubscription = null;
     };
+  },
+
+  registerUser: async (userData, password) => {
+    set({ loading: true, error: null });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: userData.email,
+        password,
+        options: { data: { ...userData, role: 'passenger' } },
+      });
+      if (error) throw error;
+      if (data.user) {
+        const newUser = { uid: data.user.id, ...userData, role: 'passenger', status: 'active' };
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await supabase.from('users').insert(newUser);
+      }
+    } catch (err: any) {
+      set({ error: err.message, loading: false });
+      throw err;
+    }
   },
 
   registerCarrier: async (companyData, password) => {
@@ -217,4 +267,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       throw err;
     }
   },
+
+  updateUserProfile: async (updates) => {
+    const { user } = get();
+    if (!user) return;
+    set({ loading: true, error: null });
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update(updates)
+        .eq('uid', user.uid);
+      if (error) throw error;
+      set({ user: { ...user, ...updates }, loading: false });
+    } catch (err: any) {
+      set({ error: err.message, loading: false });
+      throw err;
+    }
+  }
 }));
