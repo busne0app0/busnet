@@ -179,7 +179,13 @@ export const useAuthStore = create<AuthState>()(
           const { data, error } = await supabase.auth.signUp({
             email: companyData.email,
             password,
-            options: { data: { companyName: companyData.companyName, role: 'carrier' } },
+            options: { 
+              data: { 
+                companyName: companyData.companyName,
+                phone: companyData.phone,
+                role: 'carrier' 
+              } 
+            },
           });
           if (error) throw error;
           if (data.user) {
@@ -230,10 +236,10 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      loginWithPhone: async (phoneNumber) => {
+      loginWithPhone: async (phone) => {
         set({ loading: true, error: null });
         try {
-          const { error } = await supabase.auth.signInWithOtp({ phoneNumber });
+          const { error } = await supabase.auth.signInWithOtp({ phone });
           if (error) throw error;
           set({ loading: false });
         } catch (err: any) {
