@@ -1,13 +1,14 @@
 /**
- * @license
- * SPDX-License-Identifier: Apache-2.0
+ * NewTrip.tsx — MISSION CONTROL (SMART EDITION)
+ * Форма створення маршрутів з інтелектуальним парсингом та автоматичною генерацією рейсів.
  */
-import React, { useState, useEffect, useRef } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  MapPin, Calendar, Clock, Bus,
-  Euro, Wifi, Battery, Wind, Coffee, Tv, Info,
-  Save, Send, Loader2, ChevronDown, ChevronLeft, ChevronRight, Check
+  MapPin, Bus, Euro, Clock, Check,
+  ChevronLeft, ChevronRight, Loader2,
+  Send, Save, Info, Trash2, Plus, Sparkles,
 } from 'lucide-react';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { supabase } from '@busnet/shared/supabase/config';
@@ -15,416 +16,617 @@ import { useNavigate } from 'react-router-dom';
 import { useFleet } from '@busnet/shared/hooks/useFleet';
 import { useDrivers } from '@busnet/shared/hooks/useDrivers';
 import { toast } from 'react-hot-toast';
-import BusnetCalendar from '@busnet/shared/components/common/BusnetCalendar';
 
-const STEPS = [
-  { id: 1, label: 'Маршрут', icon: MapPin },
-  { id: 2, label: 'Транспорт', icon: Bus },
-  { id: 3, label: 'Фінанси', icon: Euro },
+// ─────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────
+
+interface ParsedStop {
+  city: string;
+  address: string;
+  time: string;           
+  dayHint: string;        
+  dayOffset: number;      
+  isEU: boolean;
+}
+
+interface SegmentPrice {
+  fromCity: string;
+  toCity: string;
+  price: number;
+  currency: 'UAH' | 'EUR';
+}
+
+interface FormState {
+  routeName: string;
+  fromCity: string;
+  toCity: string;
+  direction: 'oneway' | 'roundtrip';
+  currency: string;
+  seats: number;
+  rawTextForward: string;
+  rawTextBack: string;
+  stopsForward: ParsedStop[];
+  stopsBack: ParsedStop[];
+  activeDaysThere: number[];   
+  activeDaysBack: number[];
+  busId: string;
+  driverId: string;
+  amenities: string[];
+  pricesThere: SegmentPrice[];
+  pricesBack: SegmentPrice[];
+  singlePriceThere: number;
+  singlePriceBack: number;
+  pricingMode: 'single' | 'segment';
+}
+
+// ─────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────
+
+const EU_KEYWORDS = [
+  'варшав','берлін','прага','відень','краків','вроцлав','гданськ','лодзь',
+  'познань','люблін','катовіце','щецин','бремен','гамбург','мюнхен','кельн',
+  'франкфурт','штутгарт','дюссельдорф','лейпциг','дортмунд','дрезден',
+  'париж','марсель','ліон','мілан','рим','барселон','мадрид','амстердам',
+  'брюссель','цюрих','женева','флоренц','неаполь','салерн','кассін','каянелл',
+  'капу','казерт','будапешт','бухарест','братислав','варн','софі',
 ];
 
-const UA_CITIES = [
-  'Київ', 'Львів', 'Чернівці', 'Ужгород', 'Тернопіль', 'Харків',
-  'Одеса', 'Дніпро', 'Запоріжжя', 'Кривий Ріг', 'Миколаїв',
-  'Вінниця', 'Херсон', 'Полтава', 'Чернігів', 'Черкаси',
-  'Житомир', 'Суми', 'Хмельницький', 'Рівне', 'Кропивницький',
-  'Івано-Франківськ', 'Луцьк', 'Біла Церква'
-].sort();
-
-const EU_CITIES = [
-  'Варшава', 'Берлін', 'Прага', 'Відень', 'Краків', 'Вроцлав',
-  'Гданськ', 'Лодзь', 'Познань', 'Люблін', 'Катовіце', 'Щецин',
-  'Бремен', 'Гамбург', 'Мюнхен', 'Кельн', 'Франкфурт',
-  'Штутгарт', 'Дюссельдорф', 'Лейпциг', 'Дортмунд',
-  'Дрезден', 'Париж', 'Марсель', 'Ліон', 'Мілан', 'Рим',
-  'Барселона', 'Мадрид', 'Амстердам', 'Брюссель', 'Цюрих', 'Женева'
-].sort();
+const DAY_SHORT = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
+const DAY_FULL  = ['Понеділок','Вівторок','Середа','Четвер','П\'ятниця','Субота','Неділя'];
+const DAY_MAP: Record<string, number> = {
+  'понеділок':0,'вівторок':1,'середа':2,'четвер':3,
+  'п\'ятниця':4,'пятниця':4,'субота':5,'неділя':6,
+};
 
 const AMENITY_LIST = [
-  { id: 'wifi', icon: Wifi, label: 'Wi-Fi' },
-  { id: 'usb', icon: Battery, label: 'USB' },
-  { id: 'ac', icon: Wind, label: 'Клімат' },
-  { id: 'toilet', icon: Info, label: 'Туалет' },
-  { id: 'coffee', icon: Coffee, label: 'Кава' },
-  { id: 'tv', icon: Tv, label: 'TV' },
+  { id:'wifi',   label:'Wi-Fi' },
+  { id:'usb',    label:'USB' },
+  { id:'ac',     label:'Клімат' },
+  { id:'toilet', label:'Туалет' },
+  { id:'coffee', label:'Кава' },
+  { id:'tv',     label:'TV' },
 ];
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <label className="text-[10px] font-black text-[#5a6a85] uppercase tracking-widest ml-1 block mb-2">{children}</label>;
+const STEPS = [
+  { id:0, label:'Маршрут',  icon: MapPin },
+  { id:1, label:'Зупинки',  icon: MapPin },
+  { id:2, label:'Розклад',  icon: Clock  },
+  { id:3, label:'Транспорт',icon: Bus    },
+  { id:4, label:'Ціни',     icon: Euro   },
+];
+
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
+
+function isEuCity(name: string): boolean {
+  const lower = name.toLowerCase();
+  return EU_KEYWORDS.some(k => lower.includes(k));
 }
 
-function InputWrap({ children }: { children: React.ReactNode }) {
-  return <div className="space-y-1">{children}</div>;
+function parseStopsText(raw: string): ParsedStop[] {
+  const lines = raw.trim().split('\n').map(l => l.trim()).filter(Boolean);
+  const stops: ParsedStop[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const timeLineMatch = lines[i].match(/^(\d{1,2}:\d{2})\s*(.*)$/);
+    if (!timeLineMatch) { i++; continue; }
+
+    const time     = timeLineMatch[1];
+    const dayHint  = timeLineMatch[2].trim();
+    const city     = lines[i + 1] ?? '';
+    const addrRaw  = lines[i + 2] ?? '';
+    const address  = addrRaw.startsWith('(')
+      ? addrRaw.replace(/^\(/, '').replace(/\)$/, '').trim()
+      : '';
+
+    stops.push({
+      time,
+      dayHint,
+      city: city.trim(),
+      address,
+      dayOffset: 0,
+      isEU: isEuCity(city),
+    });
+
+    i += address ? 3 : 2;
+  }
+
+  let baseDay = -1;
+  return stops.map((s, idx) => {
+    const d = DAY_MAP[s.dayHint.toLowerCase()] ?? -1;
+    if (idx === 0) { baseDay = d; return { ...s, dayOffset: 0 }; }
+    if (d === -1 || baseDay === -1) return s;
+    let diff = d - baseDay;
+    if (diff < 0) diff += 7;
+    return { ...s, dayOffset: diff };
+  });
 }
+
+function getNextDates(weekDay: number, weeksAhead = 4): string[] {
+  const today = new Date();
+  const dates: string[] = [];
+  const jsDay = weekDay === 6 ? 0 : weekDay + 1;
+  
+  for (let w = 0; w < weeksAhead; w++) {
+    const d = new Date(today);
+    const diff = ((jsDay - d.getDay()) + 7) % 7 || 7;
+    d.setDate(d.getDate() + diff + w * 7);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+  return dates;
+}
+
+function buildTripsForRoute(
+  routeId: string,
+  carrierId: string,
+  stops: ParsedStop[],
+  activeDays: number[],
+  seats: number,
+  busId: string,
+  driverId: string,
+  amenities: string[],
+  pricesMap: Record<string, number>,
+  defaultPrice: number,
+): any[] {
+  if (!stops.length || !activeDays.length) return [];
+
+  const fromCity = stops[0].city;
+  const toCity   = stops[stops.length - 1].city;
+  const depTime  = stops[0].time;
+  const arrTime  = stops[stops.length - 1].time;
+  const arrOffset= stops[stops.length - 1].dayOffset;
+
+  const trips: any[] = [];
+
+  for (const day of activeDays) {
+    for (const depDate of getNextDates(day, 4)) {
+      const arrDate = new Date(depDate);
+      arrDate.setDate(arrDate.getDate() + arrOffset);
+
+      trips.push({
+        id:             'T-' + Math.random().toString(36).substring(2, 10).toUpperCase(),
+        carrierId,
+        routeId,
+        departureCity:  fromCity,
+        arrivalCity:    toCity,
+        departureDate:  depDate,
+        departureTime:  depTime,
+        arrivalTime:    arrTime,
+        price:          defaultPrice,
+        seatsTotal:     seats,
+        seatsBooked:    0,
+        availableSeats: seats,
+        status:         'pending_approval',
+        busId:          busId || null,
+        driverId:       driverId || null,
+        amenities,
+        stops: stops.map(s => ({
+          city:    s.city,
+          address: s.address,
+          time:    s.time,
+          dayOffset: s.dayOffset,
+        })),
+        created_at: new Date().toISOString(),
+      });
+    }
+  }
+  return trips;
+}
+
+// ─────────────────────────────────────────────
+// Components
+// ─────────────────────────────────────────────
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="text-[10px] font-black text-[#5a6a85] uppercase tracking-widest block mb-1.5">
+      {children}
+    </label>
+  );
+}
+
+function StopRow({
+  stop, index, total,
+  onUpdate, onDelete,
+}: {
+  stop: ParsedStop; index: number; total: number;
+  onUpdate: (i: number, key: keyof ParsedStop, val: string) => void;
+  onDelete: (i: number) => void;
+}) {
+  return (
+    <div className="grid grid-cols-[64px_1fr_1fr_32px] gap-3 items-start py-3 border-b border-white/5 last:border-0">
+      <div>
+        <input
+          type="text"
+          value={stop.time}
+          onChange={e => onUpdate(index, 'time', e.target.value)}
+          className="w-full bg-black/20 border border-white/5 rounded-xl px-2 py-1.5 text-xs font-bold text-white text-center outline-none focus:border-[#ff6b35]"
+          placeholder="HH:MM"
+        />
+        {stop.dayOffset > 0 && (
+          <div className="text-[9px] text-amber-400 font-bold text-center mt-1">
+            +{stop.dayOffset}д
+          </div>
+        )}
+      </div>
+
+      <div>
+        <input
+          value={stop.city}
+          onChange={e => onUpdate(index, 'city', e.target.value)}
+          className="w-full bg-black/20 border border-white/5 rounded-xl px-3 py-1.5 text-sm font-medium text-white outline-none focus:border-[#ff6b35]"
+          placeholder="Місто"
+        />
+        <div className="flex items-center gap-1 mt-1">
+          {index === 0 && <span className="text-[9px] bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded">Відправлення</span>}
+          {index === total - 1 && <span className="text-[9px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded">Прибуття</span>}
+        </div>
+      </div>
+
+      <input
+        value={stop.address}
+        onChange={e => onUpdate(index, 'address', e.target.value)}
+        className="w-full bg-black/20 border border-white/5 rounded-xl px-3 py-1.5 text-xs text-[#8899b5] outline-none focus:border-[#ff6b35]"
+        placeholder="Адреса зупинки"
+      />
+
+      <button
+        onClick={() => onDelete(index)}
+        className="mt-1 text-[#5a6a85] hover:text-rose-400 transition-colors"
+      >
+        <Trash2 size={14} />
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// Main
+// ─────────────────────────────────────────────
 
 export default function NewTrip() {
-  const { user } = useAuthStore();
-  const navigate = useNavigate();
-  const { buses, fetchFleet } = useFleet();
+  const { user }  = useAuthStore();
+  const navigate  = useNavigate();
+  const { buses, fetchFleet }     = useFleet();
   const { drivers, fetchDrivers } = useDrivers();
-  const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const calendarRef = useRef<HTMLDivElement>(null);
-  const today = new Date().toISOString().split('T')[0];
 
-  const [formData, setFormData] = useState({
-    from: 'Київ', to: 'Варшава', date: today,
-    time: '08:00', arrivalTime: '20:30', stops: '',
-    busId: '', driverId: '', seats: 50, price: 55,
-    amenities: ['wifi', 'ac', 'usb'] as string[]
+  const [step, setStep]       = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [dirTab, setDirTab]   = useState<0 | 1>(0);
+
+  const [form, setForm] = useState<FormState>({
+    routeName:        '',
+    fromCity:         '',
+    toCity:           '',
+    direction:        'roundtrip',
+    currency:         'UAH',
+    seats:            50,
+    rawTextForward:   '',
+    rawTextBack:      '',
+    stopsForward:     [],
+    stopsBack:        [],
+    activeDaysThere:  [],
+    activeDaysBack:   [],
+    busId:            '',
+    driverId:         '',
+    amenities:        ['wifi','ac','usb'],
+    pricesThere:      [],
+    pricesBack:       [],
+    singlePriceThere: 2800,
+    singlePriceBack:  65,
+    pricingMode:      'segment',
   });
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) setIsCalendarOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  useEffect(() => { if (user) { fetchFleet(user.uid); fetchDrivers(user.uid); } }, [user]);
+    if (user) { fetchFleet(user.uid); fetchDrivers(user.uid); }
+  }, [user]);
 
   useEffect(() => {
-    if (buses.length > 0 && !formData.busId) {
+    if (buses.length > 0 && !form.busId) {
       const b = buses.find(b => b.status === 'active') || buses[0];
-      setFormData(p => ({ ...p, busId: b.id, seats: b.capacity }));
+      setForm(p => ({ ...p, busId: b.id, seats: b.capacity }));
     }
-    if (drivers.length > 0 && !formData.driverId) {
+    if (drivers.length > 0 && !form.driverId) {
       const d = drivers.find(d => d.status === 'active') || drivers[0];
-      setFormData(p => ({ ...p, driverId: d.id }));
+      setForm(p => ({ ...p, driverId: d.id }));
     }
   }, [buses, drivers]);
 
-  const formatDate = (s: string) => {
-    try { return new Date(s).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' }); }
-    catch { return s; }
-  };
-
-  const set = (key: string, val: any) => setFormData(p => ({ ...p, [key]: val }));
-  const toggleAmenity = (id: string) => setFormData(p => ({
-    ...p, amenities: p.amenities.includes(id) ? p.amenities.filter(a => a !== id) : [...p.amenities, id]
-  }));
-
-  const validate = () => {
-    if (step === 1) {
-      if (!formData.date || formData.date < today) { toast.error('Виберіть коректну дату'); return false; }
+  useEffect(() => {
+    if (form.stopsForward.length > 1) {
+      const segs: SegmentPrice[] = form.stopsForward.slice(0, -1).map((s, i) => ({
+        fromCity: s.city,
+        toCity:   form.stopsForward[i + 1].city,
+        price:    form.pricesThere[i]?.price ?? 2800,
+        currency: 'UAH',
+      }));
+      setForm(p => ({ ...p, pricesThere: segs }));
     }
-    if (step === 3) {
-      if (formData.price <= 0) { toast.error('Ціна повинна бути більшою за нуль'); return false; }
+    if (form.stopsBack.length > 1) {
+      const segs: SegmentPrice[] = form.stopsBack.slice(0, -1).map((s, i) => ({
+        fromCity: s.city,
+        toCity:   form.stopsBack[i + 1].city,
+        price:    form.pricesBack[i]?.price ?? 65,
+        currency: 'EUR',
+      }));
+      setForm(p => ({ ...p, pricesBack: segs }));
     }
-    return true;
-  };
+  }, [form.stopsForward.length, form.stopsBack.length]);
 
-  const next = () => { if (validate()) setStep(s => Math.min(3, s + 1)); };
-  const prev = () => setStep(s => Math.max(1, s - 1));
+  const handleParse = (dir: 'forward' | 'back') => {
+    const raw = dir === 'forward' ? form.rawTextForward : form.rawTextBack;
+    if (!raw.trim()) { toast.error('Вставте текст із зупинками'); return; }
+    const stops = parseStopsText(raw);
+    if (!stops.length) { toast.error('Не вдалося розпізнати зупинки'); return; }
+
+    if (dir === 'forward') {
+      setForm(p => ({
+        ...p,
+        stopsForward: stops,
+        fromCity: p.fromCity || stops[0]?.city || '',
+        toCity:   p.toCity   || stops[stops.length - 1]?.city || '',
+        routeName: p.routeName || `${stops[0]?.city} — ${stops[stops.length - 1]?.city}`,
+      }));
+    } else {
+      setForm(p => ({ ...p, stopsBack: stops }));
+    }
+    toast.success(`Розпізнано ${stops.length} зупинок`);
+  };
 
   const handlePublish = async () => {
-    if (!user || !validate()) return;
+    if (!user) return;
+    if (!form.routeName.trim()) { toast.error('Введіть назву маршруту'); setStep(0); return; }
+    if (form.stopsForward.length < 2) { toast.error('Додайте зупинки'); setStep(1); return; }
+    if (form.activeDaysThere.length === 0) { toast.error('Оберіть дні'); setStep(2); return; }
+
     setLoading(true);
-    const tid = toast.loading('Публікація рейсу...');
+    const tid = toast.loading('Публікація маршруту...');
+
     try {
-      const { error } = await supabase
-        .from('trips')
-        .insert({
-          id: crypto.randomUUID(),
-          carrierId: user.uid,
-          departureCity: formData.from,
-          arrivalCity: formData.to,
-          departureDate: formData.date,
-          departureTime: formData.time,
-          arrivalTime: formData.arrivalTime,
-          price: Math.max(1, Number(formData.price)),
-          seatsTotal: Number(formData.seats),
-          seatsBooked: 0,
-          availableSeats: Number(formData.seats),
-          status: 'pending_approval',
-          amenities: formData.amenities,
-          busId: formData.busId,
-          driverId: formData.driverId,
-          stops: formData.stops.split(',').map(s => s.trim()).filter(Boolean),
-          created_at: new Date().toISOString()
-        });
+      const routeId = 'R-' + Math.random().toString(36).substring(2, 10).toUpperCase();
       
-      if (error) throw error;
-      
-      toast.success('Рейс успішно опубліковано!', { id: tid });
+      const { error: routeErr } = await supabase.from('routes').insert({
+        id:           routeId,
+        carrierId:    user.uid,
+        name:         form.routeName,
+        direction:    form.direction,
+        seats:        form.seats,
+        currency:     'UAH',
+        status:       'pending',
+        stopsThere:   form.stopsForward,
+        stopsBack:    form.stopsBack,
+        pricesThere:  form.pricesThere,
+        pricesBack:   form.pricesBack,
+        pricingMode:  form.pricingMode,
+        singlePrice:  form.singlePriceThere,
+      });
+      if (routeErr) throw routeErr;
+
+      const tripsForward = buildTripsForRoute(
+        routeId, user.uid,
+        form.stopsForward,
+        form.activeDaysThere,
+        form.seats,
+        form.busId,
+        form.driverId,
+        form.amenities,
+        {},
+        form.singlePriceThere,
+      );
+
+      const tripsBack = form.direction === 'roundtrip'
+        ? buildTripsForRoute(
+            routeId, user.uid,
+            form.stopsBack,
+            form.activeDaysBack,
+            form.seats,
+            form.busId,
+            form.driverId,
+            form.amenities,
+            {},
+            form.singlePriceBack,
+          )
+        : [];
+
+      const allTrips = [...tripsForward, ...tripsBack];
+      if (allTrips.length > 0) {
+        const { error: tripsErr } = await supabase.from('trips').insert(allTrips);
+        if (tripsErr) throw tripsErr;
+      }
+
+      toast.success(`Успішно! Створено ${allTrips.length} рейсів.`, { id: tid });
       navigate('/carrier/trips');
-    } catch (e) {
-      console.error(e);
-      toast.error('Помилка при публікації', { id: tid });
-    } finally { setLoading(false); }
+    } catch (e: any) {
+      toast.error('Помилка: ' + (e.message || 'невідома'), { id: tid });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSaveDraft = async () => {
     if (!user) return;
-    setLoading(true);
-    const tid = toast.loading('Збереження чернетки...');
     try {
-      const { error } = await supabase
-        .from('trip_drafts')
-        .upsert({
-          id: `draft_${Date.now()}`,
-          carrierId: user.uid,
-          data: {
-            ...formData,
-            updatedAt: new Date().toISOString()
-          },
-          updated_at: new Date().toISOString()
-        });
-      
+      const { error } = await supabase.from('trip_drafts').upsert({
+        id: `draft_${user.uid}`,
+        carrierId: user.uid,
+        data: form,
+        updatedAt: new Date().toISOString()
+      });
       if (error) throw error;
-      
-      toast.success('Чернетку збережено', { id: tid });
-    } catch (e) {
-      console.error(e);
-      toast.error('Помилка збереження', { id: tid });
-    } finally { setLoading(false); }
+      toast.success('Чернетку збережено');
+    } catch (e: any) {
+      toast.error('Помилка збереження: ' + e.message);
+    }
   };
 
-  const inputCls = "w-full bg-black/20 border border-white/5 rounded-2xl py-3.5 px-5 text-sm font-medium text-white outline-none focus:border-[#ff6b35] transition-all appearance-none";
+  const inputCls = "w-full bg-black/20 border border-white/5 rounded-2xl py-3 px-4 text-sm text-white outline-none focus:border-[#ff6b35] transition-all";
+  const textareaCls = "w-full bg-black/20 border border-white/5 rounded-2xl py-3 px-4 text-sm text-white outline-none focus:border-[#ff6b35] font-mono leading-relaxed resize-none";
 
   return (
-    <div className="space-y-6 pb-24 max-w-2xl mx-auto">
-      {/* Header */}
-      <div>
-        <h2 className="font-syne font-black text-2xl italic tracking-tighter uppercase text-white">Створити новий рейс</h2>
-        <p className="text-[#5a6a85] text-xs font-medium mt-1 uppercase tracking-widest">Заповніть форму для публікації маршруту</p>
+    <div className="space-y-5 pb-28 max-w-2xl mx-auto">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-syne font-black text-2xl italic tracking-tighter uppercase text-white">Новий маршрут</h2>
+          <p className="text-[#5a6a85] text-[10px] font-medium uppercase tracking-widest mt-1">Smart Builder Edition</p>
+        </div>
+        <div className="bg-[#ff6b35]/10 border border-[#ff6b35]/20 rounded-xl px-3 py-1.5 flex items-center gap-2">
+          <Sparkles size={14} className="text-[#ff6b35]" />
+          <span className="text-[10px] font-black text-[#ff6b35] uppercase">AI Parser Active</span>
+        </div>
       </div>
 
-      {/* Step Indicator */}
-      <div className="flex items-center gap-0">
+      <div className="flex items-center gap-1">
         {STEPS.map((s, i) => (
           <React.Fragment key={s.id}>
-            <button
-              onClick={() => step > s.id && setStep(s.id)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all ${step === s.id ? 'bg-[#ff6b35]/15 text-[#ff6b35]' : step > s.id ? 'text-emerald-400 cursor-pointer' : 'text-[#5a6a85] cursor-default'}`}
-            >
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border text-[10px] font-black ${step === s.id ? 'bg-[#ff6b35] border-[#ff6b35] text-white' : step > s.id ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-white/5 border-white/10'}`}>
-                {step > s.id ? <Check size={12} /> : s.id}
+            <div className={`flex items-center gap-2 p-1.5 rounded-xl transition-all ${step === i ? 'bg-[#ff6b35]/10 text-[#ff6b35]' : 'text-[#5a6a85]'}`}>
+              <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black border ${step === i ? 'bg-[#ff6b35] border-[#ff6b35] text-white' : 'border-white/10 bg-white/5'}`}>
+                {i < step ? <Check size={10} /> : s.id + 1}
               </div>
-              <span className="text-[10px] font-black uppercase tracking-wider hidden sm:block">{s.label}</span>
-            </button>
-            {i < STEPS.length - 1 && (
-              <div className={`h-px flex-1 mx-1 transition-colors ${step > s.id ? 'bg-emerald-500/40' : 'bg-white/10'}`} />
-            )}
+              <span className="text-[9px] font-black uppercase tracking-wider hidden sm:block">{s.label}</span>
+            </div>
+            {i < STEPS.length - 1 && <div className="h-px flex-1 bg-white/5 mx-1" />}
           </React.Fragment>
         ))}
       </div>
 
-      {/* Info Banner */}
-      <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-2xl p-4 flex items-start gap-3">
-        <Info size={16} className="text-cyan-400 shrink-0 mt-0.5" />
-        <p className="text-[#8899b5] text-xs leading-relaxed">
-          Рейси публікуються автоматично. Модерація потрібна лише якщо ціна відхиляється від базової більше ніж на ±20%.
-        </p>
-      </div>
-
-      {/* Step Content */}
       <AnimatePresence mode="wait">
         <motion.div
           key={step}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.25 }}
-          className="bg-[#1a2235] border border-white/5 rounded-[28px] p-6 space-y-6"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="glass-mission-control border border-white/5 rounded-[32px] p-6 min-h-[400px]"
         >
-          {/* Step 1: Route */}
-          {step === 1 && (
-            <>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-9 h-9 rounded-xl bg-[#ff6b35]/10 text-[#ff6b35] flex items-center justify-center border border-[#ff6b35]/20">
-                  <MapPin size={18} />
+          {step === 0 && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <FieldLabel>Назва маршруту</FieldLabel>
+                  <input className={inputCls} value={form.routeName} onChange={e => setForm(p => ({ ...p, routeName: e.target.value }))} placeholder="Черкаси — Варшава" />
                 </div>
-                <h3 className="text-base font-bold text-white uppercase italic tracking-tight">Маршрут та час</h3>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <InputWrap>
-                  <FieldLabel>Місто відправлення</FieldLabel>
-                  <select value={formData.from} onChange={e => set('from', e.target.value)} className={inputCls}>
-                    {UA_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                <div>
+                  <FieldLabel>Тип</FieldLabel>
+                  <select className={inputCls} value={form.direction} onChange={e => setForm(p => ({ ...p, direction: e.target.value as any }))}>
+                    <option value="roundtrip">Туди і назад</option>
+                    <option value="oneway">Тільки туди</option>
                   </select>
-                </InputWrap>
-                <InputWrap>
-                  <FieldLabel>Місто призначення</FieldLabel>
-                  <select value={formData.to} onChange={e => set('to', e.target.value)} className={inputCls}>
-                    {EU_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </InputWrap>
+                </div>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <InputWrap>
-                  <FieldLabel>Дата</FieldLabel>
-                  <div className="relative" ref={calendarRef}>
-                    <div onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="relative cursor-pointer">
-                      <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a6a85]" size={15} />
-                      <div className="w-full bg-black/20 border border-white/5 rounded-2xl py-3.5 pl-11 pr-4 text-sm font-black italic text-white flex items-center justify-between cursor-pointer hover:border-[#ff6b35] transition-all">
-                        <span className="truncate">{formatDate(formData.date) || 'Дата'}</span>
-                        <ChevronDown size={13} className={`text-slate-600 shrink-0 ml-1 transition-transform ${isCalendarOpen ? 'rotate-180' : ''}`} />
-                      </div>
-                    </div>
-                    <AnimatePresence>
-                      {isCalendarOpen && (
-                        <div className="absolute top-full left-0 z-50 mt-2 w-full sm:w-auto">
-                          <BusnetCalendar
-                            selectedDate={formData.date}
-                            onSelect={v => { set('date', v); setIsCalendarOpen(false); }}
-                          />
-                        </div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </InputWrap>
-                <InputWrap>
-                  <FieldLabel>Час виїзду</FieldLabel>
-                  <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a6a85]" size={15} />
-                    <input type="time" value={formData.time} onChange={e => set('time', e.target.value)} className={`${inputCls} pl-11`} />
-                  </div>
-                </InputWrap>
-                <InputWrap>
-                  <FieldLabel>Прибуття</FieldLabel>
-                  <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a6a85]" size={15} />
-                    <input type="time" value={formData.arrivalTime} onChange={e => set('arrivalTime', e.target.value)} className={`${inputCls} pl-11`} />
-                  </div>
-                </InputWrap>
+              <div className="grid grid-cols-2 gap-4">
+                <input className={inputCls} value={form.fromCity} onChange={e => setForm(p => ({ ...p, fromCity: e.target.value }))} placeholder="Звідки" />
+                <input className={inputCls} value={form.toCity} onChange={e => setForm(p => ({ ...p, toCity: e.target.value }))} placeholder="Куди" />
               </div>
-
-              <InputWrap>
-                <FieldLabel>Зупинки (через кому)</FieldLabel>
-                <input
-                  placeholder="напр. Рівне, Луцьк, Люблін"
-                  value={formData.stops}
-                  onChange={e => set('stops', e.target.value)}
-                  className={inputCls}
-                />
-              </InputWrap>
-            </>
+            </div>
           )}
 
-          {/* Step 2: Transport */}
+          {step === 1 && (
+            <div className="space-y-4">
+              <div className="flex bg-black/40 p-1 rounded-2xl border border-white/5 mb-4">
+                <button onClick={() => setDirTab(0)} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${dirTab === 0 ? 'bg-[#ff6b35] text-white' : 'text-[#5a6a85]'}`}>Туди →</button>
+                <button onClick={() => setDirTab(1)} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${dirTab === 1 ? 'bg-cyan-500 text-white' : 'text-[#5a6a85]'}`}>← Назад</button>
+              </div>
+              <textarea
+                className={textareaCls}
+                rows={10}
+                value={dirTab === 0 ? form.rawTextForward : form.rawTextBack}
+                onChange={e => setForm(p => ({ ...p, [dirTab === 0 ? 'rawTextForward' : 'rawTextBack']: e.target.value }))}
+                placeholder="20:00 Пн&#10;Київ&#10;(Автовокзал)&#10;..."
+              />
+              <button onClick={() => handleParse(dirTab === 0 ? 'forward' : 'back')} className="w-full py-3 bg-[#ff6b35]/10 border border-[#ff6b35]/20 rounded-2xl text-[#ff6b35] text-[10px] font-black uppercase tracking-widest hover:bg-[#ff6b35]/20">Розпізнати зупинки</button>
+              
+              <div className="space-y-2 mt-4">
+                {(dirTab === 0 ? form.stopsForward : form.stopsBack).map((s, i) => (
+                  <StopRow key={i} stop={s} index={i} total={(dirTab === 0 ? form.stopsForward : form.stopsBack).length} onUpdate={(idx, k, v) => {
+                    const arr = dirTab === 0 ? [...form.stopsForward] : [...form.stopsBack];
+                    (arr[idx] as any)[k] = v;
+                    setForm(p => ({ ...p, [dirTab === 0 ? 'stopsForward' : 'stopsBack']: arr }));
+                  }} onDelete={idx => {
+                    setForm(p => ({ ...p, [dirTab === 0 ? 'stopsForward' : 'stopsBack']: (dirTab === 0 ? p.stopsForward : p.stopsBack).filter((_, ix) => ix !== idx) }));
+                  }} />
+                ))}
+              </div>
+            </div>
+          )}
+
           {step === 2 && (
-            <>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-9 h-9 rounded-xl bg-[#ff6b35]/10 text-[#ff6b35] flex items-center justify-center border border-[#ff6b35]/20">
-                  <Bus size={18} />
-                </div>
-                <h3 className="text-base font-bold text-white uppercase italic tracking-tight">Транспорт та Персонал</h3>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <InputWrap>
-                  <FieldLabel>Виберіть автобус</FieldLabel>
-                  <select
-                    value={formData.busId}
-                    onChange={e => { const b = buses.find(b => b.id === e.target.value); set('busId', e.target.value); if (b) set('seats', b.capacity); }}
-                    className={inputCls}
-                  >
-                    {buses.length > 0
-                      ? buses.map(b => <option key={b.id} value={b.id}>{b.model} ({b.number}) · {b.capacity} місць</option>)
-                      : <option disabled>Немає доступних автобусів</option>}
-                  </select>
-                </InputWrap>
-                <InputWrap>
-                  <FieldLabel>Призначити водія</FieldLabel>
-                  <select value={formData.driverId} onChange={e => set('driverId', e.target.value)} className={inputCls}>
-                    {drivers.length > 0
-                      ? drivers.map(d => <option key={d.id} value={d.id}>{d.firstName} {d.lastName} ({d.licenseNumber})</option>)
-                      : <option disabled>Немає доступних водіїв</option>}
-                  </select>
-                </InputWrap>
-              </div>
-
-              <InputWrap>
-                <FieldLabel>Зручності на борту</FieldLabel>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {AMENITY_LIST.map(item => (
-                    <label key={item.id} className="cursor-pointer group">
-                      <input type="checkbox" className="hidden peer" checked={formData.amenities.includes(item.id)} onChange={() => toggleAmenity(item.id)} />
-                      <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-black/20 border border-white/5 text-[#5a6a85] transition-all peer-checked:bg-[#ff6b35]/10 peer-checked:border-[#ff6b35] peer-checked:text-[#ff6b35]">
-                        <item.icon size={15} />
-                        <span className="text-[9px] font-black uppercase tracking-tighter">{item.label}</span>
-                      </div>
-                    </label>
+            <div className="space-y-6">
+              <div>
+                <FieldLabel>Дні виїзду — Туди</FieldLabel>
+                <div className="grid grid-cols-7 gap-2">
+                  {DAY_SHORT.map((d, i) => (
+                    <button key={i} onClick={() => {
+                      const cur = form.activeDaysThere;
+                      setForm(p => ({ ...p, activeDaysThere: cur.includes(i) ? cur.filter(x => x !== i) : [...cur, i].sort() }));
+                    }} className={`py-3 rounded-xl text-[10px] font-black border transition-all ${form.activeDaysThere.includes(i) ? 'bg-[#ff6b35] border-[#ff6b35] text-white' : 'bg-white/5 border-white/5 text-[#5a6a85]'}`}>{d}</button>
                   ))}
                 </div>
-              </InputWrap>
-            </>
+              </div>
+              {form.direction === 'roundtrip' && (
+                <div>
+                  <FieldLabel>Дні виїзду — Назад</FieldLabel>
+                  <div className="grid grid-cols-7 gap-2">
+                    {DAY_SHORT.map((d, i) => (
+                      <button key={i} onClick={() => {
+                        const cur = form.activeDaysBack;
+                        setForm(p => ({ ...p, activeDaysBack: cur.includes(i) ? cur.filter(x => x !== i) : [...cur, i].sort() }));
+                      }} className={`py-3 rounded-xl text-[10px] font-black border transition-all ${form.activeDaysBack.includes(i) ? 'bg-cyan-500 border-cyan-500 text-white' : 'bg-white/5 border-white/5 text-[#5a6a85]'}`}>{d}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
-          {/* Step 3: Finance */}
           {step === 3 && (
-            <>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-9 h-9 rounded-xl bg-[#ff6b35]/10 text-[#ff6b35] flex items-center justify-center border border-[#ff6b35]/20">
-                  <Euro size={18} />
-                </div>
-                <h3 className="text-base font-bold text-white uppercase italic tracking-tight">Фінансові умови</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <select className={inputCls} value={form.busId} onChange={e => setForm(p => ({ ...p, busId: e.target.value }))}>
+                  {buses.map(b => <option key={b.id} value={b.id}>{b.number} ({b.capacity} місць)</option>)}
+                </select>
+                <select className={inputCls} value={form.driverId} onChange={e => setForm(p => ({ ...p, driverId: e.target.value }))}>
+                  {drivers.map(d => <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>)}
+                </select>
               </div>
+              <div className="grid grid-cols-3 gap-2">
+                {AMENITY_LIST.map(a => (
+                  <button key={a.id} onClick={() => setForm(p => ({ ...p, amenities: p.amenities.includes(a.id) ? p.amenities.filter(x => x !== a.id) : [...p.amenities, a.id] }))} className={`p-3 rounded-xl text-[9px] font-black uppercase border transition-all ${form.amenities.includes(a.id) ? 'bg-[#ff6b35]/20 border-[#ff6b35] text-[#ff6b35]' : 'bg-white/5 border-white/5 text-[#5a6a85]'}`}>{a.label}</button>
+                ))}
+              </div>
+            </div>
+          )}
 
-              <InputWrap>
-                <FieldLabel>Ваша ціна квитка (€)</FieldLabel>
-                <div className="relative">
-                  <Euro className="absolute left-4 top-1/2 -translate-y-1/2 text-[#ff6b35]" size={18} />
-                  <input
-                    type="number"
-                    value={formData.price}
-                    onChange={e => set('price', Number(e.target.value))}
-                    className="w-full bg-black/30 border border-white/5 rounded-2xl py-4 pl-11 pr-6 text-2xl font-syne font-black text-[#ff6b35] outline-none focus:border-[#ff6b35] transition-all"
-                  />
-                </div>
-                <p className="text-[9px] text-amber-400 font-bold uppercase tracking-tight ml-1 flex items-center gap-1 mt-1">
-                  <Info size={10} /> Діапазон: €44–€66 (±20% від базової)
-                </p>
-              </InputWrap>
-
-              <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-3">
-                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-tight">
-                  <span className="text-[#5a6a85]">Комісія BUSNET (8%)</span>
-                  <span className="text-rose-400">-€{(formData.price * 0.08).toFixed(2)}</span>
-                </div>
-                <div className="h-px bg-white/5" />
-                <div className="flex justify-between items-center">
-                  <span className="text-[11px] font-black uppercase text-white tracking-widest">Ви отримуєте</span>
-                  <span className="text-2xl font-syne font-black text-emerald-400 italic tracking-tighter">€{(formData.price * 0.92).toFixed(2)}</span>
+          {step === 4 && (
+            <div className="space-y-4">
+               <div className="bg-black/40 p-4 rounded-2xl border border-white/5">
+                <FieldLabel>Ціна за замовчуванням (₴)</FieldLabel>
+                <div className="flex items-center gap-3">
+                  <input type="number" className="bg-transparent text-3xl font-syne font-black text-[#ff6b35] outline-none w-full" value={form.singlePriceThere} onChange={e => setForm(p => ({ ...p, singlePriceThere: +e.target.value }))} />
+                  <span className="text-xl font-black text-[#5a6a85]">UAH</span>
                 </div>
               </div>
-
-              {/* Summary */}
-              <div className="p-4 rounded-2xl bg-[#ff6b35]/5 border border-[#ff6b35]/20 space-y-2 text-xs">
-                <p className="font-black text-[#ff6b35] uppercase tracking-widest text-[10px]">Підсумок рейсу</p>
-                <p className="text-white font-bold">{formData.from} → {formData.to}</p>
-                <p className="text-[#8899b5]">{formatDate(formData.date)}, {formData.time} – {formData.arrivalTime}</p>
-                {formData.stops && <p className="text-[#8899b5]">Зупинки: {formData.stops}</p>}
+              <div className="p-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/20">
+                <div className="text-[10px] font-black text-cyan-400 uppercase mb-2">Підсумок</div>
+                <div className="text-xs text-[#8899b5]">Буде створено <span className="text-white font-bold">{(form.activeDaysThere.length + form.activeDaysBack.length) * 4}</span> рейсів на наступні 30 днів.</div>
               </div>
-            </>
+            </div>
           )}
         </motion.div>
       </AnimatePresence>
 
-      {/* Navigation Buttons — sticky on mobile */}
-      <div className="fixed bottom-0 left-0 right-0 lg:relative bg-[#0b0e14]/90 lg:bg-transparent backdrop-blur-xl lg:backdrop-blur-none border-t border-white/5 lg:border-0 p-4 lg:p-0 flex gap-3 z-40">
-        {step > 1 && (
-          <button onClick={prev} className="flex items-center gap-2 px-5 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white text-xs font-black uppercase hover:bg-white/10 transition-all">
-            <ChevronLeft size={16} /> Назад
-          </button>
-        )}
-        {step < 3 ? (
-          <button onClick={next} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-[#ff6b35] to-[#cc3300] text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg hover:scale-[1.02] transition-all">
-            Далі <ChevronRight size={16} />
-          </button>
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-[#0b0e14]/80 backdrop-blur-md border-t border-white/5 flex gap-3 z-50">
+        {step > 0 && <button onClick={() => setStep(s => s - 1)} className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white text-[10px] font-black uppercase"><ChevronLeft size={16} /></button>}
+        {step < 4 ? (
+          <button onClick={() => setStep(s => s + 1)} className="flex-1 py-4 bg-gradient-to-r from-[#ff6b35] to-[#cc3300] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#ff6b35]/20">Далі</button>
         ) : (
-          <div className="flex-1 flex gap-3">
-            <button onClick={handleSaveDraft} disabled={loading} className="px-5 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white text-xs font-black uppercase hover:bg-white/10 transition-all flex items-center gap-2 disabled:opacity-50">
-              <Save size={15} /> Чернетка
-            </button>
-            <button onClick={handlePublish} disabled={loading || !formData.date} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-[#ff6b35] to-[#cc3300] text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+          <div className="flex-1 flex gap-2">
+            <button onClick={handleSaveDraft} className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white text-[10px] font-black uppercase"><Save size={16} /></button>
+            <button onClick={handlePublish} disabled={loading} className="flex-1 py-4 bg-gradient-to-r from-[#ff6b35] to-[#cc3300] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#ff6b35]/20 flex items-center justify-center gap-2">
               {loading ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
-              Опублікувати
+              Публікувати
             </button>
           </div>
         )}

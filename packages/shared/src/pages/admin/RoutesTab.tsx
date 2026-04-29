@@ -15,9 +15,9 @@ interface TripItem {
   price: number;
   seats: number;
   bookedSeats: number;
-  carrierId: string;
   carrierName: string;
   status: string;
+  stops?: any[];
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
@@ -60,6 +60,7 @@ const RoutesTab: React.FC = () => {
             carrierId: d.carrierId || '',
             carrierName: d.carrierName || 'Unknown_Entity',
             status: d.status || 'active',
+            stops: d.stops || [],
           })));
         }
       } catch (err) {
@@ -221,6 +222,20 @@ const RoutesTab: React.FC = () => {
                     <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest leading-none">
                       {trip.carrierName} · {trip.date} · <span className="text-[#00D4FF]">€{trip.price}</span>
                     </p>
+                    {trip.stops && trip.stops.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-white/5 space-y-2">
+                        <p className="text-[8px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Full Itinerary Matrix:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {trip.stops.map((s: any, idx: number) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-white">{s.city}</span>
+                              <span className="text-[9px] text-slate-600 font-mono">{s.time}</span>
+                              {idx < trip.stops!.length - 1 && <ArrowRight size={10} className="text-slate-700" />}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-3 shrink-0">
                     <motion.button

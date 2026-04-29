@@ -56,6 +56,7 @@ export interface Trip extends GlobalTrip {
   stopCities?: string[];
   pricesThere?: Record<string, number>;
   pricesBack?: Record<string, number>;
+  stops?: any[];
   stopsThere?: any[];
   stopsBack?: any[];
 }

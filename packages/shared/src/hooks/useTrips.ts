@@ -36,7 +36,15 @@ export function useTrips() {
         const toCity = params.to.toLowerCase();
 
         results = results.filter(trip => {
-          const stopCities = (trip.stopCities || trip.stopsThere?.map((s: any) => s.city) || []).map(c => c.toLowerCase());
+          // Новий формат: trip.stops (масив об'єктів {city, ...})
+          // Старий формат: trip.stopCities (масив рядків)
+          const stopCities = (
+            trip.stops?.map((s: any) => s.city) || 
+            trip.stopCities || 
+            trip.stopsThere?.map((s: any) => s.city) || 
+            []
+          ).map((c: string) => c.toLowerCase());
+          
           const fromIdx = stopCities.indexOf(fromCity);
           const toIdx = stopCities.indexOf(toCity);
           return fromIdx !== -1 && toIdx !== -1 && fromIdx < toIdx;
@@ -44,13 +52,21 @@ export function useTrips() {
       } else if (params.from) {
         const fromCity = params.from.toLowerCase();
         results = results.filter(trip => {
-          const stopCities = (trip.stopCities || trip.stopsThere?.map((s: any) => s.city) || []).map(c => c.toLowerCase());
+          const stopCities = (
+            trip.stops?.map((s: any) => s.city) || 
+            trip.stopCities || 
+            []
+          ).map((c: string) => c.toLowerCase());
           return stopCities.includes(fromCity);
         });
       } else if (params.to) {
         const toCity = params.to.toLowerCase();
         results = results.filter(trip => {
-          const stopCities = (trip.stopCities || trip.stopsThere?.map((s: any) => s.city) || []).map(c => c.toLowerCase());
+          const stopCities = (
+            trip.stops?.map((s: any) => s.city) || 
+            trip.stopCities || 
+            []
+          ).map((c: string) => c.toLowerCase());
           return stopCities.includes(toCity);
         });
       }
