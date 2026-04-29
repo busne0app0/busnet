@@ -7,7 +7,11 @@ import { LanguageProvider } from '@busnet/shared/context/LanguageContext';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { Toaster } from 'react-hot-toast';
 
-import { HomePage, BookingPage, AuthPage, ForumPage, Dashboard } from '@busnet/shared/pages';
+import HomePage from '@busnet/shared/pages/HomePage';
+import BookingPage from '@busnet/shared/pages/BookingPage';
+import AuthPage from '@busnet/shared/pages/AuthPage';
+import ForumPage from '@busnet/shared/pages/ForumPage';
+import Dashboard from '@busnet/shared/pages/Dashboard';
 import { DashboardBridge } from '@busnet/shared/pages/DashboardBridge';
 import MainLayout from '@busnet/shared/components/layout/MainLayout';
 
