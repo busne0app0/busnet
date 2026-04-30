@@ -12,7 +12,7 @@ import {
   Wifi, Wind, Coffee, Tv, Battery, Users,
   Globe, Zap, ArrowRight, Calendar, ExternalLink
 } from 'lucide-react';
-import { useAuthStore } from '../store/useAuthStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { supabase } from '../../supabase/config';
 import { useNavigate } from 'react-router-dom';
 import { useFleet } from '../../hooks/useFleet';
