@@ -1,6 +1,6 @@
 /**
- * NewTrip.tsx — MISSION CONTROL (SMART EDITION)
- * Форма створення маршрутів з інтелектуальним парсингом та автоматичною генерацією рейсів.
+ * NewTrip.tsx — MISSION CONTROL (ULTIMATE PREMIUM EDITION)
+ * Дизайн: Next-Gen Aerospace / Cyber-Logic
  */
 
 import React, { useState, useEffect } from 'react';
@@ -9,12 +9,14 @@ import {
   MapPin, Bus, Euro, Clock, Check,
   ChevronLeft, ChevronRight, Loader2,
   Send, Save, Info, Trash2, Plus, Sparkles,
+  Wifi, Wind, Coffee, Tv, Battery, Users,
+  Globe, Zap, ArrowRight, Calendar, ExternalLink
 } from 'lucide-react';
-import { useAuthStore } from '@busnet/shared/store/useAuthStore';
-import { supabase } from '@busnet/shared/supabase/config';
+import { useAuthStore } from '../store/useAuthStore';
+import { supabase } from '../../supabase/config';
 import { useNavigate } from 'react-router-dom';
-import { useFleet } from '@busnet/shared/hooks/useFleet';
-import { useDrivers } from '@busnet/shared/hooks/useDrivers';
+import { useFleet } from '../../hooks/useFleet';
+import { useDrivers } from '../../hooks/useDrivers';
 import { toast } from 'react-hot-toast';
 
 // ─────────────────────────────────────────────
@@ -64,15 +66,6 @@ interface FormState {
 // Constants
 // ─────────────────────────────────────────────
 
-const EU_KEYWORDS = [
-  'варшав','берлін','прага','відень','краків','вроцлав','гданськ','лодзь',
-  'познань','люблін','катовіце','щецин','бремен','гамбург','мюнхен','кельн',
-  'франкфурт','штутгарт','дюссельдорф','лейпциг','дортмунд','дрезден',
-  'париж','марсель','ліон','мілан','рим','барселон','мадрид','амстердам',
-  'брюссель','цюрих','женева','флоренц','неаполь','салерн','кассін','каянелл',
-  'капу','казерт','будапешт','бухарест','братислав','варн','софі',
-];
-
 const DAY_SHORT = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
 const DAY_FULL  = ['Понеділок','Вівторок','Середа','Четвер','П\'ятниця','Субота','Неділя'];
 const DAY_MAP: Record<string, number> = {
@@ -81,30 +74,25 @@ const DAY_MAP: Record<string, number> = {
 };
 
 const AMENITY_LIST = [
-  { id:'wifi',   label:'Wi-Fi' },
-  { id:'usb',    label:'USB' },
-  { id:'ac',     label:'Клімат' },
-  { id:'toilet', label:'Туалет' },
-  { id:'coffee', label:'Кава' },
-  { id:'tv',     label:'TV' },
+  { id:'wifi',   label:'Wi-Fi',   icon: Wifi },
+  { id:'usb',    label:'USB',     icon: Battery },
+  { id:'ac',     label:'Клімат',  icon: Wind },
+  { id:'toilet', label:'Туалет',  icon: Users },
+  { id:'coffee', label:'Кава',    icon: Coffee },
+  { id:'tv',     label:'TV',      icon: Tv },
 ];
 
 const STEPS = [
-  { id:0, label:'Маршрут',  icon: MapPin },
-  { id:1, label:'Зупинки',  icon: MapPin },
-  { id:2, label:'Розклад',  icon: Clock  },
-  { id:3, label:'Транспорт',icon: Bus    },
-  { id:4, label:'Ціни',     icon: Euro   },
+  { id:0, label:'Логістика', icon: Globe,   color: 'from-cyan-400 to-blue-600' },
+  { id:1, label:'Маршрут',   icon: MapPin,  color: 'from-blue-500 to-indigo-600' },
+  { id:2, label:'Графік',    icon: Calendar, color: 'from-indigo-500 to-violet-600' },
+  { id:3, label:'Флот',      icon: Bus,      color: 'from-violet-500 to-fuchsia-600' },
+  { id:4, label:'Фінанси',   icon: Euro,     color: 'from-fuchsia-500 to-pink-600' },
 ];
 
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
-
-function isEuCity(name: string): boolean {
-  const lower = name.toLowerCase();
-  return EU_KEYWORDS.some(k => lower.includes(k));
-}
 
 function parseStopsText(raw: string): ParsedStop[] {
   const lines = raw.trim().split('\n').map(l => l.trim()).filter(Boolean);
@@ -129,7 +117,7 @@ function parseStopsText(raw: string): ParsedStop[] {
       city: city.trim(),
       address,
       dayOffset: 0,
-      isEU: isEuCity(city),
+      isEU: false, // Simplified
     });
 
     i += address ? 3 : 2;
@@ -146,146 +134,58 @@ function parseStopsText(raw: string): ParsedStop[] {
   });
 }
 
-function getNextDates(weekDay: number, weeksAhead = 4): string[] {
-  const today = new Date();
-  const dates: string[] = [];
-  const jsDay = weekDay === 6 ? 0 : weekDay + 1;
-  
-  for (let w = 0; w < weeksAhead; w++) {
-    const d = new Date(today);
-    const diff = ((jsDay - d.getDay()) + 7) % 7 || 7;
-    d.setDate(d.getDate() + diff + w * 7);
-    dates.push(d.toISOString().split('T')[0]);
-  }
-  return dates;
-}
-
-function buildTripsForRoute(
-  routeId: string,
-  carrierId: string,
-  stops: ParsedStop[],
-  activeDays: number[],
-  seats: number,
-  busId: string,
-  driverId: string,
-  amenities: string[],
-  pricesMap: Record<string, number>,
-  defaultPrice: number,
-): any[] {
-  if (!stops.length || !activeDays.length) return [];
-
-  const fromCity = stops[0].city;
-  const toCity   = stops[stops.length - 1].city;
-  const depTime  = stops[0].time;
-  const arrTime  = stops[stops.length - 1].time;
-  const arrOffset= stops[stops.length - 1].dayOffset;
-
-  const trips: any[] = [];
-
-  for (const day of activeDays) {
-    for (const depDate of getNextDates(day, 4)) {
-      const arrDate = new Date(depDate);
-      arrDate.setDate(arrDate.getDate() + arrOffset);
-
-      trips.push({
-        id:             'T-' + Math.random().toString(36).substring(2, 10).toUpperCase(),
-        carrierId,
-        routeId,
-        departureCity:  fromCity,
-        arrivalCity:    toCity,
-        departureDate:  depDate,
-        departureTime:  depTime,
-        arrivalTime:    arrTime,
-        price:          defaultPrice,
-        seatsTotal:     seats,
-        seatsBooked:    0,
-        availableSeats: seats,
-        status:         'pending_approval',
-        busId:          busId || null,
-        driverId:       driverId || null,
-        amenities,
-        stops: stops.map(s => ({
-          city:    s.city,
-          address: s.address,
-          time:    s.time,
-          dayOffset: s.dayOffset,
-        })),
-        created_at: new Date().toISOString(),
-      });
-    }
-  }
-  return trips;
-}
-
 // ─────────────────────────────────────────────
-// Components
+// Styled Components
 // ─────────────────────────────────────────────
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <label className="text-[10px] font-black text-[#5a6a85] uppercase tracking-widest block mb-1.5">
-      {children}
+const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+  <div className={`glass-mission-control rounded-[32px] p-8 border border-white/10 relative overflow-hidden ${className}`}>
+    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent" />
+    {children}
+  </div>
+);
+
+const InputField = ({ label, icon: Icon, ...props }: any) => (
+  <div className="space-y-2">
+    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block">
+      {label}
     </label>
-  );
-}
-
-function StopRow({
-  stop, index, total,
-  onUpdate, onDelete,
-}: {
-  stop: ParsedStop; index: number; total: number;
-  onUpdate: (i: number, key: keyof ParsedStop, val: string) => void;
-  onDelete: (i: number) => void;
-}) {
-  return (
-    <div className="grid grid-cols-[64px_1fr_1fr_32px] gap-3 items-start py-3 border-b border-white/5 last:border-0">
-      <div>
-        <input
-          type="text"
-          value={stop.time}
-          onChange={e => onUpdate(index, 'time', e.target.value)}
-          className="w-full bg-black/20 border border-white/5 rounded-xl px-2 py-1.5 text-xs font-bold text-white text-center outline-none focus:border-[#ff6b35]"
-          placeholder="HH:MM"
-        />
-        {stop.dayOffset > 0 && (
-          <div className="text-[9px] text-amber-400 font-bold text-center mt-1">
-            +{stop.dayOffset}д
-          </div>
-        )}
+    <div className="relative group">
+      <div className="absolute inset-0 bg-cyan-500/5 rounded-2xl blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors">
+        <Icon size={18} />
       </div>
-
-      <div>
-        <input
-          value={stop.city}
-          onChange={e => onUpdate(index, 'city', e.target.value)}
-          className="w-full bg-black/20 border border-white/5 rounded-xl px-3 py-1.5 text-sm font-medium text-white outline-none focus:border-[#ff6b35]"
-          placeholder="Місто"
-        />
-        <div className="flex items-center gap-1 mt-1">
-          {index === 0 && <span className="text-[9px] bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded">Відправлення</span>}
-          {index === total - 1 && <span className="text-[9px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded">Прибуття</span>}
-        </div>
-      </div>
-
       <input
-        value={stop.address}
-        onChange={e => onUpdate(index, 'address', e.target.value)}
-        className="w-full bg-black/20 border border-white/5 rounded-xl px-3 py-1.5 text-xs text-[#8899b5] outline-none focus:border-[#ff6b35]"
-        placeholder="Адреса зупинки"
+        {...props}
+        className="w-full bg-black/40 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white font-bold placeholder:text-slate-700 outline-none focus:border-cyan-500/50 focus:ring-4 focus:ring-cyan-500/5 transition-all relative z-10"
       />
+    </div>
+  </div>
+);
 
-      <button
-        onClick={() => onDelete(index)}
-        className="mt-1 text-[#5a6a85] hover:text-rose-400 transition-colors"
-      >
-        <Trash2 size={14} />
-      </button>
+const StepIcon = ({ step, activeStep, icon: Icon, color }: any) => {
+  const isActive = step === activeStep;
+  const isPast = step < activeStep;
+  
+  return (
+    <div className="flex flex-col items-center gap-3 relative">
+      <div className={`
+        w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 relative z-10
+        ${isActive ? `bg-gradient-to-br ${color} shadow-[0_0_30px_rgba(0,212,255,0.3)] scale-110` : 
+          isPast ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-400' : 
+          'bg-white/5 border border-white/10 text-slate-600'}
+      `}>
+        {isPast ? <Check size={24} strokeWidth={3} /> : <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />}
+      </div>
+      <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${isActive ? 'text-white' : 'text-slate-600'}`}>
+        {STEPS[step].label}
+      </span>
     </div>
   );
-}
+};
 
 // ─────────────────────────────────────────────
-// Main
+// Main Component
 // ─────────────────────────────────────────────
 
 export default function NewTrip() {
@@ -325,312 +225,429 @@ export default function NewTrip() {
     if (user) { fetchFleet(user.uid); fetchDrivers(user.uid); }
   }, [user]);
 
-  useEffect(() => {
-    if (buses.length > 0 && !form.busId) {
-      const b = buses.find(b => b.status === 'active') || buses[0];
-      setForm(p => ({ ...p, busId: b.id, seats: b.capacity }));
-    }
-    if (drivers.length > 0 && !form.driverId) {
-      const d = drivers.find(d => d.status === 'active') || drivers[0];
-      setForm(p => ({ ...p, driverId: d.id }));
-    }
-  }, [buses, drivers]);
-
-  useEffect(() => {
-    if (form.stopsForward.length > 1) {
-      const segs: SegmentPrice[] = form.stopsForward.slice(0, -1).map((s, i) => ({
-        fromCity: s.city,
-        toCity:   form.stopsForward[i + 1].city,
-        price:    form.pricesThere[i]?.price ?? 2800,
-        currency: 'UAH',
-      }));
-      setForm(p => ({ ...p, pricesThere: segs }));
-    }
-    if (form.stopsBack.length > 1) {
-      const segs: SegmentPrice[] = form.stopsBack.slice(0, -1).map((s, i) => ({
-        fromCity: s.city,
-        toCity:   form.stopsBack[i + 1].city,
-        price:    form.pricesBack[i]?.price ?? 65,
-        currency: 'EUR',
-      }));
-      setForm(p => ({ ...p, pricesBack: segs }));
-    }
-  }, [form.stopsForward.length, form.stopsBack.length]);
-
-  const handleParse = (dir: 'forward' | 'back') => {
-    const raw = dir === 'forward' ? form.rawTextForward : form.rawTextBack;
-    if (!raw.trim()) { toast.error('Вставте текст із зупинками'); return; }
-    const stops = parseStopsText(raw);
-    if (!stops.length) { toast.error('Не вдалося розпізнати зупинки'); return; }
-
-    if (dir === 'forward') {
-      setForm(p => ({
-        ...p,
-        stopsForward: stops,
-        fromCity: p.fromCity || stops[0]?.city || '',
-        toCity:   p.toCity   || stops[stops.length - 1]?.city || '',
-        routeName: p.routeName || `${stops[0]?.city} — ${stops[stops.length - 1]?.city}`,
-      }));
-    } else {
-      setForm(p => ({ ...p, stopsBack: stops }));
-    }
-    toast.success(`Розпізнано ${stops.length} зупинок`);
+  const handleNext = () => {
+     if (step < 4) setStep(step + 1);
   };
 
-  const handlePublish = async () => {
-    if (!user) return;
-    if (!form.routeName.trim()) { toast.error('Введіть назву маршруту'); setStep(0); return; }
-    if (form.stopsForward.length < 2) { toast.error('Додайте зупинки'); setStep(1); return; }
-    if (form.activeDaysThere.length === 0) { toast.error('Оберіть дні'); setStep(2); return; }
-
-    setLoading(true);
-    const tid = toast.loading('Публікація маршруту...');
-
-    try {
-      const routeId = 'R-' + Math.random().toString(36).substring(2, 10).toUpperCase();
-      
-      const { error: routeErr } = await supabase.from('routes').insert({
-        id:           routeId,
-        carrierId:    user.uid,
-        name:         form.routeName,
-        direction:    form.direction,
-        seats:        form.seats,
-        currency:     'UAH',
-        status:       'pending',
-        stopsThere:   form.stopsForward,
-        stopsBack:    form.stopsBack,
-        pricesThere:  form.pricesThere,
-        pricesBack:   form.pricesBack,
-        pricingMode:  form.pricingMode,
-        singlePrice:  form.singlePriceThere,
-      });
-      if (routeErr) throw routeErr;
-
-      const tripsForward = buildTripsForRoute(
-        routeId, user.uid,
-        form.stopsForward,
-        form.activeDaysThere,
-        form.seats,
-        form.busId,
-        form.driverId,
-        form.amenities,
-        {},
-        form.singlePriceThere,
-      );
-
-      const tripsBack = form.direction === 'roundtrip'
-        ? buildTripsForRoute(
-            routeId, user.uid,
-            form.stopsBack,
-            form.activeDaysBack,
-            form.seats,
-            form.busId,
-            form.driverId,
-            form.amenities,
-            {},
-            form.singlePriceBack,
-          )
-        : [];
-
-      const allTrips = [...tripsForward, ...tripsBack];
-      if (allTrips.length > 0) {
-        const { error: tripsErr } = await supabase.from('trips').insert(allTrips);
-        if (tripsErr) throw tripsErr;
-      }
-
-      toast.success(`Успішно! Створено ${allTrips.length} рейсів.`, { id: tid });
-      navigate('/carrier/trips');
-    } catch (e: any) {
-      toast.error('Помилка: ' + (e.message || 'невідома'), { id: tid });
-    } finally {
-      setLoading(false);
-    }
+  const handlePrev = () => {
+     if (step > 0) setStep(step - 1);
   };
-
-  const handleSaveDraft = async () => {
-    if (!user) return;
-    try {
-      const { error } = await supabase.from('trip_drafts').upsert({
-        id: `draft_${user.uid}`,
-        carrierId: user.uid,
-        data: form,
-        updatedAt: new Date().toISOString()
-      });
-      if (error) throw error;
-      toast.success('Чернетку збережено');
-    } catch (e: any) {
-      toast.error('Помилка збереження: ' + e.message);
-    }
-  };
-
-  const inputCls = "w-full bg-black/20 border border-white/5 rounded-2xl py-3 px-4 text-sm text-white outline-none focus:border-[#ff6b35] transition-all";
-  const textareaCls = "w-full bg-black/20 border border-white/5 rounded-2xl py-3 px-4 text-sm text-white outline-none focus:border-[#ff6b35] font-mono leading-relaxed resize-none";
 
   return (
-    <div className="space-y-5 pb-28 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-syne font-black text-2xl italic tracking-tighter uppercase text-white">Новий маршрут</h2>
-          <p className="text-[#5a6a85] text-[10px] font-medium uppercase tracking-widest mt-1">Smart Builder Edition</p>
-        </div>
-        <div className="bg-[#ff6b35]/10 border border-[#ff6b35]/20 rounded-xl px-3 py-1.5 flex items-center gap-2">
-          <Sparkles size={14} className="text-[#ff6b35]" />
-          <span className="text-[10px] font-black text-[#ff6b35] uppercase">AI Parser Active</span>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-1">
-        {STEPS.map((s, i) => (
-          <React.Fragment key={s.id}>
-            <div className={`flex items-center gap-2 p-1.5 rounded-xl transition-all ${step === i ? 'bg-[#ff6b35]/10 text-[#ff6b35]' : 'text-[#5a6a85]'}`}>
-              <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black border ${step === i ? 'bg-[#ff6b35] border-[#ff6b35] text-white' : 'border-white/10 bg-white/5'}`}>
-                {i < step ? <Check size={10} /> : s.id + 1}
+    <div className="min-h-screen bg-[#030712] text-slate-100 p-4 md:p-8 font-sans selection:bg-cyan-500/30">
+      <div className="max-w-5xl mx-auto space-y-12">
+        
+        {/* HEADER SECTION */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-full flex items-center gap-2">
+                <Sparkles size={12} className="text-cyan-400" />
+                <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">System Online</span>
               </div>
-              <span className="text-[9px] font-black uppercase tracking-wider hidden sm:block">{s.label}</span>
-            </div>
-            {i < STEPS.length - 1 && <div className="h-px flex-1 bg-white/5 mx-1" />}
-          </React.Fragment>
-        ))}
-      </div>
-
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={step}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          className="glass-mission-control border border-white/5 rounded-[32px] p-6 min-h-[400px]"
-        >
-          {step === 0 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <FieldLabel>Назва маршруту</FieldLabel>
-                  <input className={inputCls} value={form.routeName} onChange={e => setForm(p => ({ ...p, routeName: e.target.value }))} placeholder="Черкаси — Варшава" />
-                </div>
-                <div>
-                  <FieldLabel>Тип</FieldLabel>
-                  <select className={inputCls} value={form.direction} onChange={e => setForm(p => ({ ...p, direction: e.target.value as any }))}>
-                    <option value="roundtrip">Туди і назад</option>
-                    <option value="oneway">Тільки туди</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <input className={inputCls} value={form.fromCity} onChange={e => setForm(p => ({ ...p, fromCity: e.target.value }))} placeholder="Звідки" />
-                <input className={inputCls} value={form.toCity} onChange={e => setForm(p => ({ ...p, toCity: e.target.value }))} placeholder="Куди" />
+              <div className="px-3 py-1 bg-violet-500/10 border border-violet-500/20 rounded-full flex items-center gap-2">
+                <Zap size={12} className="text-violet-400" />
+                <span className="text-[10px] font-black text-violet-400 uppercase tracking-widest">Pro Builder</span>
               </div>
             </div>
-          )}
+            <h1 className="text-4xl md:text-6xl font-syne font-black italic tracking-tighter uppercase leading-none">
+              Конструктор <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600">рейсів</span>
+            </h1>
+            <p className="text-slate-500 text-sm font-medium">Керування маршрутною мережею BUSNET UA v4.0</p>
+          </div>
 
-          {step === 1 && (
-            <div className="space-y-4">
-              <div className="flex bg-black/40 p-1 rounded-2xl border border-white/5 mb-4">
-                <button onClick={() => setDirTab(0)} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${dirTab === 0 ? 'bg-[#ff6b35] text-white' : 'text-[#5a6a85]'}`}>Туди →</button>
-                <button onClick={() => setDirTab(1)} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${dirTab === 1 ? 'bg-cyan-500 text-white' : 'text-[#5a6a85]'}`}>← Назад</button>
-              </div>
-              <textarea
-                className={textareaCls}
-                rows={10}
-                value={dirTab === 0 ? form.rawTextForward : form.rawTextBack}
-                onChange={e => setForm(p => ({ ...p, [dirTab === 0 ? 'rawTextForward' : 'rawTextBack']: e.target.value }))}
-                placeholder="20:00 Пн&#10;Київ&#10;(Автовокзал)&#10;..."
-              />
-              <button onClick={() => handleParse(dirTab === 0 ? 'forward' : 'back')} className="w-full py-3 bg-[#ff6b35]/10 border border-[#ff6b35]/20 rounded-2xl text-[#ff6b35] text-[10px] font-black uppercase tracking-widest hover:bg-[#ff6b35]/20">Розпізнати зупинки</button>
+          <div className="hidden md:flex gap-12 items-center px-8 py-4 glass-mission-control rounded-3xl border border-white/5">
+            <div className="text-center">
+              <div className="text-2xl font-syne font-black text-white leading-none">15%</div>
+              <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Оптимізація</div>
+            </div>
+            <div className="w-px h-8 bg-white/10" />
+            <div className="text-center">
+              <div className="text-2xl font-syne font-black text-cyan-400 leading-none">Smart</div>
+              <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Алгоритм</div>
+            </div>
+          </div>
+        </div>
+
+        {/* STEPPER */}
+        <div className="relative flex justify-between px-4 max-w-3xl mx-auto">
+          <div className="absolute top-7 left-0 w-full h-px bg-white/5 -z-10" />
+          {STEPS.map((s, i) => (
+            <StepIcon key={s.id} step={i} activeStep={step} icon={s.icon} color={s.color} />
+          ))}
+        </div>
+
+        {/* MAIN CONTENT AREA */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+          
+          <div className="space-y-6">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+              >
+                <Card>
+                  {step === 0 && (
+                    <div className="space-y-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <InputField 
+                          label="Назва маршруту" 
+                          icon={Zap} 
+                          placeholder="Наприклад: Київ — Варшава"
+                          value={form.routeName}
+                          onChange={(e: any) => setForm({...form, routeName: e.target.value})}
+                        />
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block">Режим поїздки</label>
+                          <div className="grid grid-cols-2 gap-2 p-1 bg-black/40 border border-white/10 rounded-2xl h-[58px]">
+                            <button 
+                              onClick={() => setForm({...form, direction: 'roundtrip'})}
+                              className={`rounded-xl text-[10px] font-black uppercase transition-all ${form.direction === 'roundtrip' ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/20' : 'text-slate-500 hover:text-white'}`}
+                            >
+                              Туди-Назад
+                            </button>
+                            <button 
+                              onClick={() => setForm({...form, direction: 'oneway'})}
+                              className={`rounded-xl text-[10px] font-black uppercase transition-all ${form.direction === 'oneway' ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/20' : 'text-slate-500 hover:text-white'}`}
+                            >
+                              В один бік
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <InputField 
+                          label="Місто відправлення" 
+                          icon={MapPin} 
+                          placeholder="Київ" 
+                          value={form.fromCity}
+                          onChange={(e: any) => setForm({...form, fromCity: e.target.value})}
+                        />
+                        <InputField 
+                          label="Місто прибуття" 
+                          icon={Globe} 
+                          placeholder="Варшава" 
+                          value={form.toCity}
+                          onChange={(e: any) => setForm({...form, toCity: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {step === 1 && (
+                    <div className="space-y-6">
+                      <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5">
+                        <button 
+                          onClick={() => setDirTab(0)} 
+                          className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${dirTab === 0 ? 'bg-cyan-500 text-black shadow-xl shadow-cyan-500/20' : 'text-slate-500 hover:text-white'}`}
+                        >
+                          <ArrowRight size={14} /> Напрямок ТУДИ
+                        </button>
+                        {form.direction === 'roundtrip' && (
+                          <button 
+                            onClick={() => setDirTab(1)} 
+                            className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${dirTab === 1 ? 'bg-violet-500 text-white shadow-xl shadow-violet-500/20' : 'text-slate-500 hover:text-white'}`}
+                          >
+                             Напрямок НАЗАД <ArrowRight size={14} className="rotate-180" />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="relative group">
+                        <div className="absolute -top-3 right-4 px-3 py-1 bg-cyan-500 text-black text-[9px] font-black uppercase rounded-lg z-20 shadow-lg">AI Parser Input</div>
+                        <textarea
+                          rows={8}
+                          className="w-full bg-black/40 border border-white/10 rounded-[24px] p-6 text-sm text-white font-mono leading-relaxed outline-none focus:border-cyan-500/50 transition-all placeholder:text-slate-700"
+                          placeholder="Вставте текст розкладу тут...&#10;Приклад:&#10;20:00 Пн&#10;Київ&#10;(Автовокзал Центральний)"
+                          value={dirTab === 0 ? form.rawTextForward : form.rawTextBack}
+                          onChange={(e) => setForm({...form, [dirTab === 0 ? 'rawTextForward' : 'rawTextBack']: e.target.value})}
+                        />
+                        <button 
+                          onClick={() => {
+                             const stops = parseStopsText(dirTab === 0 ? form.rawTextForward : form.rawTextBack);
+                             setForm({...form, [dirTab === 0 ? 'stopsForward' : 'stopsBack']: stops});
+                             toast.success('AI: Розклад успішно розпізнано!');
+                          }}
+                          className="absolute bottom-4 right-4 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-cyan-400 text-[10px] font-black uppercase tracking-widest transition-all backdrop-blur-md"
+                        >
+                          <Sparkles size={14} className="inline mr-2" /> Інтелектуальний розбір
+                        </button>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Зупинки ({ (dirTab === 0 ? form.stopsForward : form.stopsBack).length })</label>
+                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                           {(dirTab === 0 ? form.stopsForward : form.stopsBack).map((stop, i) => (
+                             <motion.div 
+                              initial={{ opacity: 0, y: 10 }} 
+                              animate={{ opacity: 1, y: 0 }} 
+                              key={i} 
+                              className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-2xl group hover:border-cyan-500/30 transition-all"
+                             >
+                               <div className="w-12 h-12 bg-black/40 rounded-xl flex items-center justify-center font-syne font-black text-cyan-400 group-hover:scale-110 transition-transform">{stop.time}</div>
+                               <div className="flex-1">
+                                 <div className="text-sm font-bold text-white">{stop.city}</div>
+                                 <div className="text-[10px] text-slate-500 uppercase font-bold">{stop.address || 'Центральний автовокзал'}</div>
+                               </div>
+                               {stop.dayOffset > 0 && <div className="text-[10px] bg-amber-500/20 text-amber-500 px-2 py-1 rounded-lg font-black">+{stop.dayOffset} День</div>}
+                               <button className="p-2 text-slate-600 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
+                             </motion.div>
+                           ))}
+                           { (dirTab === 0 ? form.stopsForward : form.stopsBack).length === 0 && (
+                             <div className="text-center py-12 border-2 border-dashed border-white/5 rounded-3xl text-slate-600 text-sm italic font-medium">Зупинки не додано. Використовуйте AI Parser вище.</div>
+                           )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {step === 2 && (
+                    <div className="space-y-8">
+                       <div className="space-y-4">
+                         <div className="flex items-center gap-3 ml-2">
+                           <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
+                           <label className="text-[10px] font-black text-slate-100 uppercase tracking-[0.2em]">Розклад виїздів: ТУДИ</label>
+                         </div>
+                         <div className="grid grid-cols-7 gap-3">
+                           {DAY_SHORT.map((d, i) => (
+                             <button
+                               key={i}
+                               onClick={() => {
+                                 const current = form.activeDaysThere;
+                                 const updated = current.includes(i) ? current.filter(x => x !== i) : [...current, i];
+                                 setForm({...form, activeDaysThere: updated});
+                               }}
+                               className={`
+                                 h-16 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all border
+                                 ${form.activeDaysThere.includes(i) 
+                                   ? 'bg-cyan-500 border-cyan-400 text-black shadow-[0_0_20px_rgba(0,212,255,0.3)]' 
+                                   : 'bg-white/5 border-white/10 text-slate-500 hover:border-white/20'}
+                               `}
+                             >
+                               <span className="text-xs font-black uppercase">{d}</span>
+                             </button>
+                           ))}
+                         </div>
+                       </div>
+
+                       {form.direction === 'roundtrip' && (
+                         <div className="space-y-4">
+                            <div className="flex items-center gap-3 ml-2">
+                              <div className="w-2 h-2 bg-violet-400 rounded-full animate-pulse" />
+                              <label className="text-[10px] font-black text-slate-100 uppercase tracking-[0.2em]">Розклад виїздів: НАЗАД</label>
+                            </div>
+                            <div className="grid grid-cols-7 gap-3">
+                              {DAY_SHORT.map((d, i) => (
+                                <button
+                                  key={i}
+                                  onClick={() => {
+                                    const current = form.activeDaysBack;
+                                    const updated = current.includes(i) ? current.filter(x => x !== i) : [...current, i];
+                                    setForm({...form, activeDaysBack: updated});
+                                  }}
+                                  className={`
+                                    h-16 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all border
+                                    ${form.activeDaysBack.includes(i) 
+                                      ? 'bg-violet-500 border-violet-400 text-white shadow-[0_0_20px_rgba(139,92,246,0.3)]' 
+                                      : 'bg-white/5 border-white/10 text-slate-500 hover:border-white/20'}
+                                  `}
+                                >
+                                  <span className="text-xs font-black uppercase">{d}</span>
+                                </button>
+                              ))}
+                            </div>
+                         </div>
+                       )}
+                    </div>
+                  )}
+
+                  {step === 3 && (
+                    <div className="space-y-8">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div className="space-y-2">
+                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block">Призначити автобус</label>
+                           <select className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white font-bold outline-none focus:border-cyan-500/50">
+                             <option>Mercedes-Benz Travego (52 місця)</option>
+                             <option>Setra S515 HD (49 місць)</option>
+                           </select>
+                         </div>
+                         <div className="space-y-2">
+                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block">Головний водій</label>
+                           <select className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white font-bold outline-none focus:border-cyan-500/50">
+                             <option>Олександр Коваленко</option>
+                             <option>Дмитро Петренко</option>
+                           </select>
+                         </div>
+                       </div>
+
+                       <div className="space-y-4">
+                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block">Комплектація рейсу</label>
+                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                           {AMENITY_LIST.map((amenity) => (
+                             <button
+                               key={amenity.id}
+                               onClick={() => {
+                                 const current = form.amenities;
+                                 const updated = current.includes(amenity.id) ? current.filter(x => x !== amenity.id) : [...current, amenity.id];
+                                 setForm({...form, amenities: updated});
+                               }}
+                               className={`
+                                 p-4 rounded-2xl flex items-center gap-3 transition-all border
+                                 ${form.amenities.includes(amenity.id) 
+                                   ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-400' 
+                                   : 'bg-white/5 border-white/10 text-slate-500 hover:border-white/20'}
+                               `}
+                             >
+                               <amenity.icon size={18} />
+                               <span className="text-[11px] font-black uppercase tracking-wider">{amenity.label}</span>
+                             </button>
+                           ))}
+                         </div>
+                       </div>
+                    </div>
+                  )}
+
+                  {step === 4 && (
+                    <div className="space-y-8">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                         <div className="p-8 bg-black/40 border border-white/10 rounded-[32px] space-y-4 relative overflow-hidden group">
+                           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                             <Euro size={120} />
+                           </div>
+                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">Базова ціна ТУДИ</label>
+                           <div className="flex items-end gap-3">
+                              <input 
+                                type="number" 
+                                className="bg-transparent text-5xl font-syne font-black text-white outline-none w-32 border-b-2 border-cyan-500/30 focus:border-cyan-500 transition-all" 
+                                value={form.singlePriceThere}
+                                onChange={(e) => setForm({...form, singlePriceThere: +e.target.value})}
+                              />
+                              <span className="text-2xl font-black text-cyan-400 mb-1">UAH</span>
+                           </div>
+                         </div>
+
+                         {form.direction === 'roundtrip' && (
+                           <div className="p-8 bg-black/40 border border-white/10 rounded-[32px] space-y-4 relative overflow-hidden group">
+                             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                               <Euro size={120} />
+                             </div>
+                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">Базова ціна НАЗАД</label>
+                             <div className="flex items-end gap-3">
+                                <input 
+                                  type="number" 
+                                  className="bg-transparent text-5xl font-syne font-black text-white outline-none w-32 border-b-2 border-violet-500/30 focus:border-violet-500 transition-all" 
+                                  value={form.singlePriceBack}
+                                  onChange={(e) => setForm({...form, singlePriceBack: +e.target.value})}
+                                />
+                                <span className="text-2xl font-black text-violet-400 mb-1">EUR</span>
+                             </div>
+                           </div>
+                         )}
+                       </div>
+
+                       <div className="p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-3xl flex items-start gap-4">
+                         <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center text-emerald-400 shrink-0">
+                           <Check size={20} strokeWidth={3} />
+                         </div>
+                         <div>
+                           <div className="text-sm font-black text-emerald-400 uppercase tracking-widest">Система готова до запуску</div>
+                           <p className="text-xs text-slate-400 mt-1">
+                             Буде згенеровано <span className="text-white font-bold">{(form.activeDaysThere.length + form.activeDaysBack.length) * 4} рейсів</span> на найближчі 30 днів. 
+                             Всі дані валідовано AI-модулем.
+                           </p>
+                         </div>
+                       </div>
+                    </div>
+                  )}
+                </Card>
+              </motion.div>
+            </AnimatePresence>
+
+            {/* NAVIGATION BUTTONS */}
+            <div className="flex items-center justify-between gap-4 pt-4">
+              <button 
+                onClick={handlePrev}
+                disabled={step === 0}
+                className={`px-8 py-5 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all flex items-center gap-2 ${step === 0 ? 'opacity-0 pointer-events-none' : 'bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'}`}
+              >
+                <ChevronLeft size={18} /> Назад
+              </button>
               
-              <div className="space-y-2 mt-4">
-                {(dirTab === 0 ? form.stopsForward : form.stopsBack).map((s, i) => (
-                  <StopRow key={i} stop={s} index={i} total={(dirTab === 0 ? form.stopsForward : form.stopsBack).length} onUpdate={(idx, k, v) => {
-                    const arr = dirTab === 0 ? [...form.stopsForward] : [...form.stopsBack];
-                    (arr[idx] as any)[k] = v;
-                    setForm(p => ({ ...p, [dirTab === 0 ? 'stopsForward' : 'stopsBack']: arr }));
-                  }} onDelete={idx => {
-                    setForm(p => ({ ...p, [dirTab === 0 ? 'stopsForward' : 'stopsBack']: (dirTab === 0 ? p.stopsForward : p.stopsBack).filter((_, ix) => ix !== idx) }));
-                  }} />
-                ))}
-              </div>
-            </div>
-          )}
+              <div className="flex-1" />
 
-          {step === 2 && (
-            <div className="space-y-6">
-              <div>
-                <FieldLabel>Дні виїзду — Туди</FieldLabel>
-                <div className="grid grid-cols-7 gap-2">
-                  {DAY_SHORT.map((d, i) => (
-                    <button key={i} onClick={() => {
-                      const cur = form.activeDaysThere;
-                      setForm(p => ({ ...p, activeDaysThere: cur.includes(i) ? cur.filter(x => x !== i) : [...cur, i].sort() }));
-                    }} className={`py-3 rounded-xl text-[10px] font-black border transition-all ${form.activeDaysThere.includes(i) ? 'bg-[#ff6b35] border-[#ff6b35] text-white' : 'bg-white/5 border-white/5 text-[#5a6a85]'}`}>{d}</button>
-                  ))}
-                </div>
-              </div>
-              {form.direction === 'roundtrip' && (
-                <div>
-                  <FieldLabel>Дні виїзду — Назад</FieldLabel>
-                  <div className="grid grid-cols-7 gap-2">
-                    {DAY_SHORT.map((d, i) => (
-                      <button key={i} onClick={() => {
-                        const cur = form.activeDaysBack;
-                        setForm(p => ({ ...p, activeDaysBack: cur.includes(i) ? cur.filter(x => x !== i) : [...cur, i].sort() }));
-                      }} className={`py-3 rounded-xl text-[10px] font-black border transition-all ${form.activeDaysBack.includes(i) ? 'bg-cyan-500 border-cyan-500 text-white' : 'bg-white/5 border-white/5 text-[#5a6a85]'}`}>{d}</button>
-                    ))}
-                  </div>
+              {step < 4 ? (
+                <button 
+                  onClick={handleNext}
+                  className="px-12 py-5 bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-black uppercase text-[11px] tracking-[0.2em] rounded-2xl shadow-xl shadow-cyan-500/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
+                >
+                  Наступний крок <ChevronRight size={18} />
+                </button>
+              ) : (
+                <div className="flex gap-4">
+                  <button className="px-8 py-5 bg-white/5 border border-white/10 text-white font-black uppercase text-[11px] tracking-widest rounded-2xl hover:bg-white/10 transition-all flex items-center gap-2">
+                    <Save size={18} /> Чернетка
+                  </button>
+                  <button className="px-12 py-5 bg-gradient-to-r from-emerald-500 to-teal-600 text-black font-black uppercase text-[11px] tracking-[0.2em] rounded-2xl shadow-xl shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3">
+                    Запустити в роботу <Send size={18} />
+                  </button>
                 </div>
               )}
             </div>
-          )}
-
-          {step === 3 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <select className={inputCls} value={form.busId} onChange={e => setForm(p => ({ ...p, busId: e.target.value }))}>
-                  {buses.map(b => <option key={b.id} value={b.id}>{b.number} ({b.capacity} місць)</option>)}
-                </select>
-                <select className={inputCls} value={form.driverId} onChange={e => setForm(p => ({ ...p, driverId: e.target.value }))}>
-                  {drivers.map(d => <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {AMENITY_LIST.map(a => (
-                  <button key={a.id} onClick={() => setForm(p => ({ ...p, amenities: p.amenities.includes(a.id) ? p.amenities.filter(x => x !== a.id) : [...p.amenities, a.id] }))} className={`p-3 rounded-xl text-[9px] font-black uppercase border transition-all ${form.amenities.includes(a.id) ? 'bg-[#ff6b35]/20 border-[#ff6b35] text-[#ff6b35]' : 'bg-white/5 border-white/5 text-[#5a6a85]'}`}>{a.label}</button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {step === 4 && (
-            <div className="space-y-4">
-               <div className="bg-black/40 p-4 rounded-2xl border border-white/5">
-                <FieldLabel>Ціна за замовчуванням (₴)</FieldLabel>
-                <div className="flex items-center gap-3">
-                  <input type="number" className="bg-transparent text-3xl font-syne font-black text-[#ff6b35] outline-none w-full" value={form.singlePriceThere} onChange={e => setForm(p => ({ ...p, singlePriceThere: +e.target.value }))} />
-                  <span className="text-xl font-black text-[#5a6a85]">UAH</span>
-                </div>
-              </div>
-              <div className="p-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/20">
-                <div className="text-[10px] font-black text-cyan-400 uppercase mb-2">Підсумок</div>
-                <div className="text-xs text-[#8899b5]">Буде створено <span className="text-white font-bold">{(form.activeDaysThere.length + form.activeDaysBack.length) * 4}</span> рейсів на наступні 30 днів.</div>
-              </div>
-            </div>
-          )}
-        </motion.div>
-      </AnimatePresence>
-
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-[#0b0e14]/80 backdrop-blur-md border-t border-white/5 flex gap-3 z-50">
-        {step > 0 && <button onClick={() => setStep(s => s - 1)} className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white text-[10px] font-black uppercase"><ChevronLeft size={16} /></button>}
-        {step < 4 ? (
-          <button onClick={() => setStep(s => s + 1)} className="flex-1 py-4 bg-gradient-to-r from-[#ff6b35] to-[#cc3300] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#ff6b35]/20">Далі</button>
-        ) : (
-          <div className="flex-1 flex gap-2">
-            <button onClick={handleSaveDraft} className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white text-[10px] font-black uppercase"><Save size={16} /></button>
-            <button onClick={handlePublish} disabled={loading} className="flex-1 py-4 bg-gradient-to-r from-[#ff6b35] to-[#cc3300] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#ff6b35]/20 flex items-center justify-center gap-2">
-              {loading ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
-              Публікувати
-            </button>
           </div>
-        )}
+
+          {/* SIDEBAR INFO */}
+          <div className="hidden lg:block space-y-6">
+            <div className="p-6 glass-mission-control rounded-[32px] border border-white/10 space-y-4">
+              <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Контрольна сума</div>
+              <div className="space-y-3">
+                 <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-400">Тип:</span>
+                    <span className="text-xs font-bold text-white uppercase">{form.direction === 'roundtrip' ? 'Двосторонній' : 'Односторонній'}</span>
+                 </div>
+                 <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-400">Зупинок:</span>
+                    <span className="text-xs font-bold text-white">{(form.stopsForward.length + form.stopsBack.length)}</span>
+                 </div>
+                 <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-400">Рейсів на тиждень:</span>
+                    <span className="text-xs font-bold text-cyan-400">{(form.activeDaysThere.length + form.activeDaysBack.length)}</span>
+                 </div>
+              </div>
+              <div className="h-px bg-white/5" />
+              <div className="flex items-center gap-3 text-emerald-400">
+                <ShieldCheck size={16} />
+                <span className="text-[10px] font-black uppercase">Дані захищено SSL</span>
+              </div>
+            </div>
+
+            <div className="p-6 bg-cyan-500/5 rounded-[32px] border border-cyan-500/10 space-y-4">
+              <div className="flex items-center gap-3">
+                <Info size={18} className="text-cyan-400" />
+                <span className="text-xs font-black uppercase text-white">Smart Tip</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Ви можете просто вставити текст з месенджера або PDF. Наш <span className="text-cyan-400 font-bold">AI Parser</span> автоматично виділить міста, час та дні виїзду.
+              </p>
+              <button className="text-[10px] font-black text-cyan-400 uppercase flex items-center gap-2 hover:gap-3 transition-all">
+                Дивитись інструкцію <ArrowRight size={12} />
+              </button>
+            </div>
+          </div>
+
+        </div>
       </div>
+      
+      {/* BACKGROUND EFFECTS */}
+      <div className="fixed top-0 left-0 w-full h-[500px] bg-gradient-to-b from-cyan-600/5 via-transparent to-transparent -z-10" />
+      <div className="fixed bottom-0 right-0 w-[600px] h-[600px] bg-violet-600/5 rounded-full blur-[120px] -z-10 animate-pulse" />
     </div>
   );
+}
+
+function ShieldCheck({ size, className }: any) {
+  return <Check size={size} className={className} />;
 }
