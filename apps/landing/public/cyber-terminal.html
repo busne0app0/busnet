@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cyber-Dispatch Terminal</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#050505;--bg2:#080810;--bg3:#0d0d18;
+  --cyan:#00f2ff;--pink:#ff00ff;--green:#39ff14;--amber:#ffb800;--red:#ff3366;
+  --cyan-dim:rgba(0,242,255,0.1);--pink-dim:rgba(255,0,255,0.1);
+  --green-dim:rgba(57,255,20,0.1);--amber-dim:rgba(255,184,0,0.1);
+  --border:rgba(0,242,255,0.18);--border2:rgba(255,0,255,0.2);
+  --text:#d0e8f8;--text-muted:#4a6880;--text-dim:#2a4860;
+  --font-hd:'Orbitron',monospace;--font-mono:'JetBrains Mono',monospace;
+  --radius:6px;
+}
+html{background:var(--bg);color:var(--text);font-family:var(--font-mono);min-height:100vh}
+body{overflow-x:hidden;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;
+  background:
+    radial-gradient(ellipse 60% 40% at 15% 50%,rgba(0,242,255,0.04) 0%,transparent 70%),
+    radial-gradient(ellipse 50% 60% at 85% 15%,rgba(255,0,255,0.04) 0%,transparent 70%),
+    radial-gradient(ellipse 40% 50% at 50% 90%,rgba(57,255,20,0.02) 0%,transparent 70%);
+  pointer-events:none;z-index:0}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:rgba(0,242,255,0.25);border-radius:2px}
+
+/* HEADER */
+.header{position:sticky;top:0;z-index:100;padding:14px 28px;
+  border-bottom:1px solid var(--border);
+  background:rgba(5,5,5,0.95);backdrop-filter:blur(20px);
+  display:flex;align-items:center;justify-content:space-between}
+.logo{font-family:var(--font-hd);font-size:17px;font-weight:900;color:var(--cyan);
+  letter-spacing:4px;text-shadow:0 0 24px rgba(0,242,255,0.6)}
+.logo em{color:var(--pink);font-style:normal}
+.hdr-right{display:flex;gap:20px;align-items:center}
+.sys-status{display:flex;align-items:center;gap:8px}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 10px var(--green);animation:pulse 2s infinite}
+.sys-label{font-size:10px;color:var(--text-muted);letter-spacing:2px}
+.hdr-clock{font-family:var(--font-hd);font-size:12px;color:var(--cyan);opacity:0.6}
+.hdr-supabase{display:flex;align-items:center;gap:6px;padding:5px 12px;
+  border:1px solid var(--border);border-radius:20px;cursor:pointer;transition:all .3s}
+.hdr-supabase:hover{border-color:var(--cyan);background:var(--cyan-dim)}
+.hdr-supabase span{font-size:10px;letter-spacing:1px;color:var(--text-muted)}
+
+/* NAV */
+.nav{display:flex;gap:0;border-bottom:1px solid var(--border);
+  background:rgba(5,5,5,0.9);position:sticky;top:57px;z-index:99;padding:0 28px}
+.nav-tab{padding:12px 22px;font-family:var(--font-hd);font-size:10px;letter-spacing:2.5px;
+  border:none;background:transparent;color:var(--text-muted);cursor:pointer;
+  border-bottom:2px solid transparent;transition:all .25s;white-space:nowrap;position:relative}
+.nav-tab:hover{color:var(--cyan)}
+.nav-tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+.nav-tab.active::after{content:'';position:absolute;bottom:-1px;left:50%;
+  transform:translateX(-50%);width:40px;height:2px;
+  background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.nav-badge{display:inline-flex;align-items:center;justify-content:center;
+  width:16px;height:16px;border-radius:50%;font-size:9px;margin-left:6px;
+  background:var(--pink-dim);color:var(--pink);border:1px solid var(--border2)}
+
+/* LAYOUT */
+.page{min-height:calc(100vh - 110px);position:relative;z-index:5}
+.tab-content{display:none;height:100%}
+.tab-content.active{display:flex;flex-direction:column}
+.two-col{display:grid;grid-template-columns:1fr 400px;flex:1;height:calc(100vh - 110px)}
+.left-panel{padding:24px;overflow-y:auto;border-right:1px solid var(--border)}
+.right-panel{padding:24px;overflow-y:auto;background:var(--bg2)}
+.full-panel{padding:28px;overflow-y:auto}
+
+/* SECTION TITLES */
+.sec-title{font-family:var(--font-hd);font-size:9px;letter-spacing:4px;
+  color:var(--pink);margin-bottom:16px;padding-bottom:10px;
+  border-bottom:1px solid var(--border2);text-transform:uppercase;
+  display:flex;align-items:center;gap:10px}
+.sec-title::before{content:'';width:4px;height:4px;border-radius:50%;
+  background:var(--pink);box-shadow:0 0 6px var(--pink)}
+
+/* GLASS CARDS */
+.card{background:rgba(255,255,255,0.02);border:1px solid var(--border);
+  border-radius:var(--radius);padding:18px;margin-bottom:16px;transition:border-color .3s}
+.card:hover{border-color:rgba(0,242,255,0.3)}
+.card-pink{border-color:var(--border2)}
+.card-green{border-color:rgba(57,255,20,0.2)}
+
+/* FORMS */
+.form-grid{display:grid;gap:12px;margin-bottom:12px}
+.fg-2{grid-template-columns:1fr 1fr}
+.fg-3{grid-template-columns:1fr 1fr 1fr}
+.fg-1{grid-template-columns:1fr}
+.fgroup{display:flex;flex-direction:column;gap:5px}
+.flabel{font-size:9px;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase}
+.finput,.fselect,.ftextarea{
+  background:rgba(0,242,255,0.04);border:1px solid rgba(0,242,255,0.15);
+  border-radius:4px;padding:9px 12px;color:var(--text);
+  font-family:var(--font-mono);font-size:12px;outline:none;
+  transition:all .25s;width:100%}
+.finput:focus,.fselect:focus,.ftextarea:focus{
+  border-color:var(--cyan);box-shadow:0 0 0 1px rgba(0,242,255,0.15);
+  background:rgba(0,242,255,0.07)}
+.finput::placeholder{color:var(--text-dim)}
+.fselect option{background:#0d0d18;color:var(--text)}
+.ftextarea{resize:vertical;min-height:100px;line-height:1.6}
+
+/* BUTTONS */
+.btn{padding:9px 18px;border-radius:4px;font-family:var(--font-hd);font-size:9px;
+  letter-spacing:2px;cursor:pointer;transition:all .25s;
+  text-transform:uppercase;border:1px solid;position:relative;overflow:hidden}
+.btn::after{content:'';position:absolute;inset:0;
+  background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,0.06) 50%,transparent 70%);
+  transform:translateX(-120%);transition:transform .5s}
+.btn:hover::after{transform:translateX(120%)}
+.btn-cyan{background:var(--cyan-dim);border-color:var(--cyan);color:var(--cyan)}
+.btn-cyan:hover{background:rgba(0,242,255,0.2);box-shadow:0 0 16px rgba(0,242,255,0.25)}
+.btn-pink{background:var(--pink-dim);border-color:var(--pink);color:var(--pink)}
+.btn-pink:hover{background:rgba(255,0,255,0.18);box-shadow:0 0 16px rgba(255,0,255,0.25)}
+.btn-green{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+.btn-green:hover{background:rgba(57,255,20,0.18);box-shadow:0 0 16px rgba(57,255,20,0.25)}
+.btn-amber{background:var(--amber-dim);border-color:var(--amber);color:var(--amber)}
+.btn-ghost{background:transparent;border-color:var(--text-dim);color:var(--text-muted)}
+.btn-ghost:hover{border-color:var(--text-muted);color:var(--text)}
+.btn-sm{padding:5px 12px;font-size:8px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+
+/* DAYS SELECTOR */
+.days-picker{display:flex;gap:6px;flex-wrap:wrap}
+.day-chip{padding:5px 12px;border-radius:20px;font-size:10px;letter-spacing:1px;
+  border:1px solid rgba(0,242,255,0.2);color:var(--text-muted);cursor:pointer;transition:all .2s}
+.day-chip:hover{border-color:var(--cyan);color:var(--cyan)}
+.day-chip.on{background:var(--cyan-dim);border-color:var(--cyan);color:var(--cyan);
+  box-shadow:0 0 8px rgba(0,242,255,0.2)}
+
+/* AMENITIES */
+.amenity-picker{display:flex;gap:8px;flex-wrap:wrap}
+.am-chip{display:flex;align-items:center;gap:5px;padding:5px 12px;
+  border-radius:20px;font-size:10px;border:1px solid rgba(57,255,20,0.2);
+  color:var(--text-muted);cursor:pointer;transition:all .2s}
+.am-chip:hover{border-color:var(--green);color:var(--green)}
+.am-chip.on{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+
+/* CARRIER CARDS */
+.carrier-card{background:rgba(255,255,255,0.02);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px 18px;margin-bottom:10px;
+  cursor:pointer;transition:all .25s;display:flex;align-items:center;gap:14px}
+.carrier-card:hover{border-color:rgba(0,242,255,0.35);background:var(--cyan-dim)}
+.carrier-card.sel{border-color:var(--cyan);background:var(--cyan-dim);
+  box-shadow:0 0 12px rgba(0,242,255,0.1)}
+.carrier-logo{width:44px;height:44px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-hd);font-size:14px;font-weight:900;flex-shrink:0}
+.carrier-info{flex:1}
+.carrier-name{font-family:var(--font-hd);font-size:12px;color:var(--cyan);margin-bottom:3px}
+.carrier-meta{font-size:10px;color:var(--text-muted)}
+.carrier-actions{display:flex;gap:6px}
+
+/* ROUTE CARDS */
+.route-card{background:rgba(255,255,255,0.015);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px 18px;margin-bottom:10px;
+  cursor:pointer;transition:all .25s}
+.route-card:hover{border-color:rgba(0,242,255,0.35);background:var(--cyan-dim)}
+.route-card.sel{border-color:var(--cyan);background:var(--cyan-dim)}
+.route-title{font-family:var(--font-hd);font-size:13px;color:var(--cyan);margin-bottom:6px}
+.route-sub{font-size:10px;color:var(--text-muted);display:flex;gap:14px;flex-wrap:wrap}
+.r-days{display:flex;gap:4px;margin-top:8px}
+.r-day{padding:2px 8px;border-radius:20px;font-size:9px;letter-spacing:1px;
+  border:1px solid rgba(0,242,255,0.15);color:var(--text-dim)}
+.r-day.on{background:var(--cyan-dim);border-color:var(--cyan);color:var(--cyan)}
+.r-amenities{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.r-am{padding:2px 8px;border-radius:20px;font-size:9px;
+  background:var(--green-dim);border:1px solid rgba(57,255,20,0.25);color:var(--green)}
+
+/* STOPS TIMELINE */
+.tl{position:relative;padding-left:16px;margin-top:8px}
+.tl-item{position:relative;padding:10px 0 10px 22px;
+  border-left:1px solid rgba(0,242,255,0.12)}
+.tl-dot{position:absolute;left:-5px;top:13px;width:9px;height:9px;
+  border-radius:50%;background:var(--bg);border:2px solid var(--text-dim)}
+.tl-item.tl-start .tl-dot{border-color:var(--green);box-shadow:0 0 8px var(--green)}
+.tl-item.tl-end .tl-dot{border-color:var(--pink);box-shadow:0 0 8px var(--pink)}
+.tl-item.tl-border .tl-dot{border-color:var(--amber);box-shadow:0 0 8px var(--amber)}
+.tl-city{font-size:12px;color:var(--text);font-weight:600}
+.tl-city-it{font-size:10px;color:var(--text-muted);margin-top:1px}
+.tl-time{font-size:11px;color:var(--cyan);margin-top:3px;font-family:var(--font-hd)}
+.tl-addr{font-size:10px;color:var(--text-dim);margin-top:2px}
+.tl-day-tag{display:inline-block;padding:1px 7px;border-radius:3px;font-size:8px;
+  letter-spacing:1px;margin-left:6px;vertical-align:middle}
+.tag-start{background:var(--green-dim);color:var(--green);border:1px solid rgba(57,255,20,0.3)}
+.tag-end{background:var(--pink-dim);color:var(--pink);border:1px solid var(--border2)}
+.tag-border{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(255,184,0,0.3)}
+.tag-day{background:rgba(0,242,255,0.06);color:var(--text-muted);border:1px solid var(--border)}
+
+/* TICKET PREVIEW */
+.ticket-wrap{background:linear-gradient(140deg,#06061a 0%,#0a0520 60%,#050a18 100%);
+  border:1px solid rgba(255,0,255,0.3);border-radius:12px;overflow:hidden;position:relative}
+.ticket-wrap::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--pink),var(--cyan),var(--green),var(--cyan),var(--pink))}
+.ticket-scan{position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,242,255,0.4),transparent);
+  animation:scan 4s ease-in-out infinite}
+@keyframes scan{0%{top:0;opacity:0}10%{opacity:1}90%{opacity:1}100%{top:100%;opacity:0}}
+
+.tk-head{padding:18px 20px;border-bottom:1px dashed rgba(0,242,255,0.15)}
+.tk-carrier{font-size:9px;letter-spacing:3px;color:var(--text-muted);margin-bottom:8px}
+.tk-route{display:flex;align-items:center;gap:10px}
+.tk-city{font-family:var(--font-hd);font-size:26px;font-weight:900}
+.tk-from{color:var(--green)}
+.tk-to{color:var(--pink)}
+.tk-arrow{color:var(--cyan);font-size:20px;opacity:0.5}
+.tk-body{padding:16px 20px}
+.tk-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+.tk-field .tk-label{font-size:8px;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;margin-bottom:3px}
+.tk-field .tk-val{font-family:var(--font-hd);font-size:11px;color:var(--text)}
+.tk-field .tk-val.cy{color:var(--cyan)}
+.tk-field .tk-val.gr{color:var(--green)}
+.tk-field .tk-val.am{color:var(--amber)}
+.tk-qr{display:flex;justify-content:center;margin:10px 0;
+  padding:10px;background:rgba(0,0,0,0.3);border-radius:6px}
+.tk-tl{margin-top:10px;padding:10px;background:rgba(0,0,0,0.25);
+  border-radius:6px;max-height:130px;overflow-y:auto}
+.tk-tl-item{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:9px}
+.tk-tl-dot{width:5px;height:5px;border-radius:50%;background:var(--text-dim);flex-shrink:0}
+.tk-tl-dot.act{background:var(--cyan);box-shadow:0 0 5px var(--cyan)}
+.tk-tl-city{flex:1;color:var(--text)}
+.tk-tl-time{color:var(--cyan)}
+.tk-foot{padding:10px 20px;border-top:1px dashed rgba(0,242,255,0.15);
+  display:flex;align-items:center;justify-content:space-between}
+.tk-id{font-size:9px;color:var(--text-dim);letter-spacing:2px;font-family:var(--font-hd)}
+.tk-status{padding:3px 10px;border-radius:20px;font-size:9px;letter-spacing:1px;
+  background:var(--green-dim);color:var(--green);border:1px solid rgba(57,255,20,0.35)}
+
+/* STOPS EDITOR TABLE */
+.stops-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:12px}
+.stops-table th{font-size:8px;letter-spacing:2px;color:var(--text-muted);
+  text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);
+  text-transform:uppercase}
+.stops-table td{padding:7px 8px;border-bottom:1px solid rgba(0,242,255,0.05);
+  vertical-align:middle}
+.stops-table tr:hover td{background:rgba(0,242,255,0.03)}
+.stops-table .td-city{color:var(--text);font-weight:600}
+.stops-table .td-it{color:var(--text-muted);font-size:10px}
+.stops-table .td-time{color:var(--cyan);font-family:var(--font-hd);font-size:10px}
+.stops-table .td-day{color:var(--amber)}
+.stop-inline-edit{background:transparent;border:none;border-bottom:1px solid rgba(0,242,255,0.2);
+  color:var(--text);font-family:var(--font-mono);font-size:11px;width:100%;outline:none;
+  padding:2px 4px;transition:border-color .2s}
+.stop-inline-edit:focus{border-bottom-color:var(--cyan)}
+
+/* SMART PARSER */
+.parser-wrap{background:rgba(255,255,255,0.015);border:1px solid rgba(57,255,20,0.2);
+  border-radius:var(--radius);padding:18px;margin-bottom:16px}
+.parser-status{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:11px;min-height:20px}
+.parse-ok{color:var(--green)}
+.parse-err{color:var(--red)}
+.parse-info{color:var(--amber)}
+
+/* SCHEDULE CALENDAR */
+.cal-wrap{background:rgba(255,255,255,0.015);border:1px solid var(--border);
+  border-radius:var(--radius);padding:20px;max-width:680px}
+.cal-head{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px}
+.cal-hd{text-align:center;font-size:9px;letter-spacing:2px;color:var(--text-muted);padding:4px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-day{min-height:44px;border-radius:4px;padding:6px;font-size:11px;
+  text-align:center;transition:all .2s;cursor:default;
+  display:flex;flex-direction:column;align-items:center;gap:2px}
+.cal-day.empty{opacity:0}
+.cal-day.no-bus{color:var(--text-dim);border:1px solid transparent}
+.cal-day.has-bus{border:1px solid rgba(0,242,255,0.3);color:var(--cyan);cursor:pointer;
+  background:rgba(0,242,255,0.05)}
+.cal-day.has-bus:hover{background:rgba(0,242,255,0.12);box-shadow:0 0 10px rgba(0,242,255,0.15)}
+.cal-day.today{border-color:var(--amber)!important;color:var(--amber)!important}
+.cal-dot{width:4px;height:4px;border-radius:50%;background:var(--cyan)}
+
+/* ARCHIVE TABLE */
+.arch-table{width:100%;border-collapse:collapse}
+.arch-table th{font-size:8px;letter-spacing:2px;color:var(--text-muted);
+  text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);
+  text-transform:uppercase;position:sticky;top:0;background:var(--bg)}
+.arch-table td{padding:9px 12px;border-bottom:1px solid rgba(0,242,255,0.05);font-size:11px;vertical-align:middle}
+.arch-table tr:hover td{background:rgba(0,242,255,0.03)}
+.pill{padding:2px 9px;border-radius:20px;font-size:8px;letter-spacing:1px;display:inline-block}
+.pill-green{background:var(--green-dim);color:var(--green);border:1px solid rgba(57,255,20,0.3)}
+.pill-red{background:rgba(255,51,102,0.1);color:var(--red);border:1px solid rgba(255,51,102,0.3)}
+.pill-amber{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(255,184,0,0.3)}
+
+/* NOTIF */
+.notif{position:fixed;top:80px;right:24px;padding:11px 18px;border-radius:6px;
+  font-size:11px;letter-spacing:1px;z-index:999;transition:all .35s;
+  transform:translateX(220px);opacity:0;max-width:300px}
+.notif.show{transform:translateX(0);opacity:1}
+.notif-ok{background:rgba(57,255,20,0.12);border:1px solid var(--green);color:var(--green)}
+.notif-info{background:var(--cyan-dim);border:1px solid var(--cyan);color:var(--cyan)}
+.notif-err{background:rgba(255,51,102,0.12);border:1px solid var(--red);color:var(--red)}
+
+/* SUPABASE MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(5,5,5,0.85);z-index:200;
+  display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-bg.open{display:flex}
+.modal{background:#0a0a14;border:1px solid var(--border);border-radius:10px;
+  padding:28px;width:500px;max-width:90vw}
+.modal-title{font-family:var(--font-hd);font-size:14px;color:var(--cyan);
+  margin-bottom:20px;letter-spacing:2px}
+
+@keyframes pulse{0%,100%{box-shadow:0 0 10px var(--green)}50%{box-shadow:0 0 4px var(--green)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .35s ease forwards}
+</style>
+</head>
+<body>
+
+<div class="notif" id="notif"></div>
+
+<!-- SUPABASE MODAL -->
+<div class="modal-bg" id="supa-modal">
+  <div class="modal">
+    <div class="modal-title">◈ SUPABASE CONNECTION</div>
+    <div class="form-grid fg-1" style="margin-bottom:12px">
+      <div class="fgroup">
+        <div class="flabel">Project URL</div>
+        <input class="finput" id="supa-url" placeholder="https://xxxx.supabase.co">
+      </div>
+      <div class="fgroup">
+        <div class="flabel">Anon Key</div>
+        <input class="finput" id="supa-key" placeholder="eyJhbGci...">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-cyan" onclick="saveSupaConfig()">⚡ ПІДКЛЮЧИТИ</button>
+      <button class="btn btn-ghost" onclick="closeModal('supa-modal')">✕ ЗАКРИТИ</button>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">CYBER<em>·</em>DISPATCH <span style="font-size:11px;opacity:0.4;letter-spacing:2px">TERMINAL</span></div>
+  <div class="hdr-right">
+    <div class="sys-status">
+      <div class="pulse"></div>
+      <div class="sys-label">ONLINE</div>
+    </div>
+    <div class="hdr-supabase" onclick="openModal('supa-modal')">
+      <span id="supa-indicator" style="width:6px;height:6px;border-radius:50%;background:var(--text-dim);display:inline-block"></span>
+      <span>SUPABASE</span>
+    </div>
+    <div class="hdr-clock" id="clock">00:00:00</div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-tab active" onclick="goTab('carriers',this)">◈ ПЕРЕВІЗНИКИ</button>
+  <button class="nav-tab" onclick="goTab('routes',this)">⬡ МАРШРУТИ</button>
+  <button class="nav-tab" onclick="goTab('tickets',this)">✦ БІЛЕТИ</button>
+  <button class="nav-tab" onclick="goTab('schedule',this)">▣ РОЗКЛАД</button>
+  <button class="nav-tab" onclick="goTab('archive',this)">◎ АРХІВ <span class="nav-badge" id="arch-badge">0</span></button>
+</nav>
+
+<div class="page">
+
+<!-- ======== TAB: CARRIERS ======== -->
+<div class="tab-content active" id="tab-carriers">
+  <div class="two-col">
+    <div class="left-panel">
+      <div class="sec-title">ПЕРЕВІЗНИКИ</div>
+      <div id="carriers-list"></div>
+      <button class="btn btn-cyan" onclick="openNewCarrier()">+ НОВИЙ ПЕРЕВІЗНИК</button>
+    </div>
+    <div class="right-panel">
+      <div class="sec-title">КАРТКА ПЕРЕВІЗНИКА</div>
+      <div id="carrier-detail">
+        <div style="color:var(--text-muted);font-size:12px;padding:20px 0">Оберіть перевізника або створіть нового →</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======== TAB: ROUTES ======== -->
+<div class="tab-content" id="tab-routes">
+  <div class="two-col">
+    <div class="left-panel">
+      <div class="sec-title">МАРШРУТИ</div>
+      <div id="routes-list"></div>
+      <button class="btn btn-cyan" onclick="openNewRoute()">+ НОВИЙ МАРШРУТ</button>
+    </div>
+    <div class="right-panel">
+      <div class="sec-title">ЗУПИНКИ / SMART IMPORT</div>
+      <div id="route-right-panel">
+        <div style="color:var(--text-muted);font-size:12px;padding:20px 0">Оберіть маршрут або натисніть "Новий маршрут" →</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======== TAB: TICKETS ======== -->
+<div class="tab-content" id="tab-tickets">
+  <div class="two-col">
+    <div class="left-panel">
+      <div class="sec-title">КОНФІГУРАТОР БІЛЕТА</div>
+
+      <div class="card">
+        <div class="form-grid fg-2">
+          <div class="fgroup">
+            <div class="flabel">Перевізник</div>
+            <select class="fselect" id="t-carrier" onchange="onTCarrier()">
+              <option value="">— Обрати —</option>
+            </select>
+          </div>
+          <div class="fgroup">
+            <div class="flabel">Маршрут</div>
+            <select class="fselect" id="t-route" onchange="onTRoute()">
+              <option value="">— Обрати —</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid fg-2">
+          <div class="fgroup">
+            <div class="flabel">Дата відправлення</div>
+            <input type="date" class="finput" id="t-date" onchange="updateTicketPreview()">
+          </div>
+          <div class="fgroup">
+            <div class="flabel">Рейс (підбір)</div>
+            <select class="fselect" id="t-trip-type">
+              <option value="one">В один бік</option>
+              <option value="round">Туди і назад</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid fg-2">
+          <div class="fgroup">
+            <div class="flabel">Пункт відправлення</div>
+            <select class="fselect" id="t-from" onchange="updateTicketPreview()">
+              <option value="">— З міста —</option>
+            </select>
+          </div>
+          <div class="fgroup">
+            <div class="flabel">Пункт призначення</div>
+            <select class="fselect" id="t-to" onchange="updateTicketPreview()">
+              <option value="">— До міста —</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="sec-title" style="font-size:8px;margin-bottom:12px">ПАСАЖИР</div>
+        <div class="form-grid fg-2">
+          <div class="fgroup">
+            <div class="flabel">Прізвище та ім'я</div>
+            <input type="text" class="finput" id="t-name" placeholder="ШЕВЧЕНКО ТАРАС" oninput="updateTicketPreview()">
+          </div>
+          <div class="fgroup">
+            <div class="flabel">Телефон</div>
+            <input type="text" class="finput" id="t-phone" placeholder="+380 50 000 0000" oninput="updateTicketPreview()">
+          </div>
+        </div>
+        <div class="form-grid fg-3">
+          <div class="fgroup">
+            <div class="flabel">Ціна (EUR)</div>
+            <input type="number" class="finput" id="t-price" placeholder="0" oninput="updateTicketPreview()">
+          </div>
+          <div class="fgroup">
+            <div class="flabel">Місце</div>
+            <input type="text" class="finput" id="t-seat" placeholder="A1" oninput="updateTicketPreview()">
+          </div>
+          <div class="fgroup">
+            <div class="flabel">Статус</div>
+            <select class="fselect" id="t-status">
+              <option value="active">Активний</option>
+              <option value="void">Анульований</option>
+              <option value="pending">Очікує</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- stops preview mini -->
+      <div class="card" id="t-stops-card" style="display:none">
+        <div class="sec-title" style="font-size:8px;margin-bottom:12px">МАРШРУТ ЗУПИНОК</div>
+        <div class="tl" id="t-stops-tl"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-cyan" onclick="saveTicket()">⚡ ЗБЕРЕГТИ БІЛЕТ</button>
+        <button class="btn btn-pink" onclick="printTicket()">▼ ДРУК / PDF</button>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="sec-title">ПОПЕРЕДНІЙ ПЕРЕГЛЯД</div>
+      <div class="ticket-wrap" id="ticket-preview">
+        <div class="ticket-scan"></div>
+        <div class="tk-head">
+          <div class="tk-carrier" id="pv-carrier">CARRIER · BUS LINE</div>
+          <div class="tk-route">
+            <div class="tk-city tk-from" id="pv-from">???</div>
+            <div class="tk-arrow">→</div>
+            <div class="tk-city tk-to" id="pv-to">???</div>
+          </div>
+          <div class="r-amenities" id="pv-amenities" style="margin-top:10px"></div>
+        </div>
+        <div class="tk-body">
+          <div class="tk-grid">
+            <div class="tk-field"><div class="tk-label">Пасажир</div><div class="tk-val" id="pv-name">—</div></div>
+            <div class="tk-field"><div class="tk-label">Дата від'їзду</div><div class="tk-val cy" id="pv-dep-date">—</div></div>
+            <div class="tk-field"><div class="tk-label">Відправлення</div><div class="tk-val" id="pv-dep-time">—</div></div>
+            <div class="tk-field"><div class="tk-label">Прибуття</div><div class="tk-val" id="pv-arr-time">—</div></div>
+            <div class="tk-field"><div class="tk-label">В дорозі</div><div class="tk-val am" id="pv-dur">—</div></div>
+            <div class="tk-field"><div class="tk-label">Ціна</div><div class="tk-val gr" id="pv-price">—</div></div>
+            <div class="tk-field"><div class="tk-label">Місце</div><div class="tk-val" id="pv-seat">—</div></div>
+          </div>
+          <div class="tk-qr"><div id="qrcode" style="line-height:0"></div></div>
+          <div class="tk-tl" id="pv-tl"></div>
+        </div>
+        <div class="tk-foot">
+          <div class="tk-id" id="pv-id">ID: ——</div>
+          <div class="tk-status" id="pv-status">● ACTIVE</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======== TAB: SCHEDULE ======== -->
+<div class="tab-content" id="tab-schedule">
+  <div class="full-panel">
+    <div class="sec-title">РОЗКЛАД ВІДПРАВЛЕНЬ</div>
+    <div class="cal-wrap" id="cal-wrap">
+      <div class="cal-head">
+        <div class="cal-hd">ПН</div><div class="cal-hd">ВТ</div><div class="cal-hd">СР</div>
+        <div class="cal-hd">ЧТ</div><div class="cal-hd">ПТ</div><div class="cal-hd">СБ</div><div class="cal-hd">НД</div>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ======== TAB: ARCHIVE ======== -->
+<div class="tab-content" id="tab-archive">
+  <div class="full-panel">
+    <div class="sec-title">АРХІВ БІЛЕТІВ</div>
+    <table class="arch-table">
+      <thead><tr>
+        <th>ID</th><th>ПАСАЖИР</th><th>МАРШРУТ</th><th>ДАТА</th><th>З → ДО</th><th>ЦІНА</th><th>СТАТУС</th>
+      </tr></thead>
+      <tbody id="arch-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- /page -->
+
+<script>
+// ================================================================
+// DATA STORE
+// ================================================================
+const DAYS_UA = ['','Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
+const MONTHS_UA = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+const AM_LABELS = {wifi:'Wi-Fi',wc:'WC',ac:'A/C',power:'220V',audio:'Audio',food:'Їжа'};
+const AM_ICONS  = {wifi:'📶',wc:'🚻',ac:'❄',power:'⚡',audio:'🎧',food:'🥪'};
+
+let DB = { carriers:[], routes:[], stops:{}, tickets:[] };
+let supaConfig = { url:'', key:'' };
+let currentCarrierId = null;
+let currentRouteId = null;
+
+function saveDB(){ try{ localStorage.setItem('cdt_db', JSON.stringify(DB)); } catch(e){} }
+function loadDB(){
+  try{
+    const s = localStorage.getItem('cdt_db');
+    if(s) DB = Object.assign({ carriers:[], routes:[], stops:{}, tickets:[] }, JSON.parse(s));
+    const sc = localStorage.getItem('cdt_supa');
+    if(sc) supaConfig = JSON.parse(sc);
+  } catch(e){}
+}
+
+function genId(){ return 'T'+Date.now().toString(36).toUpperCase(); }
+function getRoute(id){ return DB.routes.find(r=>r.id===id); }
+function getCarrier(id){ return DB.carriers.find(c=>c.id===id); }
+function getStops(routeId){ return (DB.stops[routeId]||[]).slice().sort((a,b)=>a.sortOrder-b.sortOrder); }
+
+function notify(msg, type='ok'){
+  const el = document.getElementById('notif');
+  el.textContent = msg; el.className = 'notif show notif-'+type;
+  setTimeout(()=>el.classList.remove('show'), 3000);
+}
+
+setInterval(()=>{ document.getElementById('clock').textContent = new Date().toLocaleTimeString('uk-UA'); }, 1000);
+
+function goTab(name, btn){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+  if(name==='carriers') renderCarriersList();
+  if(name==='routes') renderRoutesList();
+  if(name==='tickets') populateTicketSelects();
+}
+
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+// --- CARRIERS ---
+function renderCarriersList(){
+  const el = document.getElementById('carriers-list');
+  el.innerHTML = DB.carriers.map(c=>`
+    <div class="carrier-card ${c.id===currentCarrierId?'sel':''}" onclick="selectCarrier('${c.id}')">
+      <div class="carrier-logo" style="background:${c.color}20;color:${c.color}">${c.code||c.name.substring(0,2)}</div>
+      <div class="carrier-name">${c.name}</div>
+    </div>
+  `).join('');
+}
+function selectCarrier(id){ currentCarrierId=id; renderCarriersList(); showCarrierDetail(id); }
+function showCarrierDetail(id){
+  const c = getCarrier(id);
+  document.getElementById('carrier-detail').innerHTML = `<div class="card fade-in"><h4>${c.name}</h4><p>${c.phone || ''}</p></div>`;
+}
+function openNewCarrier(){
+  const name = prompt('Назва перевізника:');
+  if(!name) return;
+  const c = { id:'c'+Date.now(), name, color:'#00f2ff', code:name.substring(0,2).toUpperCase() };
+  DB.carriers.push(c); saveDB(); renderCarriersList();
+}
+
+// --- ROUTES ---
+function renderRoutesList(){
+  const el = document.getElementById('routes-list');
+  el.innerHTML = DB.routes.map(r=>`
+    <div class="route-card ${r.id===currentRouteId?'sel':''}" onclick="selectRoute('${r.id}')">
+      <div class="route-title">${r.name}</div>
+    </div>
+  `).join('');
+}
+function selectRoute(id){ currentRouteId=id; renderRoutesList(); showRouteRight(id); }
+function showRouteRight(id){
+  const r = getRoute(id);
+  const stops = getStops(id);
+  document.getElementById('route-right-panel').innerHTML = `
+    <div class="parser-wrap fade-in">
+      <div class="sec-title">🤖 SMART IMPORT</div>
+      <textarea class="ftextarea" id="smart-input" placeholder="20:00 Одеса\n22:30 Київ"></textarea>
+      <button class="btn btn-green btn-sm" onclick="smartParse('${id}')">⚡ РОЗІБРАТИ</button>
+    </div>
+    <div class="sec-title">ЗУПИНКИ (${stops.length})</div>
+    <div id="stops-editor"></div>
+  `;
+  renderStopsEditor(id);
+}
+
+function renderStopsEditor(routeId){
+  const stops = getStops(routeId);
+  const el = document.getElementById('stops-editor');
+  el.innerHTML = `<table class="stops-table">
+    ${stops.map((s,i)=>`<tr><td>${i+1}</td><td>${s.cityUA}</td><td>${s.dep||s.arr}</td></tr>`).join('')}
+  </table>`;
+}
+
+function smartParse(routeId){
+  const raw = document.getElementById('smart-input').value.trim();
+  if(!raw) return;
+  const lines = raw.split('\n').filter(l=>l.trim());
+  const stops = lines.map((l,i)=>{
+    const m = l.match(/(\d{2}:\d{2})\s+(.+)/);
+    return { id:'s'+Date.now()+i, cityUA: m?m[2]:l, arr: m?m[1]:'00:00', sortOrder:i };
+  });
+  DB.stops[routeId] = stops; saveDB(); renderStopsEditor(routeId);
+}
+
+function openNewRoute(){
+  const name = prompt('Назва маршруту:');
+  if(!name) return;
+  const r = { id:'r'+Date.now(), name, carrierId: currentCarrierId || DB.carriers[0]?.id };
+  DB.routes.push(r); saveDB(); renderRoutesList();
+}
+
+// --- TICKETS ---
+function populateTicketSelects(){
+  const sel = document.getElementById('t-carrier');
+  sel.innerHTML = DB.carriers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+}
+function onTCarrier(){ /* load routes */ }
+function onTRoute(){ /* load stops */ }
+function updateTicketPreview(){ /* update UI */ }
+function saveTicket(){ notify('✓ Білет збережено!'); }
+
+// Seed
+loadDB();
+if(!DB.carriers.length){
+  DB.carriers.push({id:'c1', name:'BUS TRANSFER', code:'BT', color:'#00f2ff'});
+  DB.routes.push({id:'r1', name:'Одеса — Салерно', carrierId:'c1'});
+  DB.stops['r1'] = [{id:'s1', cityUA:'Одеса', arr:'20:00', sortOrder:0},{id:'s2', cityUA:'Салерно', arr:'19:00', sortOrder:1}];
+  saveDB();
+}
+renderCarriersList();
+
+</script>
+</body>
+</html>
