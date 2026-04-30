@@ -14,6 +14,7 @@ import ForumPage from '@busnet/shared/pages/ForumPage';
 import Dashboard from '@busnet/shared/pages/Dashboard';
 import { DashboardBridge } from '@busnet/shared/pages/DashboardBridge';
 import NewTrip from '@busnet/shared/pages/carrier/NewTrip';
+import CyberTerminal from '@busnet/shared/pages/CyberTerminal';
 import MainLayout from '@busnet/shared/components/layout/MainLayout';
 
 export default function App() {
@@ -36,6 +37,7 @@ export default function App() {
               <Route path="/dashboard" element={<ProtectedRoute loginUrl="/auth"><Dashboard /></ProtectedRoute>} />
               <Route path="/bridge" element={<DashboardBridge />} />
               <Route path="/test-trip-form" element={<div className="min-h-screen bg-[#030712] p-8"><NewTrip /></div>} />
+              <Route path="/cyber-terminal" element={<CyberTerminal />} />
             </Routes>
           </BrowserRouter>
         </SearchProvider>
