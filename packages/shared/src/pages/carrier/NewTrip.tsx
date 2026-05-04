@@ -281,7 +281,7 @@ export default function NewTrip() {
   const [smartPriceInput, setSmartPriceInput] = useState('');
   const [smartInputStep1, setSmartInputStep1] = useState('');
   const [priceMemory, setPriceMemory] = useState<Record<string, number>>({});
-  const [exchangeRate, setExchangeRate] = useState(43.5);
+  const [exchangeRate, setExchangeRate] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [previewCollapsed, setPreviewCollapsed] = useState({
@@ -390,6 +390,44 @@ export default function NewTrip() {
     
     return () => clearTimeout(timer);
   }, [JSON.stringify(trip.outbound.stops.map(s => s.time)), JSON.stringify(trip.inbound.stops.map(s => s.time))]);
+
+  // Real-time price recalculation when exchange rate changes
+  useEffect(() => {
+    if (!exchangeRate || exchangeRate <= 0) return;
+
+    setTrip(prev => {
+      // 1. Update Inbound (EUR) from Outbound (UAH) - Primary logic
+      const newInboundStops = prev.inbound.stops.map(inStop => {
+        const outStop = prev.outbound.stops.find(s => s.city === inStop.city);
+        if (outStop && outStop.price > 0) {
+          const newPrice = Math.round(outStop.price / exchangeRate);
+          if (inStop.price !== newPrice) return { ...inStop, price: newPrice };
+        }
+        return inStop;
+      });
+
+      // 2. Update Outbound (UAH) from Inbound (EUR) - Fallback logic
+      const newOutboundStops = prev.outbound.stops.map(outStop => {
+        const inStop = prev.inbound.stops.find(s => s.city === outStop.city);
+        if (inStop && inStop.price > 0 && !outStop.price) {
+          const newPrice = Math.round(inStop.price * exchangeRate);
+          if (outStop.price !== newPrice) return { ...outStop, price: newPrice };
+        }
+        return outStop;
+      });
+
+      const hasInboundChanges = JSON.stringify(prev.inbound.stops) !== JSON.stringify(newInboundStops);
+      const hasOutboundChanges = JSON.stringify(prev.outbound.stops) !== JSON.stringify(newOutboundStops);
+      
+      if (!hasInboundChanges && !hasOutboundChanges) return prev;
+      
+      return {
+        ...prev,
+        outbound: { ...prev.outbound, stops: newOutboundStops },
+        inbound: { ...prev.inbound, stops: newInboundStops }
+      };
+    });
+  }, [exchangeRate, JSON.stringify(trip.outbound.stops.map(s => ({ city: s.city, price: s.price })))]);
 
   const syncToSupabase = async () => {
     setIsSaving(true);
@@ -1072,10 +1110,15 @@ export default function NewTrip() {
           <div className="hidden sm:flex items-center gap-2 bg-white/5 px-2 md:px-4 py-1.5 rounded-full border border-white/10">
             <span className="text-[8px] text-slate-500 font-bold uppercase whitespace-nowrap">EUR:</span>
             <input 
-              type="number"
-              step="0.1"
+              type="text"
+              inputMode="decimal"
               value={exchangeRate}
-              onChange={(e) => setExchangeRate(parseFloat(e.target.value))}
+              onChange={(e) => {
+                const val = e.target.value.replace(',', '.');
+                if (!isNaN(parseFloat(val)) || val === '') {
+                  setExchangeRate(parseFloat(val) || 0);
+                }
+              }}
               className="bg-transparent border-none outline-none text-xs text-[#00e5ff] font-bold w-10 md:w-12"
             />
           </div>
@@ -1205,9 +1248,10 @@ export default function NewTrip() {
                           <div className="space-y-1">
                             <label className="text-[10px] text-slate-500 font-bold uppercase block tracking-wider px-1">Кількість місць</label>
                             <input 
-                              type="number"
+                              type="text"
+                              inputMode="numeric"
                               value={trip.seats || ''}
-                              onChange={(e) => setTrip({...trip, seats: parseInt(e.target.value) || 0})}
+                              onChange={(e) => setTrip({...trip, seats: parseInt(e.target.value.replace(/\D/g, '')) || 0})}
                               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-[#00e5ff]/50 transition-colors"
                             />
                           </div>
@@ -1294,9 +1338,10 @@ export default function NewTrip() {
                                   />
                                   <div className="flex items-center gap-1 bg-black/40 rounded px-2 py-1">
                                     <input 
-                                      type="number"
+                                      type="text"
+                                      inputMode="numeric"
                                       value={discount.value === 0 ? '' : discount.value}
-                                      onChange={(e) => updateCustomDiscount(discount.id, { value: parseInt(e.target.value) || 0 })}
+                                      onChange={(e) => updateCustomDiscount(discount.id, { value: parseInt(e.target.value.replace(/\D/g, '')) || 0 })}
                                       className="bg-transparent text-[#00e5ff] text-xs font-black outline-none w-8 text-center"
                                     />
                                     <span className="text-[10px] text-[#00e5ff] font-black">%</span>
@@ -1431,9 +1476,10 @@ export default function NewTrip() {
                                     <div className="flex items-center gap-1 bg-black/20 rounded px-1.5 py-0.5 border border-white/5">
                                       <span className="text-[8px] text-slate-600 font-bold">ДН</span>
                                       <input 
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         value={stop.dayOffset || 0}
-                                        onChange={(e) => updateStop('outbound', stop.id, { dayOffset: parseInt(e.target.value) || 0 })}
+                                        onChange={(e) => updateStop('outbound', stop.id, { dayOffset: parseInt(e.target.value.replace(/\D/g, '')) || 0 })}
                                         className="text-[10px] text-blue-400 bg-transparent outline-none w-4 font-black text-center"
                                       />
                                     </div>
@@ -1533,9 +1579,10 @@ export default function NewTrip() {
                                     <div className="flex items-center gap-1 bg-black/20 rounded px-1.5 py-0.5 border border-white/5">
                                       <span className="text-[8px] text-slate-600 font-bold">ДН</span>
                                       <input 
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         value={stop.dayOffset || 0}
-                                        onChange={(e) => updateStop('inbound', stop.id, { dayOffset: parseInt(e.target.value) || 0 })}
+                                        onChange={(e) => updateStop('inbound', stop.id, { dayOffset: parseInt(e.target.value.replace(/\D/g, '')) || 0 })}
                                         className="text-[10px] text-emerald-400 bg-transparent outline-none w-4 font-black text-center"
                                       />
                                     </div>

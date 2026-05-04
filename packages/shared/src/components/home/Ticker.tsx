@@ -17,7 +17,7 @@ export default function Ticker() {
       {/* Background Transition Gradient */}
       <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-busnet-bg/0 via-busnet-bg to-busnet-bg/0 z-0 pointer-events-none" />
       
-      <div className="flex w-max animate-ticker hover:[animation-play-state:paused] relative z-10">
+      <div className="flex w-max animate-ticker ticker-pausable relative z-10">
         {/* We duplicate the content to ensure smooth seamless scrolling */}
         {[...routes, ...routes].map((route, i) => (
           <div 

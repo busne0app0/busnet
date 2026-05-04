@@ -63,9 +63,9 @@ export default function HeroSection() {
           initial={{ opacity: 0, y: 30, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 1, ease: [0, 0.71, 0.2, 1.01] }}
-          className="text-[10vw] xs:text-[12vw] sm:text-8xl md:text-[110px] font-black leading-[0.9] text-center mb-6 tracking-tight px-2 overflow-hidden"
+          className="text-[10vw] xs:text-[12vw] sm:text-8xl md:text-[110px] font-black leading-[0.9] text-center mb-6 tracking-tight px-2 holographic-depth-effect"
         >
-          <span className="holographic-text holographic-depth-effect drop-shadow-[0_0_20px_rgba(0,212,255,0.3)]">
+          <span className="holographic-text pr-8">
             BUSNET UA
           </span>
         </motion.h1>

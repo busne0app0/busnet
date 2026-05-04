@@ -54,14 +54,18 @@ export default function SearchResults({ trips, loading, onSelect }: SearchResult
   const [formData, setFormData] = useState({ name: '', phone: '' });
 
   useEffect(() => {
-    let timer: any;
-    if (isSubmitted && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    }
+    if (!isSubmitted || timeLeft <= 0) return;
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
     return () => clearInterval(timer);
-  }, [isSubmitted, timeLeft]);
+  }, [isSubmitted]);
 
   if (loading) {
     return (
@@ -170,20 +174,21 @@ export default function SearchResults({ trips, loading, onSelect }: SearchResult
                 className="text-center py-8"
               >
                 <div className="relative w-32 h-32 mx-auto mb-8">
-                  <svg className="w-full h-full rotate-[-90deg]">
+                  <svg className="w-full h-full rotate-[-90deg]" viewBox="0 0 128 128">
                     <circle 
-                      cx="64" cy="64" r="60" 
+                      cx="64" cy="64" r="56" 
                       fill="none" 
                       stroke="rgba(255,255,255,0.05)" 
                       strokeWidth="8"
                     />
                     <motion.circle 
-                      cx="64" cy="64" r="60" 
+                      cx="64" cy="64" r="56" 
                       fill="none" 
                       stroke="#00D4FF" 
                       strokeWidth="8"
-                      strokeDasharray="377"
-                      animate={{ strokeDashoffset: 377 - (377 * timeLeft) / 60 }}
+                      strokeLinecap="round"
+                      strokeDasharray="352"
+                      animate={{ strokeDashoffset: 352 - (352 * timeLeft) / 60 }}
                       transition={{ duration: 1, ease: "linear" }}
                     />
                   </svg>

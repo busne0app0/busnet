@@ -16,10 +16,16 @@
   --animate-ticker: ticker-scroll 40s linear infinite;
   --animate-drive-bus: driveBus 5s infinite ease-in-out;
   --animate-neural-pulse: neural-pulse 4s ease-in-out infinite;
+  --animate-move-line: moveLine 3s linear infinite;
 
   @keyframes ticker-scroll {
     0% { transform: translateX(0); }
     100% { transform: translateX(-50%); }
+  }
+
+  @keyframes moveLine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
   }
 
   @keyframes driveBus {
@@ -32,6 +38,11 @@
   @keyframes neural-pulse {
     0%, 100% { opacity: 0.3; transform: scale(0.95); filter: blur(40px); }
     50% { opacity: 0.6; transform: scale(1.05); filter: blur(60px); }
+  }
+
+  @keyframes holographic-shine {
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; }
   }
 }
 
@@ -50,6 +61,19 @@
   
   *::-webkit-scrollbar {
     display: none;
+  }
+
+  /* HIDE NUMBER INPUT SPINNERS (ARROWS) */
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+  }
+
+  input[type=number] {
+    -moz-appearance: textfield !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
   }
 
   body {
@@ -131,4 +155,50 @@
   .text-glow-cyan { text-shadow: 0 0 10px rgba(0, 212, 255, 0.5); }
   .text-glow-violet { text-shadow: 0 0 10px rgba(139, 92, 246, 0.5); }
   .text-glow-emerald { text-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
+
+  .ticker-pausable:hover {
+    animation-play-state: paused;
+  }
+
+  /* Premium Holographic Effects */
+  .holographic-text {
+    background: linear-gradient(
+      135deg,
+      #00D4FF 0%,
+      #fff 15%,
+      #00D4FF 30%,
+      #fff 45%,
+      #8B5CF6 60%,
+      #fff 75%,
+      #00D4FF 90%,
+      #fff 100%
+    );
+    background-size: 300% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: holographic-shine 10s linear infinite;
+    position: relative;
+    display: inline-block;
+  }
+
+  .holographic-depth-effect {
+    filter: 
+      drop-shadow(0 0 25px rgba(0, 212, 255, 0.35))
+      drop-shadow(0 0 50px rgba(139, 92, 246, 0.15));
+  }
+
+  .neural-badge {
+    background: rgba(13, 89, 120, 0.2);
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(0, 212, 255, 0.4);
+    box-shadow: 
+      0 0 25px rgba(0, 212, 255, 0.15),
+      inset 0 0 10px rgba(255, 255, 255, 0.05);
+  }
+
+  .text-gradient-silver {
+    background: linear-gradient(to bottom, #ffffff 0%, #a5a5a5 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
 }

@@ -33,12 +33,11 @@ export const ReviewsSection = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30, rotate: rotation }}
-                whileInView={{ opacity: 1, y: 0 }}
+                whileInView={{ opacity: 1, y: 0, rotate: rotation }}
                 whileHover={{ rotate: "0deg", scale: 1.05, y: -10 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1, type: "spring", stiffness: 100 }}
                 className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-[30px] shadow-2xl relative group transition-all duration-300"
-                style={{ rotate: rotation }}
               >
                 {/* Аватарка з неоновим колом */}
                 <div className="mb-6 relative w-20 h-20">

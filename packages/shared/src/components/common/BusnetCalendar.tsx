@@ -13,7 +13,7 @@ interface BusnetCalendarProps {
 }
 
 export default function BusnetCalendar({ selectedDate, onSelect, tripContext, onClose }: BusnetCalendarProps) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const [currentDate, setCurrentDate] = useState(() => {
     const d = selectedDate ? new Date(selectedDate) : new Date();
     // Ensure we are at noon to avoid timezone issues during month switching
@@ -214,7 +214,7 @@ export default function BusnetCalendar({ selectedDate, onSelect, tripContext, on
               onClick={handleToday}
               className="px-3 h-10 rounded-xl bg-neon-cyan/10 border border-neon-cyan/20 flex items-center justify-center text-neon-cyan text-[10px] font-black uppercase tracking-widest hover:bg-neon-cyan/20 transition-all active:scale-95"
             >
-              TODAY
+              {t.search.today}
             </button>
             <button 
               onClick={handleNextMonth}

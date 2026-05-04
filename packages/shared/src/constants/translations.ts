@@ -31,6 +31,7 @@ export const translations = {
       search: 'ПОШУК',
       placeholderFrom: 'Місто...',
       placeholderTo: 'Куди прямуєте?',
+      today: 'СЬОГОДНІ',
     },
     popular: {
       badge: 'Напрямки 2026',
@@ -47,17 +48,20 @@ export const translations = {
         {
           id: 1,
           title: 'Знайдіть рейс',
-          text: 'Говоріть або пишіть — AI аналізує 15 країн Європи за 0.3 секунди.',
+          text: 'Говоріть або пишіть — {highlight} 15 країн Європи за 0.3 секунди.',
+          highlight: 'AI аналізує'
         },
         {
           id: 2,
           title: 'Оберіть квиток',
-          text: 'AI Smart Suggest підкаже найкращий час, ціну та комфорт.',
+          text: '{highlight} підкаже найкращий час, ціну та комфорт.',
+          highlight: 'AI Smart Suggest'
         },
         {
           id: 3,
           title: 'Подорожуйте',
-          text: 'Цифровий квиток та Passkey-авторизація. Сплата при посадці або криптою.',
+          text: 'Цифровий квиток та Passkey-авторизація. {highlight} або криптою.',
+          highlight: 'Сплата при посадці'
         }
       ]
     },
@@ -228,6 +232,7 @@ export const translations = {
       search: 'SEARCH',
       placeholderFrom: 'City...',
       placeholderTo: 'Where to?',
+      today: 'TODAY',
     },
     popular: {
       badge: '2026 Destinations',
@@ -244,17 +249,20 @@ export const translations = {
         {
           id: 1,
           title: 'Find a trip',
-          text: 'Speak or type — AI analyzes 15 European countries in 0.3 seconds.',
+          text: 'Speak or type — {highlight} 15 European countries in 0.3 seconds.',
+          highlight: 'AI analyzes'
         },
         {
           id: 2,
           title: 'Choose a ticket',
-          text: 'AI Smart Suggest will suggest the best time, price, and comfort.',
+          text: '{highlight} will suggest the best time, price, and comfort.',
+          highlight: 'AI Smart Suggest'
         },
         {
           id: 3,
           title: 'Travel',
-          text: 'Digital ticket and Passkey authorization. Pay on boarding or with crypto.',
+          text: 'Digital ticket and Passkey authorization. {highlight} or with crypto.',
+          highlight: 'Pay on boarding'
         }
       ]
     },
@@ -425,6 +433,7 @@ export const translations = {
       search: 'CERCA',
       placeholderFrom: 'Città...',
       placeholderTo: 'Dove vai?',
+      today: 'OGGI',
     },
     popular: {
       badge: 'Destinazioni 2026',
@@ -441,17 +450,20 @@ export const translations = {
         {
           id: 1,
           title: 'Trova un viaggio',
-          text: 'Parla o scrivi: l\'AI analizza 15 paesi europei in 0.3 secondi.',
+          text: "Parla o scrivi — {highlight} 15 paesi europei in 0.3 secondi.",
+          highlight: "l'AI analizza"
         },
         {
           id: 2,
           title: 'Scegli un biglietto',
-          text: 'AI Smart Suggest ti suggerirà l\'orario, il prezzo e il comfort migliori.',
+          text: "{highlight} ti suggerirà l'orario, il prezzo e il comfort migliori.",
+          highlight: 'AI Smart Suggest'
         },
         {
           id: 3,
           title: 'Viaggia',
-          text: 'Biglietto digitale e autorizzazione Passkey. Paga all\'imbarco o con cripto.',
+          text: 'Biglietto digitale e autorizzazione Passkey. {highlight} o con cripto.',
+          highlight: "Paga all'imbarco"
         }
       ]
     },

@@ -11,6 +11,7 @@ export default function NeuralWorkflow() {
       id: "01",
       title: t.neuralWorkflow.steps[0].title,
       text: t.neuralWorkflow.steps[0].text,
+      highlight: t.neuralWorkflow.steps[0].highlight,
       icon: Search,
       color: 'text-cyan-400',
       glow: 'shadow-cyan-500/20',
@@ -20,6 +21,7 @@ export default function NeuralWorkflow() {
       id: "02",
       title: t.neuralWorkflow.steps[1].title,
       text: t.neuralWorkflow.steps[1].text,
+      highlight: t.neuralWorkflow.steps[1].highlight,
       icon: Ticket,
       color: 'text-purple-400',
       glow: 'shadow-purple-500/20',
@@ -29,12 +31,27 @@ export default function NeuralWorkflow() {
       id: "03",
       title: t.neuralWorkflow.steps[2].title,
       text: t.neuralWorkflow.steps[2].text,
+      highlight: t.neuralWorkflow.steps[2].highlight,
       icon: Bus,
       color: 'text-orange-400',
       glow: 'shadow-orange-500/20',
       border: 'border-orange-500/30'
     }
   ];
+
+  const renderStepText = (text: string, highlight: string) => {
+    if (!text) return null;
+    const parts = text.split('{highlight}');
+    if (parts.length === 1) return <>{text}</>;
+    
+    return (
+      <>
+        {parts[0]}
+        <span className="text-cyan-400 font-medium">{highlight}</span>
+        {parts[1]}
+      </>
+    );
+  };
 
   return (
     <section className="py-24 relative overflow-hidden w-full flex flex-col items-center">
@@ -108,14 +125,8 @@ export default function NeuralWorkflow() {
                   <h3 className="text-xl font-black text-white mb-4 uppercase tracking-normal relative z-10 group-hover:text-cyan-400 transition-colors pr-2">
                     {step.title}
                   </h3>
-                  <p className="text-slate-400 text-sm leading-relaxed font-light relative z-10 flex flex-wrap gap-x-1">
-                    {/* Parsing text for highlight parts if any, but default to simple for now */}
-                    {step.text.split('—').map((part, i, arr) => (
-                      <React.Fragment key={i}>
-                        {part}
-                        {i < arr.length - 1 && <span className="text-cyan-400 font-medium">AI аналізує</span>}
-                      </React.Fragment>
-                    ))}
+                  <p className="text-slate-400 text-sm leading-relaxed font-light relative z-10">
+                    {renderStepText(step.text, step.highlight)}
                   </p>
                 </motion.div>
               </motion.div>
