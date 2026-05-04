@@ -95,7 +95,7 @@ export default function Dashboard() {
             // JOIN з trips — отримуємо дані маршруту для старих бронювань без routeFrom/routeTo
             .select('*, trips(departureCity, arrivalCity, departureDate, departureTime, arrivalTime, carrierName)')
             .eq('userId', user.uid)
-            .order('created_at', { ascending: false });
+            .order('createdAt', { ascending: false });
 
           if (error) throw error;
           setRealBookings(data || []);
@@ -122,7 +122,7 @@ export default function Dashboard() {
               .from('notifications')
               .select('*')
               .eq('userId', user.uid)
-              .order('created_at', { ascending: false })
+              .order('createdAt', { ascending: false })
               .then(({ data }) => setRealNotifications(data || []));
           })
           .subscribe();
@@ -132,7 +132,7 @@ export default function Dashboard() {
           .from('notifications')
           .select('*')
           .eq('userId', user.uid)
-          .order('created_at', { ascending: false })
+          .order('createdAt', { ascending: false })
           .then(({ data }) => setRealNotifications(data || []));
 
         return () => {
@@ -214,7 +214,7 @@ export default function Dashboard() {
             supabase
               .from('forum_posts')
               .select('*')
-              .order('created_at', { ascending: false })
+              .order('createdAt', { ascending: false })
               .then(({ data }) => setRealForumPosts(data || []));
           })
           .subscribe();
@@ -223,7 +223,7 @@ export default function Dashboard() {
         supabase
           .from('forum_posts')
           .select('*')
-          .order('created_at', { ascending: false })
+          .order('createdAt', { ascending: false })
           .then(({ data }) => setRealForumPosts(data || []));
 
         return () => {

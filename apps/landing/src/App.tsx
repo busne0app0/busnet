@@ -37,6 +37,7 @@ export default function App() {
               <Route path="/dashboard" element={<ProtectedRoute loginUrl="/auth"><Dashboard /></ProtectedRoute>} />
               <Route path="/bridge" element={<DashboardBridge />} />
               <Route path="/test-trip-form" element={<div className="min-h-screen bg-[#030712] p-8"><NewTrip /></div>} />
+              <Route path="/newtrip" element={<div className="min-h-screen bg-[#030712] p-8"><NewTrip /></div>} />
               <Route path="/cyber-terminal" element={<CyberTerminal />} />
             </Routes>
           </BrowserRouter>

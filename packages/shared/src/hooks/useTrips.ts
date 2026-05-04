@@ -88,7 +88,7 @@ export function useTrips() {
         .from('trips')
         .select('*')
         .eq('carrierId', carrierId)
-        .order('created_at', { ascending: false });
+        .order('createdAt', { ascending: false });
         
       if (error) throw error;
       setTrips(data || []);

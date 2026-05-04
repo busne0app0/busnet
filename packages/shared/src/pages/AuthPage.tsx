@@ -9,46 +9,8 @@ import { toast } from 'react-hot-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Role } from '../types';
 import { supabase } from '../supabase/config';
+import { getAbsoluteRoleRoute } from '../constants/roleRoutes';
 
-// ✅ ФІКС: Замість busy-polling використовуємо Zustand store subscription
-// Підписка реагує точно коли стан змінився — без CPU навантаження
-function waitForUserAndRedirect(): Promise<void> {
-  return new Promise((resolve) => {
-    const MAX_WAIT = 8000;
-    const timer = setTimeout(() => {
-      unsub();
-      toast.error('Не вдалося визначити роль. Спробуйте ще раз.');
-      resolve();
-    }, MAX_WAIT);
-
-    const roleRoutes: Record<string, string> = {
-      admin: '/admin/',
-      carrier: '/carrier/',
-      agent: '/agent/',
-      driver: '/driver/',
-      passenger: '/dashboard',
-      user: '/dashboard',
-    };
-
-    const tryRedirect = (state: ReturnType<typeof useAuthStore.getState>) => {
-      if (!state.loading && state.user) {
-        clearTimeout(timer);
-        unsub();
-        const target = roleRoutes[state.user.role] || '/dashboard';
-        setTimeout(() => {
-          window.location.href = target;
-          resolve();
-        }, 300);
-      }
-    };
-
-    // Перевіряємо одразу (якщо стан вже готовий)
-    tryRedirect(useAuthStore.getState());
-
-    // Підписуємось — спрацює точно при наступній зміні стору
-    const unsub = useAuthStore.subscribe(tryRedirect);
-  });
-}
 
 
 export default function AuthPage() {
@@ -70,8 +32,22 @@ export default function AuthPage() {
   const [companyName, setCompanyName] = useState('');
   const [rememberMe, setRememberMe] = useState(false); // TODO: реалізувати sessionStorage логіку
 
-  const { login, registerCarrier, registerUser, signInWithGoogle } = useAuthStore();
+  const { login, registerCarrier, registerUser, signInWithGoogle, user, isAuthenticated, loading: authLoading, setLoading: setAuthLoading } = useAuthStore();
   const navigate = useNavigate();
+
+  // ✅ ФІКС: Надійний редірект через useEffect замість вкладених промісів
+  React.useEffect(() => {
+    console.log('[AuthPage] Auth State Update:', { authLoading, isAuthenticated, userEmail: user?.email, role: user?.role });
+    
+    if (!authLoading && isAuthenticated && user) {
+      console.log('[AuthPage] SUCCESS: Redirecting to:', user.role);
+      const targetUrl = getAbsoluteRoleRoute(user.role);
+      
+      if (window.location.href !== targetUrl) {
+        window.location.href = targetUrl;
+      }
+    }
+  }, [isAuthenticated, authLoading, user]);
 
   const handleResetPassword = async () => {
     if (!email) {
@@ -91,7 +67,7 @@ export default function AuthPage() {
     setGoogleLoading(true);
     try {
       await signInWithGoogle();
-      // Редірект відбудеться через /bridge
+      // Редірект відбудеться через /bridge або useEffect вище
     } catch (err: any) {
       toast.error(err.message || 'Помилка Google авторизації');
       setGoogleLoading(false);
@@ -107,30 +83,42 @@ export default function AuthPage() {
     }
 
     setLoading(true);
+
+    // Fallback: якщо стор завис на loading — примусовий редірект/скидання через 6с
+    const loadingTimeout = setTimeout(() => {
+      const state = useAuthStore.getState();
+      if (state.isAuthenticated && state.user) {
+        console.warn('[AuthPage] Force-redirect after 6s timeout');
+        window.location.href = getAbsoluteRoleRoute(state.user.role);
+      } else if (!state.isAuthenticated) {
+        setLoading(false);
+        setAuthLoading(false);
+      }
+    }, 6000);
+
     try {
       if (mode === 'login') {
         await login(email, password);
-        // login() повертає після того як supabase.auth.signInWithPassword виконано.
-        // onAuthStateChange в useAuthStore АСИНХРОННО завантажить user з БД.
-        // Чекаємо поки loading стане false і user з'явиться.
+        clearTimeout(loadingTimeout);
         toast.success('Вітаємо у Busnet!');
-        await waitForUserAndRedirect();
+        // Редірект відбудеться автоматично через useEffect вище при зміні стану стору
       } else {
         if (role === 'passenger') {
           await registerUser({ email, firstName, lastName, phone, role: 'passenger' }, password);
+          clearTimeout(loadingTimeout);
           toast.success('Аккаунт створено!');
-          await waitForUserAndRedirect();
         } else if (role === 'carrier') {
           await registerCarrier({ email, companyName, phone }, password);
+          clearTimeout(loadingTimeout);
           toast.success('Вітаємо у Busnet! Ваш кабінет готовий.');
-          await waitForUserAndRedirect();
         } else if (role === 'agent') {
           await registerUser({ email, firstName, lastName, phone, role: 'agent' }, password);
+          clearTimeout(loadingTimeout);
           toast.success('Агент успішно зареєстрований');
-          await waitForUserAndRedirect();
         }
       }
     } catch (err: any) {
+      clearTimeout(loadingTimeout);
       toast.error(err.message || 'Сталася помилка');
     } finally {
       setLoading(false);

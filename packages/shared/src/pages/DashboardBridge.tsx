@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
+import { getAbsoluteRoleRoute } from '../constants/roleRoutes';
 
 export function DashboardBridge() {
   const { user, isAuthenticated, loading } = useAuthStore();
@@ -22,26 +23,17 @@ export function DashboardBridge() {
   useEffect(() => {
     if (redirected.current) return;
 
-    // ✅ ФІКС: використовуємо origin динамічно — працює і на preview URL і на прод
-    const base = window.location.origin;
-    const routes: Record<string, string> = {
-      admin: `${base}/admin/`,
-      carrier: `${base}/carrier/`,
-      agent: `${base}/agent/`,
-      driver: `${base}/driver/`,
-    };
-
     // Є дані — редиректимо ОДРАЗУ без чекання loading
     if (isAuthenticated && user?.role) {
       redirected.current = true;
-      window.location.href = routes[user.role] || base;
+      window.location.href = getAbsoluteRoleRoute(user.role);
       return;
     }
 
     // Loading завершився — не залогінений
     if (!loading && !isAuthenticated) {
       redirected.current = true;
-      window.location.href = base;
+      window.location.href = window.location.origin;
       return;
     }
 
@@ -50,8 +42,8 @@ export function DashboardBridge() {
       if (!redirected.current) {
         redirected.current = true;
         window.location.href = isAuthenticated && user?.role
-          ? routes[user.role]
-          : base;
+          ? getAbsoluteRoleRoute(user.role)
+          : window.location.origin;
       }
     }, 5000);
 

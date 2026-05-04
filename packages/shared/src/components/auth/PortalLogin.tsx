@@ -2,45 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Lock, Mail, AlertCircle, User, Phone, Building, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
-
-// ✅ ФІКС: Замість busy-polling використовуємо Zustand store subscription
-function waitForUserAndRedirect(): Promise<void> {
-  return new Promise((resolve) => {
-    const MAX_WAIT = 8000;
-    const timer = setTimeout(() => {
-      unsub();
-      console.warn('[PortalLogin] Timeout waiting for user role');
-      resolve();
-    }, MAX_WAIT);
-
-    const roleRoutes: Record<string, string> = {
-      admin: '/admin/',
-      carrier: '/carrier/',
-      agent: '/agent/',
-      driver: '/driver/',
-      passenger: '/dashboard',
-      user: '/dashboard',
-    };
-
-    const tryRedirect = (state: ReturnType<typeof useAuthStore.getState>) => {
-      if (!state.loading && state.user) {
-        clearTimeout(timer);
-        unsub();
-        const target = roleRoutes[state.user.role] || '/dashboard';
-        
-        // window.location для правильного переходу між додатками без подвоєння basename
-        window.location.href = target;
-        resolve();
-      }
-    };
-
-    // Перевіряємо одразу (якщо стан вже готовий)
-    tryRedirect(useAuthStore.getState());
-
-    // Підписуємось — спрацює точно при наступній зміні стору
-    const unsub = useAuthStore.subscribe(tryRedirect);
-  });
-}
+import { getAbsoluteRoleRoute } from '../../constants/roleRoutes';
 
 export default function PortalLogin({ role, title, subtitle, colorClass, icon: Icon }: any) {
   const [isLogin, setIsLogin] = useState(true);
@@ -53,7 +15,18 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
   const [localError, setLocalError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const { login, registerCarrier, registerUser, error } = useAuthStore();
+  const { login, registerCarrier, registerUser, error, user, isAuthenticated, loading: authLoading } = useAuthStore();
+
+  // ✅ ФІКС: Надійний редірект через useEffect
+  React.useEffect(() => {
+    if (!authLoading && isAuthenticated && user) {
+      console.log('[PortalLogin] Redirecting authenticated user:', user.email, 'to:', user.role);
+      const targetUrl = getAbsoluteRoleRoute(user.role);
+      if (window.location.href !== targetUrl) {
+        window.location.href = targetUrl;
+      }
+    }
+  }, [isAuthenticated, authLoading, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +36,7 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
     try {
       if (isLogin) {
         await login(email, password);
-        await waitForUserAndRedirect();
+        // Редірект відбудеться через useEffect
       } else {
         if (role === 'carrier') {
           if (!companyName || !phone) throw new Error("Усі поля є обов'язковими");
@@ -72,7 +45,6 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
           if (!firstName || !lastName) throw new Error("Усі поля є обов'язковими");
           await registerUser({ email, firstName, lastName, phone, role }, password);
         }
-        await waitForUserAndRedirect();
       }
     } catch (err: any) {
       setLocalError(err.message || 'Помилка авторизації');

@@ -38,7 +38,7 @@ const CRMTab: React.FC = () => {
             *,
             trips!inner(carrier_id)
           `)
-          .eq('trips.carrier_id', user.uid);
+          .eq('trips.carrierId', user.uid);
 
         if (error) throw error;
 

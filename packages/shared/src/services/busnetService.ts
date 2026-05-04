@@ -52,8 +52,8 @@ export const busnetService = {
       const { data, error } = await supabase
         .from('routes')
         .select('*')
-        .eq('carrierId', carrierId)
-        .order('createdAt', { ascending: false });
+        .eq('carrier_id', carrierId)
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
     } catch (error: any) {
@@ -71,7 +71,7 @@ export const busnetService = {
         .from('routes')
         .delete()
         .eq('id', id)
-        .eq('carrierId', user.id);
+        .eq('carrier_id', user.id);
       if (error) throw error;
     } catch (error: any) {
       console.error('Error deleting route template:', error);
@@ -85,7 +85,7 @@ export const busnetService = {
       const { data, error } = await supabase
         .from('routes')
         .select('*')
-        .order('createdAt', { ascending: false });
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
     } catch (error: any) {

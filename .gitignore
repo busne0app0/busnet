@@ -4,6 +4,7 @@ dist/
 coverage/
 .DS_Store
 *.log
+
 # .env rules — НЕ комітити секрети в git!
 .env
 .env.local
@@ -12,5 +13,21 @@ coverage/
 
 # Scratch утиліти — одноразові скрипти, не повинні бути в репо
 scratch/
+
+# Build and cache
+.turbo/
+dist_production/
+apps/*/dist/
+apps/*/.turbo/
+
+# Одноразові admin/migration скрипти
+create-admin.mjs
+create-admin.ts
+fix-admin-uid.ts
+
+# Артефакти аудиту
+*.html.bak
+BUSNET_AUDIT_REPORT.html
+busnet_mobile_audit*.html
 
 .vercel

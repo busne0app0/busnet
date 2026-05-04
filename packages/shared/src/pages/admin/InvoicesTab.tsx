@@ -30,7 +30,7 @@ const InvoicesTab: React.FC = () => {
           partnerName: d.companyName || d.id.substring(0,8),
           type: 'Виплата Перевізнику',
           period: 'Квітень 2026',
-          amount: d.totalDebtToAdmin || 0,
+          amount: d.total_debt_to_admin || 0,
           status: 'PENDING',
           date: new Date().toLocaleDateString('uk-UA')
         }));

@@ -19,8 +19,15 @@ export function ProtectedRoute({
     let cancelled = false;
 
     const check = async () => {
+      // ✅ ФІКС: Якщо в сторі ВЖЕ є user — ми готові. Не смикаємо базу зайвий раз.
+      const existingUser = useAuthStore.getState().user;
+      if (existingUser) {
+        if (!cancelled) setStatus('ready');
+        return;
+      }
+
       try {
-        // ЗАВЖДИ перевіряємо живу сесію — localStorage НЕ є авторизацією
+        // Якщо в сторі пусто — перевіряємо живу сесію
         const { data: { session } } = await supabase.auth.getSession();
 
         if (!session) {
@@ -32,12 +39,22 @@ export function ProtectedRoute({
         const start = Date.now();
         const wait = () => {
           if (cancelled) return;
-          const u = useAuthStore.getState().user;
-          if (u) {
-            setStatus('ready');
-            return;
+          
+          const state = useAuthStore.getState();
+          
+          // Якщо завантаження завершено — ми готові прийняти рішення
+          if (!state.loading) {
+            if (state.user) {
+              setStatus('ready');
+              return;
+            } else {
+              setStatus('no-session');
+              return;
+            }
           }
+
           if (Date.now() - start > 8000) {
+            console.warn('[ProtectedRoute] Timeout waiting for auth store synchronization');
             setStatus('no-session');
             return;
           }
@@ -45,7 +62,8 @@ export function ProtectedRoute({
         };
         wait();
 
-      } catch {
+      } catch (err) {
+        console.error('[ProtectedRoute] Auth check error:', err);
         if (!cancelled) setStatus('no-session');
       }
     };
@@ -74,9 +92,14 @@ export function ProtectedRoute({
   // Беремо user зі стору — LiveSession вже підтверджена вище
   const currentUser = user;
 
-  if (role && currentUser?.role !== role) {
-    window.location.href = '/';
-    return null;
+  console.log(`[ProtectedRoute] User: ${currentUser?.email}, Role: ${currentUser?.role}, Required: ${role}`);
+
+  // ✅ ФІКС: Адмін має доступ до ВСЬОГО. Або роль має збігатися.
+  const hasAccess = currentUser?.role === 'admin' || (role ? currentUser?.role === role : true);
+
+  if (!hasAccess) {
+    console.warn(`[ProtectedRoute] Access Denied. Redirecting to home.`);
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

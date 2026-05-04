@@ -38,7 +38,7 @@ const BookingsTab: React.FC = () => {
       const { data: bookingsData, error } = await supabase
         .from('bookings')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('createdAt', { ascending: false });
       
       if (!error && bookingsData && isMounted) {
         const formatted = bookingsData.map((bData) => {

@@ -24,6 +24,9 @@ interface AuthState {
   updateUserProfile: (updates: Partial<User>) => Promise<void>;
 }
 
+// Глобальний прапорець для запобігання конфліктам запитів до Supabase
+let isProcessingAuth = false;
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
@@ -92,114 +95,124 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   initAuth: () => {
-    const { authSubscription, initInProgress } = get();
-    if (authSubscription || initInProgress) return () => {};
-    
-    set({ initInProgress: true });
+    const { authSubscription } = get();
+    if (authSubscription) return () => {};
+
+    let isHandling = false; // локальний флаг, не глобальний
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('[initAuth] Auth event:', event, session?.user?.email);
+      (event, session) => {
+        console.log('[initAuth] Event:', event, '| isHandling:', isHandling, '| email:', session?.user?.email);
 
+        // SIGNED_OUT — завжди обробляємо
         if (!session) {
+          isHandling = false;
+          isProcessingAuth = false;
           set({ user: null, isAuthenticated: false, activeRole: null, loading: false, initInProgress: false });
           return;
         }
 
-        try {
-          set({ loading: true });
+        // SIGNED_IN завжди обробляємо (навіть якщо isHandling=true — це нова сесія)
+        if (event === 'SIGNED_IN') {
+          isHandling = false; // скидаємо щоб опрацювати нову сесію
+        }
 
-          // Try to get user from database with a timeout
-          const fetchWithTimeout = async () => {
-            const { data: users, error } = await supabase
+        // Пропускаємо лише дублікати TOKEN_REFRESHED та повторні INITIAL_SESSION
+        if (isHandling && (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
+          console.log('[initAuth] Skipping duplicate event:', event);
+          return;
+        }
+
+        // INITIAL_SESSION при вже залогіненому — просто не блокуємо
+        if (event === 'INITIAL_SESSION' && get().isAuthenticated) {
+          return;
+        }
+
+        isHandling = true;
+        isProcessingAuth = true;
+        set({ loading: true });
+
+        // ВАЖЛИВО: Відкріплюємо асинхронний запит від основного потоку onAuthStateChange.
+        // Це усуває deadlock у Supabase v2, коли supabase.from() намагається отримати сесію,
+        // яка зараз заблокована виконанням onAuthStateChange.
+        setTimeout(async () => {
+          try {
+            console.log('[initAuth] Loading profile for UID:', session.user.id);
+
+            // 1. Шукаємо по uid
+            let { data: users } = await supabase
               .from('users')
               .select('*')
               .eq('uid', session.user.id)
               .limit(1);
-            return { data: users, error };
-          };
 
-          let { data: users, error: fetchError } = await fetchWithTimeout();
-          if (fetchError) console.error('[initAuth] Fetch error:', fetchError);
+            let userData = users && users.length > 0 ? users[0] : null;
 
-          let userData = users && users.length > 0 ? users[0] : null;
-
-          if (!userData && session.user.email) {
-            const { data: byEmailUsers } = await supabase
-              .from('users')
-              .select('*')
-              .eq('email', session.user.email)
-              .limit(1);
-            
-            const byEmail = byEmailUsers && byEmailUsers.length > 0 ? byEmailUsers[0] : null;
-
-            if (byEmail) {
-              const { data: updatedUsers } = await supabase
+            // 2. Шукаємо по email якщо uid не знайдено
+            if (!userData && session.user.email) {
+              const { data: byEmail } = await supabase
                 .from('users')
-                .update({ uid: session.user.id })
+                .select('*')
                 .eq('email', session.user.email)
-                .select()
                 .limit(1);
-              userData = (updatedUsers && updatedUsers.length > 0) ? updatedUsers[0] : byEmail;
+              
+              if (byEmail && byEmail.length > 0) {
+                // Оновлюємо uid
+                await supabase.from('users').update({ uid: session.user.id }).eq('email', session.user.email);
+                userData = { ...byEmail[0], uid: session.user.id };
+              }
             }
-          }
 
-          if (!userData) {
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            const { data: retryUsers } = await supabase
-              .from('users')
-              .select('*')
-              .eq('uid', session.user.id)
-              .limit(1);
-            userData = retryUsers && retryUsers.length > 0 ? retryUsers[0] : null;
-          }
+            // 3. Якщо профіль ще не знайдено — чекаємо 2с (register вставляє його)
+            if (!userData) {
+              console.log('[initAuth] Profile not found, waiting 2s for register to insert...');
+              await new Promise(r => setTimeout(r, 2000));
+              const { data: retried } = await supabase
+                .from('users').select('*').eq('uid', session.user.id).limit(1);
+              userData = retried && retried.length > 0 ? retried[0] : null;
+            }
 
-          if (userData) {
-            console.log('[initAuth] User loaded successfully:', userData.email, 'role:', userData.role);
+            // 4. Fallback — створюємо профіль з метаданих
+            if (!userData) {
+              const meta = session.user.user_metadata || {};
+              let role: Role = meta.role || 'passenger';
+              const path = window.location.pathname;
+              if (!meta.role) {
+                if (path.includes('/admin')) role = 'admin';
+                else if (path.includes('/carrier')) role = 'carrier';
+                else if (path.includes('/agent')) role = 'agent';
+              }
+              userData = {
+                uid: session.user.id,
+                email: session.user.email || '',
+                role,
+                firstName: meta.firstName || meta.full_name?.split(' ')[0] || '',
+                lastName: meta.lastName || meta.full_name?.split(' ').slice(1).join(' ') || '',
+                phone: meta.phone || '',
+                status: 'active',
+              };
+              await supabase.from('users').upsert(userData, { onConflict: 'uid' });
+              console.log('[initAuth] Created fallback profile with role:', role);
+            }
+
+            console.log('[initAuth] ✅ Profile loaded:', userData.email, 'role:', userData.role);
             set({
               user: userData as User,
               isAuthenticated: true,
               activeRole: (userData.role as Role) || 'passenger',
               loading: false,
               error: null,
-              initInProgress: false
+              initInProgress: false,
             });
-            return;
+
+          } catch (err: any) {
+            console.error('[initAuth] Error:', err);
+            set({ loading: false, initInProgress: false });
+          } finally {
+            isHandling = false;
+            isProcessingAuth = false;
           }
-
-          console.warn('[initAuth] User profile not found in DB, using metadata for:', session.user.email);
-          // Self-healing using metadata as primary source if DB fails
-          const meta = session.user.user_metadata || {};
-          const fallbackUser: any = {
-            uid: session.user.id,
-            email: session.user.email || '',
-            role: meta.role || 'passenger',
-            firstName: meta.firstName || meta.full_name?.split(' ')[0] || 'User',
-            lastName: meta.lastName || meta.full_name?.split(' ').slice(1).join(' ') || '',
-            phone: meta.phone || '',
-            status: 'active',
-          };
-
-          // Update store immediately so UI can redirect
-          set({
-            user: fallbackUser as User,
-            isAuthenticated: true,
-            activeRole: fallbackUser.role as Role,
-            loading: false,
-            initInProgress: false
-          });
-
-          // Background insert/repair
-          supabase.from('users').insert(fallbackUser).then(({ error }) => {
-            if (error) console.error('[initAuth] Background self-healing failed:', error);
-            else console.log('[initAuth] Background self-healing successful');
-          });
-
-
-        } catch (err: any) {
-          console.error('[initAuth] Error:', err);
-          set({ loading: false, initInProgress: false });
-        }
+        }, 0);
       }
     );
 
@@ -210,19 +223,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     };
   },
 
+
   registerUser: async (userData, password) => {
     set({ loading: true, error: null });
     try {
       const { data, error } = await supabase.auth.signUp({
         email: userData.email,
         password,
-        options: { data: { ...userData, role: 'passenger' } },
+        options: { data: { ...userData, role: userData.role || 'passenger' } },
       });
       if (error) throw error;
       if (data.user) {
-        const newUser = { uid: data.user.id, ...userData, role: 'passenger', status: 'active' };
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await supabase.from('users').insert(newUser);
+        const newUser = { uid: data.user.id, ...userData, role: userData.role || 'passenger', status: 'active' };
+        // Вставляємо профіль одразу — initAuth перевірить DB через 2 секунди
+        const { error: insertError } = await supabase.from('users').upsert(newUser, { onConflict: 'uid' });
+        if (insertError) console.warn('[registerUser] Profile insert warning:', insertError.message);
+        console.log('[registerUser] Profile saved for:', userData.email);
+        // loading скинеться через onAuthStateChange → initAuth
       }
     } catch (err: any) {
       set({ error: err.message, loading: false });
@@ -247,8 +264,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error;
       if (data.user) {
         const newCarrier = { uid: data.user.id, ...companyData, role: 'carrier', status: 'active' };
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await supabase.from('users').insert(newCarrier);
+        const { error: insertError } = await supabase.from('users').upsert(newCarrier, { onConflict: 'uid' });
+        if (insertError) console.warn('[registerCarrier] Profile insert warning:', insertError.message);
+        console.log('[registerCarrier] Carrier profile saved for:', companyData.email);
+        // loading скинеться через onAuthStateChange → initAuth
       }
     } catch (err: any) {
       set({ error: err.message, loading: false });

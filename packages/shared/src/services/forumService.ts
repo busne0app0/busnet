@@ -13,7 +13,7 @@ export const forumService = {
       .from('forum_posts')
       .select('created_at')
       .eq('authorId', user.id)
-      .order('created_at', { ascending: false })
+      .order('createdAt', { ascending: false })
       .limit(1);
 
     if (recentPosts && recentPosts.length > 0) {
@@ -96,14 +96,14 @@ export const forumService = {
 
   subscribeToComments(postId: string, callback: (comments: ForumComment[]) => void) {
     // Initial fetch
-    supabase.from('forum_comments').select('*').eq('postId', postId).order('created_at', { ascending: true })
+    supabase.from('forum_comments').select('*').eq('postId', postId).order('createdAt', { ascending: true })
       .then(({ data }) => { if (data) callback(data as any); });
 
     // Realtime subscription
     const channel = supabase.channel(`comments-${postId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'forum_comments', filter: `postId=eq.${postId}` }, (payload) => {
         // Refresh all comments for simplicity, or manage state properly
-        supabase.from('forum_comments').select('*').eq('postId', postId).order('created_at', { ascending: true })
+        supabase.from('forum_comments').select('*').eq('postId', postId).order('createdAt', { ascending: true })
           .then(({ data }) => { if (data) callback(data as any); });
       })
       .subscribe();
@@ -114,13 +114,13 @@ export const forumService = {
   // Real-time listeners
   subscribeToPosts(callback: (posts: ForumPost[]) => void) {
     // Initial fetch
-    supabase.from('forum_posts').select('*').order('created_at', { ascending: false }).limit(50)
+    supabase.from('forum_posts').select('*').order('createdAt', { ascending: false }).limit(50)
       .then(({ data }) => { if (data) callback(data as any); });
 
     // Realtime subscription
     const channel = supabase.channel('public-forum-posts')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'forum_posts' }, () => {
-        supabase.from('forum_posts').select('*').order('created_at', { ascending: false }).limit(50)
+        supabase.from('forum_posts').select('*').order('createdAt', { ascending: false }).limit(50)
           .then(({ data }) => { if (data) callback(data as any); });
       })
       .subscribe();

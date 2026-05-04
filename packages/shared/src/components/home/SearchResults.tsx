@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
+
 import { Clock, MapPin, Users, CreditCard, ChevronRight, Info, Send, Phone, User } from 'lucide-react';
 import { Trip } from '../../busnet/types';
 import Badge from '../ui/Badge';

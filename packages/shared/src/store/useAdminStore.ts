@@ -413,16 +413,16 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         .from('routes')
         .select('*')
         .eq('status', 'pending')
-        .order('createdAt', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
       const approvals: AdminApproval[] = (data || []).map((r: any) => ({
         id: r.id,
-        carrierId: r.carrierId || '',
+        carrierId: r.carrier_id || '',
         carrierName: '—', // В цій таблиці немає імені, треба було б джоінити або просто ID
         route: r.name || r.direction || '—',
-        date: r.createdAt ? new Date(r.createdAt).toLocaleDateString('uk-UA') : '—',
+        date: r.created_at ? new Date(r.created_at).toLocaleDateString('uk-UA') : '—',
         seats: r.seats || 0,
         price: `€${r.singlePrice || r.zoneAPrice || 0}`,
         status: 'pending',

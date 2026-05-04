@@ -70,7 +70,7 @@ const SupportTab: React.FC = () => {
         .from('support')
         .select('*')
         .eq('userId', user.uid)
-        .order('created_at', { ascending: false });
+        .order('createdAt', { ascending: false });
       
       if (!error && data) {
         setTickets(data.map(d => ({

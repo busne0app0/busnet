@@ -14,6 +14,7 @@ import { useTrips } from '@busnet/shared/hooks/useTrips';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { Trip } from '../../busnet/types';
 import { toast } from 'react-hot-toast';
+import { supabase } from '@busnet/shared/supabase/config';
 
 const STATUS_MAP: Record<string, { label: string, color: string, bg: string }> = {
   active: { label: 'Активний', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
@@ -41,7 +42,6 @@ export default function Schedule() {
     setCancelling(tripId);
     const toastId = toast.loading('Скасування рейсу...');
     try {
-      const { supabase } = await import('@busnet/shared/supabase/config');
       const { error } = await supabase
         .from('trips')
         .update({ status: 'cancelled' })

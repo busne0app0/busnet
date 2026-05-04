@@ -160,25 +160,6 @@ const RoutesTab: React.FC = () => {
         </div>
         <div className="flex gap-4">
             <button 
-              onClick={() => {
-                const from = window.prompt('Пункт відправлення:');
-                const to = window.prompt('Пункт призначення:');
-                if (from && to) {
-                  supabase.from('trips').insert({ 
-                    departure_city: from, arrival_city: to, 
-                    departure_date: new Date().toISOString().split('T')[0],
-                    status: 'active',
-                    carrierName: 'Admin System',
-                    totalSeats: 50,
-                    bookedSeats: 0
-                  }).then(() => toast.success('Маршрут розгорнуто в мережі'));
-                }
-              }}
-              className="px-8 py-3 bg-[#00D4FF] text-black text-[11px] font-black uppercase tracking-[0.2em] rounded-xl hover:shadow-[0_0_20px_rgba(0,212,255,0.4)] transition-all"
-            >
-              + Create Route
-            </button>
-            <button 
               onClick={() => exportToCSV(sortedTrips, 'routes_export')}
               className="px-6 py-3 glass-mission-control rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/5 transition-all flex items-center gap-2"
             >
