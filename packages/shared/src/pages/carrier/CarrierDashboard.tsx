@@ -12,7 +12,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import OnboardingWidget from './OnboardingWidget';
-import RouteModal from '../../components/busnet/RouteModal';
 import { busnetService } from '../../services/busnetService';
 import { RouteTemplate } from '../../busnet/types';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
@@ -22,7 +21,6 @@ import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip } from 'recharts';
 export default function CarrierDashboard() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [routes, setRoutes] = useState<RouteTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -233,27 +231,7 @@ export default function CarrierDashboard() {
   };
 
   const handleEditRoute = (route: RouteTemplate) => {
-    setEditingRoute(route);
-    setIsModalOpen(true);
-  };
-
-  const handleSaveRoute = async (data: RouteTemplate) => {
-    try {
-      if (editingRoute) {
-        await busnetService.saveRouteTemplate({ ...data, id: editingRoute.id });
-        toast.success(`Маршрут "${data.name}" оновлено`);
-      } else {
-        await busnetService.saveRouteTemplate(data);
-        toast.success('Маршрут збережено та відправлено на модерацію');
-      }
-      loadRoutes();
-    } catch (error: any) {
-      toast.error('Помилка збереження. Спробуйте ще раз.');
-      console.error('Save route error:', error);
-    } finally {
-      setEditingRoute(null);
-      setIsModalOpen(false);
-    }
+    navigate('/newtrip', { state: { editRoute: route } });
   };
 
   const handleDeleteRoute = async (route: RouteTemplate) => {
@@ -289,8 +267,7 @@ export default function CarrierDashboard() {
         <div className="flex items-center gap-3">
           <button 
             onClick={() => {
-              setEditingRoute(null);
-              setIsModalOpen(true);
+              navigate('/newtrip');
             }}
             className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-[#185FA5] text-black rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg shadow-cyan-950/20 hover:scale-[1.02] transition-all flex items-center gap-2"
           >
@@ -370,7 +347,7 @@ export default function CarrierDashboard() {
               Створіть свій перший маршрут за допомогою смарт-парсера, щоб почати продавати квитки.
             </p>
             <button 
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => navigate('/newtrip')}
               className="mt-6 px-8 py-3 bg-white/5 border border-white/10 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
             >
               Створити перший маршрут
@@ -452,15 +429,7 @@ export default function CarrierDashboard() {
         )}
       </div>
 
-      <RouteModal 
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingRoute(null);
-        }}
-        onSave={handleSaveRoute}
-        initialData={editingRoute}
-      />
+
 
       {/* Main Grid: Revenue & Active Trips */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
