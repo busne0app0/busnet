@@ -386,7 +386,7 @@ export default function NewBooking() {
                           <div className="text-[10px] text-[#4a5c72] font-bold uppercase">{trip.duration} в дорозі</div>
                         </div>
                         <div className="flex gap-2">
-                          {trip.amenities.map((a: string) => {
+                          {Array.isArray(trip.amenities) && trip.amenities.map((a: string) => {
                             const Icon = AMENITIES_MAP[a].icon;
                             return (
                               <div key={a} className="p-2 rounded-lg bg-white/5 border border-white/5 text-[#4a5c72] group-hover:text-white transition-colors">
@@ -793,7 +793,7 @@ export default function NewBooking() {
                   <div className="space-y-4">
                     <div className="text-[10px] font-black text-[#4a5c72] uppercase tracking-[0.2em]">Зручності</div>
                     <div className="flex flex-wrap gap-2">
-                      {showTripDetails.amenities.map((a: string) => (
+                      {Array.isArray(showTripDetails.amenities) && showTripDetails.amenities.map((a: string) => (
                         <div key={a} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-white uppercase tracking-wider">
                           {React.createElement(AMENITIES_MAP[a].icon, { size: 12, className: "text-[#a28afd]" })}
                           {AMENITIES_MAP[a].label}

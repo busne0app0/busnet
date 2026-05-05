@@ -355,19 +355,25 @@ export default function CarrierDashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {routes.map((route) => (
-              <motion.div 
-                key={route.id}
-                layoutId={route.id}
-                className="bg-[#1a2235] border border-white/5 rounded-[40px] p-8 group hover:border-white/10 transition-all relative overflow-hidden"
-              >
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h4 className="text-white font-bold text-xl uppercase italic tracking-tight">{route.name}</h4>
-                    <p className="text-[#5a6a85] text-[10px] font-black uppercase tracking-widest mt-1">
-                      {((route as any).outbound?.stops?.length || route.stopsThere?.length || 0)} зупинок · {route.direction === 'roundtrip' ? 'Туди-назад' : 'В один бік'}
-                    </p>
-                  </div>
+            {routes.map((route) => {
+              const stops = (route as any).outbound?.stops || route.stopsThere || [];
+              const amenities = (route as any).amenities || [];
+              const rules = (route as any).rules || [];
+              const discounts = (route as any).discounts || {};
+              
+              return (
+                <motion.div 
+                  key={route.id}
+                  layoutId={route.id}
+                  className="bg-[#1a2235] border border-white/5 rounded-[40px] p-8 group hover:border-white/10 transition-all relative overflow-hidden"
+                >
+                  <div className="flex justify-between items-start mb-6">
+                    <div>
+                      <h4 className="text-white font-bold text-xl uppercase italic tracking-tight">{route.name}</h4>
+                      <p className="text-[#5a6a85] text-[10px] font-black uppercase tracking-widest mt-1">
+                        {stops.length} зупинок · {route.direction === 'roundtrip' ? 'Туди-назад' : 'В один бік'}
+                      </p>
+                    </div>
                   <div className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${
                     route.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
                     route.status === 'pending' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : 
@@ -381,13 +387,13 @@ export default function CarrierDashboard() {
                   <div className="flex items-center gap-2">
                     <Clock size={16} className="text-[#5a6a85]" />
                     <span className="text-white text-sm font-bold">
-                      {(route as any).outbound?.stops?.[0]?.time || route.stopsThere?.[0]?.time || '--:--'}
+                      {stops[0]?.time || '--:--'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <MapPin size={16} className="text-[#5a6a85]" />
                     <span className="text-[#8899b5] text-xs font-medium">
-                      {(route as any).outbound?.stops?.[0]?.city || route.stopsThere?.[0]?.city || 'Не вказано'}
+                      {stops[0]?.city || 'Не вказано'}
                     </span>
                   </div>
                 </div>

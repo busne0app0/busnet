@@ -377,7 +377,7 @@ export default function BusnetCalendar({ selectedDate, onSelect, tripContext, on
                   </>
                 )}
 
-                {monthTrips[tooltip.day].amenities.length > 0 && (
+                {monthTrips[tooltip.day].amenities?.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {monthTrips[tooltip.day].amenities.slice(0, 4).map((a, i) => (
                       <span key={i} className="px-1.5 py-0.5 rounded-md bg-neon-cyan/5 text-neon-cyan text-[8px] font-bold uppercase border border-neon-cyan/10">

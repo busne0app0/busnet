@@ -285,7 +285,7 @@ export default function SearchResults({ trips, loading, onSelect }: SearchResult
               </div>
               
               {/* Amenities Footer */}
-              {trip.amenities && (
+              {Array.isArray(trip.amenities) && trip.amenities.length > 0 && (
                 <div className="px-8 py-3 bg-white/[0.02] border-t border-white/5 flex gap-4 overflow-x-auto no-scrollbar">
                   {trip.amenities.map(a => (
                     <span key={a} className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
