@@ -25,12 +25,13 @@ export default function SearchResults({ trips, loading, onSelect }: SearchResult
     const from = searchParams.from?.toLowerCase();
     const to = searchParams.to?.toLowerCase();
 
-    const fromStop = trip.stopsThere.find(s => s.city.toLowerCase() === from) || trip.stopsThere[0];
-    const toStop = trip.stopsThere.find(s => s.city.toLowerCase() === to) || trip.stopsThere[trip.stopsThere.length - 1];
+    const stops = (trip as any).stops || (trip as any).stopsThere || [];
+    const fromStop = stops.find((s: any) => s.city.toLowerCase() === from) || stops[0] || { time: '--:--', city: '' };
+    const toStop = stops.find((s: any) => s.city.toLowerCase() === to) || stops[stops.length - 1] || { time: '--:--', city: '' };
 
     // Find indices for price calculation
-    const fromIdx = trip.stopsThere.findIndex(s => s.city.toLowerCase() === from);
-    const toIdx = trip.stopsThere.findIndex(s => s.city.toLowerCase() === to);
+    const fromIdx = stops.findIndex((s: any) => s.city.toLowerCase() === from);
+    const toIdx = stops.findIndex((s: any) => s.city.toLowerCase() === to);
 
     let price = trip.price || 0;
     if (fromIdx !== -1 && toIdx !== -1 && trip.pricesThere) {

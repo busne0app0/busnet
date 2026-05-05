@@ -365,7 +365,7 @@ export default function CarrierDashboard() {
                   <div>
                     <h4 className="text-white font-bold text-xl uppercase italic tracking-tight">{route.name}</h4>
                     <p className="text-[#5a6a85] text-[10px] font-black uppercase tracking-widest mt-1">
-                      {route.stopsThere.length} зупинок · {route.direction === 'roundtrip' ? 'Туди-назад' : 'В один бік'}
+                      {((route as any).outbound?.stops?.length || route.stopsThere?.length || 0)} зупинок · {route.direction === 'roundtrip' ? 'Туди-назад' : 'В один бік'}
                     </p>
                   </div>
                   <div className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${
@@ -380,23 +380,35 @@ export default function CarrierDashboard() {
                 <div className="flex items-center gap-6 mb-8 py-4 border-y border-white/[0.03]">
                   <div className="flex items-center gap-2">
                     <Clock size={16} className="text-[#5a6a85]" />
-                    <span className="text-white text-sm font-bold">{route.stopsThere[0]?.time}</span>
+                    <span className="text-white text-sm font-bold">
+                      {(route as any).outbound?.stops?.[0]?.time || route.stopsThere?.[0]?.time || '--:--'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <MapPin size={16} className="text-[#5a6a85]" />
-                    <span className="text-[#8899b5] text-xs font-medium">{route.stopsThere[0]?.city}</span>
+                    <span className="text-[#8899b5] text-xs font-medium">
+                      {(route as any).outbound?.stops?.[0]?.city || route.stopsThere?.[0]?.city || 'Не вказано'}
+                    </span>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between">
                    <div className="flex -space-x-2">
-                      {[0,1,2,3,4,5,6].map(d => (
-                        <div key={d} className={`w-8 h-8 rounded-lg border-2 border-[#1a2235] flex items-center justify-center text-[8px] font-black uppercase ${
-                          route.activeDays.includes(d) ? 'bg-cyan-500 text-black' : 'bg-white/5 text-[#4a5a75]'
-                        }`}>
-                          {['Н','П','В','С','Ч','П','С'][d]}
-                        </div>
-                      ))}
+                      {[0,1,2,3,4,5,6].map(d => {
+                        const dayMap: Record<number, string> = { 0: 'НД', 1: 'ПН', 2: 'ВТ', 3: 'СР', 4: 'ЧТ', 5: 'ПТ', 6: 'СБ' };
+                        const dayName = dayMap[d];
+                        const outboundDays = (route as any).outbound?.days || [];
+                        const legacyDays = route.activeDays || [];
+                        const isActive = outboundDays.includes(dayName) || legacyDays.includes(d);
+                        
+                        return (
+                          <div key={d} className={`w-8 h-8 rounded-lg border-2 border-[#1a2235] flex items-center justify-center text-[8px] font-black uppercase ${
+                            isActive ? 'bg-cyan-500 text-black' : 'bg-white/5 text-[#4a5a75]'
+                          }`}>
+                            {['Н','П','В','С','Ч','П','С'][d]}
+                          </div>
+                        );
+                      })}
                    </div>
                    <div className="flex items-center gap-2">
                       <button 

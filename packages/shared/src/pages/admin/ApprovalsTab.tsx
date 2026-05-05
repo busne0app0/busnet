@@ -120,27 +120,36 @@ const ApprovalsTab: React.FC = () => {
                     <p className="text-[9px] font-bold text-cyan-500 uppercase mt-1 italic tracking-widest">ID: {tpl.id?.substring(0, 8)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase text-[#3d5670] mb-1 tracking-widest">Маршрут</p>
+                      <p className="text-[10px] font-black uppercase text-[#3d5670] mb-1 tracking-widest">Маршрут</p>
                     <div className="flex items-center gap-2">
                        <MapPin size={12} className="text-cyan-400" />
                        <p className="text-sm font-bold text-white tracking-tight">
-                         {tpl.stopsThere[0]?.city} → {tpl.stopsThere[tpl.stopsThere.length - 1]?.city}
+                         {tpl.stopsThere?.[0]?.city || (tpl as any).outbound?.stops?.[0]?.city || 'N/A'} → 
+                         {tpl.stopsThere?.[tpl.stopsThere.length - 1]?.city || (tpl as any).outbound?.stops?.slice(-1)[0]?.city || 'N/A'}
                        </p>
                     </div>
                     <p className="text-[10px] font-bold text-[#7a9ab5] uppercase mt-1 italic flex items-center gap-1">
-                      <Clock size={10} /> {tpl.stopsThere[0]?.time} · {tpl.stopsThere.length} зупинок
+                      <Clock size={10} /> {tpl.stopsThere?.[0]?.time || (tpl as any).outbound?.stops?.[0]?.time || '--:--'} · 
+                      {(tpl.stopsThere?.length || (tpl as any).outbound?.stops?.length || 0)} зупинок
                     </p>
                   </div>
                   <div>
                     <p className="text-[10px] font-black uppercase text-[#3d5670] mb-1 tracking-widest">Графік</p>
                     <div className="flex gap-1">
-                       {[0,1,2,3,4,5,6].map(d => (
-                         <div key={d} className={`w-5 h-5 rounded flex items-center justify-center text-[7px] font-bold ${
-                           tpl.activeDays.includes(d) ? 'bg-cyan-500 text-black' : 'bg-white/5 text-[#3d5670]'
-                         }`}>
-                           {['Н','П','В','С','Ч','П','С'][d]}
-                         </div>
-                       ))}
+                       {[0,1,2,3,4,5,6].map(d => {
+                         const days = tpl.activeDays || [];
+                         const outboundDays = (tpl as any).outbound?.days || [];
+                         const dayMap: Record<string, number> = { 'НД': 0, 'ПН': 1, 'ВТ': 2, 'СР': 3, 'ЧТ': 4, 'ПТ': 5, 'СБ': 6 };
+                         const isActive = days.includes(d) || outboundDays.some((sd: string) => dayMap[sd] === d);
+                         
+                         return (
+                           <div key={d} className={`w-5 h-5 rounded flex items-center justify-center text-[7px] font-bold ${
+                             isActive ? 'bg-cyan-500 text-black' : 'bg-white/5 text-[#3d5670]'
+                           }`}>
+                             {['Н','П','В','С','Ч','П','С'][d]}
+                           </div>
+                         );
+                       })}
                     </div>
                   </div>
                 </div>
@@ -187,7 +196,10 @@ const ApprovalsTab: React.FC = () => {
                           <td className="py-4 px-8 font-bold text-[#7a9ab5]">{tpl.id?.substring(0, 8)}</td>
                           <td className="py-4 px-8">
                              <div className="font-bold text-white uppercase italic">{tpl.name}</div>
-                             <div className="text-[9px] text-[#5a6a85] mt-0.5">{tpl.stopsThere[0]?.city} → {tpl.stopsThere[tpl.stopsThere.length - 1]?.city}</div>
+                             <div className="text-[9px] text-[#5a6a85] mt-0.5">
+                                {tpl.stopsThere?.[0]?.city || (tpl as any).outbound?.stops?.[0]?.city || 'N/A'} → 
+                                {tpl.stopsThere?.[tpl.stopsThere.length - 1]?.city || (tpl as any).outbound?.stops?.slice(-1)[0]?.city || 'N/A'}
+                             </div>
                           </td>
                           <td className="py-4 px-8">
                              <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-lg border ${

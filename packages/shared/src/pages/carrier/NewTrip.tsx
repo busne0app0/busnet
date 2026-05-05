@@ -461,6 +461,9 @@ export default function NewTrip() {
         return;
       }
 
+      const dayMap: Record<string, number> = { 'НД': 0, 'ПН': 1, 'ВТ': 2, 'СР': 3, 'ЧТ': 4, 'ПТ': 5, 'СБ': 6 };
+      const activeDays = trip.outbound.days.map(d => dayMap[d]).filter(d => d !== undefined);
+
       const routeData = {
         name: trip.routeName,
         operator: finalOperator,
@@ -477,6 +480,10 @@ export default function NewTrip() {
         custom_rules: trip.customRules,
         outbound: trip.outbound,
         inbound: trip.inbound,
+        // Compatibility fields for Dashboard and other modules
+        stopsThere: trip.outbound.stops,
+        stopsBack: trip.inbound.stops,
+        activeDays: activeDays,
         status: 'active'
       };
 

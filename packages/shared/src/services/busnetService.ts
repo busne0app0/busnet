@@ -201,16 +201,16 @@ export const busnetService = {
             .insert({
               carrierId: template.carrierId,
               routeId: template.id,
-              departureCity: template.stopsThere[0]?.city || '',
-              arrivalCity: template.stopsThere[template.stopsThere.length - 1]?.city || '',
+              departureCity: template.stopsThere?.[0]?.city || (template as any).outbound?.stops?.[0]?.city || '',
+              arrivalCity: template.stopsThere?.[template.stopsThere?.length - 1]?.city || (template as any).outbound?.stops?.slice(-1)[0]?.city || '',
               departureDate: dateStr,
               price: template.singlePrice || 0,
               status: 'active',
               seatsBooked: 0,
               seatsTotal: template.seats,
-              stops: template.stopsThere,
-              departureTime: template.stopsThere[0]?.time || '',
-              arrivalTime: template.stopsThere[template.stopsThere.length - 1]?.time || '',
+              stops: template.stopsThere || (template as any).outbound?.stops || [],
+              departureTime: template.stopsThere?.[0]?.time || (template as any).outbound?.stops?.[0]?.time || '',
+              arrivalTime: template.stopsThere?.[template.stopsThere?.length - 1]?.time || (template as any).outbound?.stops?.slice(-1)[0]?.time || '',
             });
           if (error) throw error;
         }
