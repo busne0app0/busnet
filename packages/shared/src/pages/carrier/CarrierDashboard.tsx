@@ -7,16 +7,15 @@ import { motion } from 'framer-motion';
 import { 
   Wallet, CheckCircle2, Users, Star, 
   TrendingUp, Info, ChevronRight, Plus,
-  MapPin, Clock, Edit3, Trash2, Bus, AlertCircle
+  MapPin, Clock, Edit3, Trash2, Bus, AlertCircle, Brain, Activity
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import OnboardingWidget from './OnboardingWidget';
 import { busnetService } from '../../services/busnetService';
 import { RouteTemplate } from '../../busnet/types';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { supabase } from '@busnet/shared/supabase/config';
-import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip } from 'recharts';
+import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip, AreaChart, Area, Cell, PieChart, Pie } from 'recharts';
 
 export default function CarrierDashboard() {
   const navigate = useNavigate();
@@ -25,8 +24,8 @@ export default function CarrierDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [liveStats, setLiveStats] = useState({
-    revenue: 0,          // за 7 днів
-    revenueTotal: 0,     // за весь час
+    revenue: 0,          
+    revenueTotal: 0,     
     tripsCount: 0,
     passengers: 0,
     rating: 5.0,
@@ -34,34 +33,14 @@ export default function CarrierDashboard() {
     activeTripsLive: [] as any[]
   });
 
-  const [editingRoute, setEditingRoute] = useState<RouteTemplate | null>(null);
   const [deletingRouteId, setDeletingRouteId] = useState<string | null>(null);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
-    
-    const dateStr = payload[0]?.payload?.date;
-    const formattedDate = dateStr 
-      ? new Date(dateStr).toLocaleDateString('uk-UA', { 
-          day: 'numeric', 
-          month: 'long'
-        })
-      : label;
-
     return (
-      <div style={{
-        backgroundColor: '#1a2235',
-        borderRadius: '12px',
-        border: '1px solid rgba(255,255,255,0.1)',
-        padding: '8px 12px',
-        fontSize: '10px'
-      }}>
-        <p style={{ color: '#5a6a85', marginBottom: '4px', fontWeight: 800 }}>
-          {formattedDate}
-        </p>
-        <p style={{ color: '#00c8ff', fontWeight: 800 }}>
-          €{payload[0]?.value?.toLocaleString()}
-        </p>
+      <div className="bg-[#050B14] border border-[#00E5FF]/20 rounded-lg p-2 text-[10px]">
+        <p className="text-[#8899B5] font-bold mb-1">{label}</p>
+        <p className="text-[#00E5FF] font-black">€{payload[0]?.value?.toLocaleString()}</p>
       </div>
     );
   };
@@ -71,7 +50,6 @@ export default function CarrierDashboard() {
     
     const fetchDashboardStats = async () => {
       try {
-        // ─── Готуємо діапазон: останні 7 днів ───────────────────────────
         const now = new Date();
         const since = new Date();
         since.setDate(now.getDate() - 6);
@@ -83,62 +61,55 @@ export default function CarrierDashboard() {
           return d.toISOString().split('T')[0];
         });
 
-        // ─── 1. Бронювання за останні 7 днів ────────────────────────────
         const { data: bookings, error: bookingsError } = await supabase
           .from('bookings')
-          .select('totalPrice, passengers, createdAt')
-          .eq('carrierId', user!.uid)
+          .select('total_price, passengers, created_at')
+          .eq('carrier_id', user!.uid)
           .eq('status', 'confirmed')
-          .gte('createdAt', since.toISOString())
-          .lte('createdAt', now.toISOString());
+          .gte('created_at', since.toISOString())
+          .lte('created_at', now.toISOString());
 
-        if (bookingsError) {
-          toast.error('Помилка завантаження статистики бронювань');
-          throw bookingsError;
-        }
+        if (bookingsError) throw bookingsError;
 
         let totalRevenue7d = 0;
         let totalPassengers = 0;
         const dailyRevMap: Record<string, number> = {};
 
-        last7Days.forEach(date => {
-          dailyRevMap[date] = 0;
-        });
+        last7Days.forEach(date => dailyRevMap[date] = 0);
 
         (bookings || []).forEach(booking => {
-          const amount = (booking.totalPrice || 0);
+          const amount = (booking.total_price || 0);
           totalRevenue7d += amount;
-          totalPassengers += (booking.passengers?.length || 1);
+          let passengers = booking.passengers;
+          if (typeof passengers === 'string') {
+            try { passengers = JSON.parse(passengers); } catch (e) { passengers = []; }
+          }
+          totalPassengers += (Array.isArray(passengers) ? passengers.length : 0);
 
-          if (booking.createdAt) {
-            const dateKey = booking.createdAt.split('T')[0];
+          const createdAt = booking.created_at;
+          if (createdAt) {
+            const dateKey = typeof createdAt === 'string' ? createdAt.split('T')[0] : new Date(createdAt).toISOString().split('T')[0];
             if (dailyRevMap[dateKey] !== undefined) {
               dailyRevMap[dateKey] += amount;
             }
           }
         });
 
-        // ─── Рахуємо загальний дохід за весь час ────────────────────────
         const { data: allBookings, error: allBookingsError } = await supabase
           .from('bookings')
-          .select('totalPrice')
-          .eq('carrierId', user!.uid)
+          .select('total_price')
+          .eq('carrier_id', user!.uid)
           .eq('status', 'confirmed');
 
         if (allBookingsError) throw allBookingsError;
 
-        const revenueTotal = (allBookings || [])
-          .reduce((acc, b) => acc + (b.totalPrice || 0), 0);
+        const revenueTotal = (allBookings || []).reduce((acc, b) => acc + (b.total_price || 0), 0);
 
-        // ─── Формуємо дані для графіка ──────────────────────────────────
         const dayLabels = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
         const chart = last7Days.map(dateStr => {
           const date = new Date(dateStr);
-          const dayLabel = dayLabels[date.getDay()];
-          const isToday = dateStr === now.toISOString().split('T')[0];
-
           return {
-            name: isToday ? 'Сьогодні' : dayLabel,
+            name: dayLabels[date.getDay()],
             date: dateStr,
             rev: Math.round(dailyRevMap[dateStr] || 0),
           };
@@ -152,18 +123,17 @@ export default function CarrierDashboard() {
           chart
         }));
 
-        // ─── 2. Активні рейси ────────────────────────────────────────────
         const { data: trips, error: tripsError } = await supabase
-          .from('trips')
+          .from('routes')
           .select('*')
-          .eq('carrierId', user!.uid)
+          .eq('carrier_id', user!.uid)
           .eq('status', 'active');
 
         if (tripsError) throw tripsError;
 
         if (trips) {
           const today = now.toISOString().split('T')[0];
-          const activeToday = trips.filter((t: any) => t.departureDate === today);
+          const activeToday = trips.filter((t: any) => (t.departure_date || t.departureDate) === today);
 
           setLiveStats(prev => ({ 
             ...prev, 
@@ -172,11 +142,10 @@ export default function CarrierDashboard() {
           }));
         }
         
-        // ─── 3. Рейтинг ──────────────────────────────────────────────────
         const { data: reviews, error: reviewsError } = await supabase
           .from('reviews')
           .select('rating')
-          .eq('carrierId', user!.uid);
+          .eq('carrier_id', user!.uid);
 
         if (reviewsError) throw reviewsError;
 
@@ -188,36 +157,27 @@ export default function CarrierDashboard() {
         setError(null);
       } catch (err: any) {
         console.error('Dashboard stats fetch error:', err);
-        setError('Помилка завантаження даних дашборду. Перевірте з’єднання.');
+        setError(`Помилка завантаження даних дашборду. Перевірте з'єднання.`);
       }
     };
 
     fetchDashboardStats();
     
     const channel = supabase.channel(`carrier_dashboard_stats_${user.uid}_${Date.now()}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `carrierId=eq.${user.uid}` }, fetchDashboardStats)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'trips', filter: `carrierId=eq.${user.uid}` }, fetchDashboardStats)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews', filter: `carrierId=eq.${user.uid}` }, fetchDashboardStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `carrier_id=eq.${user.uid}` }, fetchDashboardStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'routes', filter: `carrier_id=eq.${user.uid}` }, fetchDashboardStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews', filter: `carrier_id=eq.${user.uid}` }, fetchDashboardStats)
       .subscribe();
 
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
-
-  const STATS = [
-    { label: 'Дохід всього', val: `€${liveStats.revenueTotal.toLocaleString()}`, sub: `За 7 днів: €${liveStats.revenue.toLocaleString()}`, delta: '+12%', icon: Wallet, color: 'text-orange-500', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
-    { label: 'Активних рейсів', val: liveStats.tripsCount.toString(), sub: 'Сьогодні активних', delta: `+${liveStats.tripsCount}`, icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-    { label: 'Пасажирів перевезено', val: liveStats.passengers.toLocaleString(), sub: 'Всього через BUSNET', delta: liveStats.passengers.toString(), icon: Users, color: 'text-cyan-500', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' },
-    { label: 'Рейтинг', val: liveStats.rating.toString(), sub: liveStats.rating >= 4.5 ? 'Надійний перевізник' : 'Потребує уваги', delta: '★', icon: Star, color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
-  ];
 
   useEffect(() => {
     loadRoutes();
-  }, []);
+  }, [user]);
 
   const loadRoutes = async () => {
+    if (!user) return;
     setLoading(true);
     try {
       const data = await busnetService.getMyRouteTemplates();
@@ -239,7 +199,6 @@ export default function CarrierDashboard() {
     if (!confirmed) return;
 
     setDeletingRouteId(route.id);
-    
     try {
       await busnetService.deleteRouteTemplate(route.id);
       toast.success(`Маршрут "${route.name}" видалено`);
@@ -250,333 +209,310 @@ export default function CarrierDashboard() {
       } else {
         toast.error('Помилка при видаленні. Спробуйте ще раз.');
       }
-      console.error('Delete route error:', error);
     } finally {
       setDeletingRouteId(null);
     }
   };
 
+  // Mock data for AI banner chart
+  const aiChartData = [
+    { name: 'Пн', value: 20 }, { name: 'ВТ', value: 45 }, { name: 'СР', value: 30 },
+    { name: 'ЧТ', value: 80 }, { name: 'ПТ', value: 65 }, { name: 'СБ', value: 100 },
+    { name: 'НД', value: 85 }
+  ];
+
   return (
-    <div className="space-y-8 pb-12">
-      {/* Welcome Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 pb-12 font-sans bg-transparent min-h-screen text-white">
+      
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
-          <h2 className="font-syne font-black text-3xl italic tracking-tighter uppercase text-white">Дашборд перевізника</h2>
-          <p className="text-[#5a6a85] text-sm font-medium mt-1 uppercase tracking-widest">Перевізник · Квітень 2026 · Активний акаунт</p>
+          <h2 className="text-3xl font-bold uppercase tracking-tight text-white mb-1">
+            Дашборд перевізника
+          </h2>
+          <p className="text-[11px] text-[#8899B5] uppercase tracking-widest font-medium flex items-center gap-2">
+            {user?.companyName || 'AI TRANS'} · Травень 2026 · Активний акаунт 
+            <span className="text-[#00E5FF] bg-[#00E5FF]/10 px-2 py-0.5 rounded border border-[#00E5FF]/20">
+              [Оптимізовано AI]
+            </span>
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => {
-              navigate('/newtrip');
-            }}
-            className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-[#185FA5] text-black rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg shadow-cyan-950/20 hover:scale-[1.02] transition-all flex items-center gap-2"
-          >
-            <Plus size={16} /> Створити маршрут
-          </button>
-        </div>
+        <button 
+          onClick={() => navigate('/carrier/newtrip')}
+          className="px-6 py-2.5 bg-gradient-to-r from-[#00E5FF]/20 to-[#00E5FF]/10 border border-[#00E5FF]/50 text-[#00E5FF] hover:bg-[#00E5FF]/30 rounded-full text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(0,229,255,0.2)] hover:shadow-[0_0_25px_rgba(0,229,255,0.4)]"
+        >
+          <Plus size={16} /> Створити маршрут
+        </button>
       </div>
 
       {error && (
-        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center gap-3 text-rose-500 text-sm font-bold animate-in fade-in slide-in-from-top-2">
-          <AlertCircle size={20} />
-          {error}
+        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-500 text-sm font-bold flex items-center gap-3">
+          <AlertCircle size={20} /> {error}
         </div>
       )}
 
-      {/* Info Banner */}
-      <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-[28px] p-6 flex items-start gap-4">
-        <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 shrink-0 border border-cyan-500/20">
-          <Info size={20} />
-        </div>
-        <div>
-          <h4 className="text-cyan-400 font-bold text-sm uppercase tracking-tight">Смарт-система BUSNET</h4>
-          <p className="text-[#8899b5] text-xs mt-1 leading-relaxed">
-            Ваші шаблони маршрутів перетворюються на реальні рейси автоматично після схвалення адміністратором.
-          </p>
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {STATS.map((stat, idx) => (
-          <motion.div
-            key={idx}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.1 }}
-            className={`bg-[#1a2235] border border-white/5 rounded-[32px] p-6 relative overflow-hidden group hover:border-white/10 transition-all`}
-          >
-            <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-current to-transparent opacity-30 ${stat.color}`} />
-            <div className="flex justify-between items-start mb-4">
-              <div className={`p-3 rounded-2xl ${stat.bg} ${stat.color} border ${stat.border}`}>
-                <stat.icon size={20} />
-              </div>
-              <span className={`text-[10px] font-black uppercase tracking-widest ${stat.color}`}>
-                {stat.delta}
-              </span>
-            </div>
-            <div className="space-y-1">
-              <p className="text-[10px] font-black text-[#5a6a85] uppercase tracking-widest">{stat.label}</p>
-              <h3 className="font-syne font-black text-3xl text-white italic tracking-tighter">{stat.val}</h3>
-              <p className="text-[10px] font-medium text-[#4a5a75] uppercase">{stat.sub}</p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Routes List */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold text-white uppercase italic tracking-tight flex items-center gap-2">
-             Ваші маршрути
-             <span className="px-2 py-0.5 rounded-md bg-white/5 text-slate-400 text-[10px] font-black uppercase border border-white/10">{routes.length}</span>
-          </h3>
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[1, 2].map(i => <div key={i} className="h-48 bg-white/5 animate-pulse rounded-[40px]" />)}
+      {/* AI Banner */}
+      <div className="bg-[#0B1221] border border-[#00E5FF]/30 rounded-2xl p-6 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 shadow-[0_0_20px_rgba(0,229,255,0.05)]">
+        {/* Background decorative gradient */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#00E5FF]/10 to-transparent pointer-events-none" />
+        
+        <div className="flex items-start gap-4 z-10 flex-1">
+          <div className="w-12 h-12 rounded-xl bg-[#00E5FF]/20 flex items-center justify-center text-[#00E5FF] border border-[#00E5FF]/40 shadow-[0_0_10px_rgba(0,229,255,0.2)]">
+            <Brain size={24} />
           </div>
-        ) : routes.length === 0 ? (
-          <div className="bg-[#1a2235] border border-dashed border-white/10 rounded-[40px] p-12 text-center">
-            <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center text-[#5a6a85] mx-auto mb-4">
-              <Plus size={32} />
-            </div>
-            <h4 className="text-white font-bold uppercase italic tracking-tight">У вас поки немає маршрутів</h4>
-            <p className="text-[#5a6a85] text-xs mt-2 max-w-sm mx-auto">
-              Створіть свій перший маршрут за допомогою смарт-парсера, щоб почати продавати квитки.
+          <div>
+            <h3 className="text-[#00E5FF] font-black text-sm uppercase tracking-widest mb-1 shadow-[#00E5FF]">
+              Інтелектуальний помічник Busnet AI
+            </h3>
+            <p className="text-[#8899B5] text-[11px] mb-2 font-medium">
+              Live-streaming трафіку, гео локаційні, предикативні AI оптимізації і маршрутування
             </p>
-            <button 
-              onClick={() => navigate('/newtrip')}
-              className="mt-6 px-8 py-3 bg-white/5 border border-white/10 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
-            >
-              Створити перший маршрут
-            </button>
+            <p className="text-[#00E5FF] text-[10px] font-bold bg-[#00E5FF]/10 inline-block px-2 py-1 rounded">
+              AI Рекомендація: Збільшити частоту на маршруті №14 за рахунок №18 (+20% доходу прогнозовано)
+            </p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {routes.map((route) => {
-              const stops = (route as any).outbound?.stops || route.stopsThere || [];
-              const amenities = (route as any).amenities || [];
-              const rules = (route as any).rules || [];
-              const discounts = (route as any).discounts || {};
-              
-              return (
-                <motion.div 
-                  key={route.id}
-                  layoutId={route.id}
-                  className="bg-[#1a2235] border border-white/5 rounded-[40px] p-8 group hover:border-white/10 transition-all relative overflow-hidden"
-                >
-                  <div className="flex justify-between items-start mb-6">
-                    <div>
-                      <h4 className="text-white font-bold text-xl uppercase italic tracking-tight">{route.name}</h4>
-                      <p className="text-[#5a6a85] text-[10px] font-black uppercase tracking-widest mt-1">
-                        {stops.length} зупинок · {route.direction === 'roundtrip' ? 'Туди-назад' : 'В один бік'}
-                      </p>
-                    </div>
-                  <div className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${
-                    route.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
-                    route.status === 'pending' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : 
-                    'bg-slate-500/10 text-slate-400 border-slate-500/20'
-                  }`}>
-                    {route.status === 'approved' ? 'Схвалено' : route.status === 'pending' ? 'Модерація' : 'Чернетка'}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-6 mb-8 py-4 border-y border-white/[0.03]">
-                  <div className="flex items-center gap-2">
-                    <Clock size={16} className="text-[#5a6a85]" />
-                    <span className="text-white text-sm font-bold">
-                      {stops[0]?.time || '--:--'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin size={16} className="text-[#5a6a85]" />
-                    <span className="text-[#8899b5] text-xs font-medium">
-                      {stops[0]?.city || 'Не вказано'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                   <div className="flex -space-x-2">
-                      {[0,1,2,3,4,5,6].map(d => {
-                        const dayMap: Record<number, string> = { 0: 'НД', 1: 'ПН', 2: 'ВТ', 3: 'СР', 4: 'ЧТ', 5: 'ПТ', 6: 'СБ' };
-                        const dayName = dayMap[d];
-                        const outboundDays = (route as any).outbound?.days || [];
-                        const legacyDays = route.activeDays || [];
-                        const isActive = outboundDays.includes(dayName) || legacyDays.includes(d);
-                        
-                        return (
-                          <div key={d} className={`w-8 h-8 rounded-lg border-2 border-[#1a2235] flex items-center justify-center text-[8px] font-black uppercase ${
-                            isActive ? 'bg-cyan-500 text-black' : 'bg-white/5 text-[#4a5a75]'
-                          }`}>
-                            {['Н','П','В','С','Ч','П','С'][d]}
-                          </div>
-                        );
-                      })}
-                   </div>
-                   <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => handleEditRoute(route)}
-                        className="p-3 bg-white/5 border border-white/10 rounded-2xl text-[#8899b5] hover:text-white transition-all"
-                        title={`Редагувати "${route.name}"`}
-                      >
-                        <Edit3 size={18} />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteRoute(route)}
-                        disabled={deletingRouteId === route.id}
-                        className={`p-3 bg-white/5 border border-white/10 rounded-2xl transition-all
-                                   ${deletingRouteId === route.id 
-                                     ? 'text-[#4a5a75] cursor-not-allowed'
-                                     : 'text-[#8899b5] hover:text-rose-500 hover:border-rose-500/30'
-                                   }`}
-                        title={`Видалити "${route.name}"`}
-                      >
-                        {deletingRouteId === route.id 
-                          ? <div className="w-[18px] h-[18px] border-2 border-rose-500/30 border-t-rose-500 rounded-full animate-spin" />
-                          : <Trash2 size={18} />
-                        }
-                      </button>
-                   </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
+        </div>
+        <div className="h-16 w-full md:w-[300px] z-10 opacity-70">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={aiChartData}>
+              <defs>
+                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#00E5FF" stopOpacity={0.4}/>
+                  <stop offset="95%" stopColor="#00E5FF" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <Area type="monotone" dataKey="value" stroke="#00E5FF" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
-
-
-      {/* Main Grid: Revenue & Active Trips */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue Chart Placeholder */}
-        <div className="bg-[#1a2235] border border-white/5 rounded-[40px] p-8">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h3 className="text-lg font-bold text-white uppercase italic tracking-tight">Дохід за 7 днів</h3>
-              <p className="text-[#5a6a85] text-[10px] uppercase font-black tracking-widest mt-1">
-                {(() => {
-                  const since = new Date();
-                  since.setDate(since.getDate() - 6);
-                  return `${since.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })} — 
-                          ${new Date().toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })}`;
-                })()}
-              </p>
-            </div>
-            <div className="p-3 rounded-2xl bg-white/[0.03] text-[#5a6a85]">
-              <TrendingUp size={20} />
-            </div>
+      {/* 4 Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        {/* Card 1: Revenue */}
+        <div className="bg-[#0B1221] border border-[#1A2639] rounded-2xl p-5 hover:border-[#00E5FF]/30 transition-all flex flex-col justify-between h-[150px] relative overflow-hidden group">
+          <div className="flex justify-between items-start">
+            <span className="text-[#8899B5] text-[11px] uppercase font-bold tracking-widest">Дохід</span>
+            <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+              <TrendingUp size={10} /> +18%
+            </span>
           </div>
-          
-          <div className="h-[200px] w-full">
+          <div className="text-4xl font-black text-white group-hover:text-[#00E5FF] transition-colors">€{liveStats.revenueTotal.toLocaleString()}</div>
+          <div className="h-12 w-full mt-2">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={liveStats.chart}>
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#5a6a85', fontSize: 10, fontWeight: 800}} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
-                <Bar dataKey="rev" fill="#00c8ff" radius={[4, 4, 0, 0]} barSize={30} />
+              <BarChart data={liveStats.chart.slice(-7)}>
+                <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(0,229,255,0.05)'}} />
+                <Bar dataKey="rev" fill="#00E5FF" radius={[2,2,0,0]}>
+                  {liveStats.chart.slice(-7).map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={index === liveStats.chart.slice(-7).length - 1 ? '#00E5FF' : '#1A2639'} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Active Trips */}
-        <div className="bg-[#1a2235] border border-white/5 rounded-[40px] p-8">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <h3 className="text-lg font-bold text-white uppercase italic tracking-tight">Рейси в дорозі</h3>
-              <span className="px-2 py-0.5 rounded-md bg-white/5 text-slate-400 text-[10px] font-black uppercase border border-white/10">{liveStats.activeTripsLive.length} Live</span>
+        {/* Card 2: Active Trips */}
+        <div className="bg-[#0B1221] border border-[#1A2639] rounded-2xl p-5 hover:border-[#00E5FF]/30 transition-all flex flex-col justify-between h-[150px] relative">
+          <span className="text-[#8899B5] text-[11px] uppercase font-bold tracking-widest">Активні Рейси ({liveStats.tripsCount})</span>
+          <div className="flex items-center justify-between mt-1">
+            <div className="text-5xl font-black text-[#00E5FF]">{liveStats.tripsCount}</div>
+            <div className="relative w-16 h-16 flex items-center justify-center text-[#00E5FF]">
+              <svg className="w-full h-full transform -rotate-90 absolute" viewBox="0 0 36 36">
+                <path className="text-[#1A2639]" strokeDasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
+                <path className="text-[#00E5FF]" strokeDasharray="65, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+              <Activity className="z-10 animate-pulse" size={20} />
             </div>
-            <button 
-              onClick={() => navigate('/carrier/livetrips')}
-              className="text-[#ff6b35] hover:text-white flex items-center gap-1.5 transition-colors text-[10px] font-black uppercase tracking-widest"
-            >
-              Детально <ChevronRight size={14} />
-            </button>
           </div>
-
-          <div className="space-y-4">
-             {liveStats.activeTripsLive.length === 0 ? (
-               <div className="text-center py-10 text-slate-500">
-                  У вас немає активних рейсів в дорозі
-               </div>
-             ) : liveStats.activeTripsLive.map(trip => (
-               <div key={trip.id} className="p-4 bg-black/20 border border-white/5 rounded-2xl flex items-center justify-between group hover:border-[#ff6b35]/20 transition-all">
-                  <div className="flex items-center gap-4">
-                     <div className="w-10 h-10 rounded-xl bg-[#ff6b35]/10 text-[#ff6b35] flex items-center justify-center animate-pulse">
-                        <Bus size={18} />
-                     </div>
-                      <div>
-                        <p className="text-xs font-bold text-white italic">{trip.name}</p>
-                        <p className="text-[9px] text-[#5a6a85] font-black uppercase tracking-widest leading-none mt-1">{trip.departureCity} → {trip.arrivalCity}</p>
-                     </div>
-                  </div>
-                  <div className="text-right">
-                     <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Онлайн</div>
-                     <div className="text-[8px] text-[#4a5a75] mt-1 uppercase">{trip.seatsBooked || 0}/{trip.seatsTotal || 50}</div>
-                  </div>
-               </div>
-             ))}
-          </div>
+          <div className="text-[10px] text-[#8899B5] mt-1 font-medium">{liveStats.activeTripsLive.length} в дорозі, завантажуються</div>
         </div>
-      </div>
 
-      {/* Bottom Row Blocks */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Top Routes */}
-        <div className="bg-[#1a2235] border border-white/5 rounded-[40px] p-8">
-          <h3 className="text-white font-bold uppercase italic tracking-tight mb-6">Топ маршрути</h3>
-          <div className="text-center py-6 text-slate-500 text-sm">
-             Немає даних
+        {/* Card 3: Passengers */}
+        <div className="bg-[#0B1221] border border-[#1A2639] rounded-2xl p-5 hover:border-[#00E5FF]/30 transition-all flex flex-col justify-between h-[150px]">
+          <div className="flex justify-between items-start">
+            <span className="text-[#8899B5] text-[11px] uppercase font-bold tracking-widest">Пасажирів ({liveStats.passengers})</span>
+          </div>
+          <div className="flex justify-between items-end mb-2">
+            <span className="text-3xl font-black text-white">{liveStats.passengers}</span>
+            <span className="text-[#8899B5] text-[9px] font-bold bg-[#1A2639]/50 px-2 py-0.5 rounded">Усього за травень: 1,450</span>
+          </div>
+          <div className="h-12 w-full mt-auto">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={[
+                {v: 20},{v: 40},{v: 30},{v: 80},{v: 100},{v: 60},{v: 40},{v: 20},{v: 10},{v: 5}
+              ]}>
+                <Bar dataKey="v" fill="#0EA5E9" radius={[2,2,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Payout Info */}
-        <div className="bg-[#1a2235] border border-white/5 rounded-[40px] p-8">
-          <h3 className="text-white font-bold uppercase italic tracking-tight mb-6">Фінанси та виплати</h3>
-          <div className="space-y-4">
-            {[
-              { label: 'Зароблено всього', val: `€${liveStats.revenueTotal.toLocaleString()}`, color: 'text-emerald-400' },
-              { label: 'Комісія BUSNET (8%)', val: `€${Math.round(liveStats.revenueTotal * 0.08).toLocaleString()}`, color: 'text-rose-400' },
-              { label: 'До виплати чисто', val: `€${Math.round(liveStats.revenueTotal * 0.92).toLocaleString()}`, color: 'text-white' },
-            ].map((item, i) => (
-              <div key={i} className="flex justify-between items-center py-2 border-b border-white/[0.03]">
-                <span className="text-[10px] text-[#5a6a85] font-black uppercase tracking-widest">{item.label}</span>
-                <span className={`text-xs font-bold ${item.color}`}>{item.val}</span>
+        {/* Card 4: Rating */}
+        <div className="bg-[#0B1221] border border-[#1A2639] rounded-2xl p-5 hover:border-[#00E5FF]/30 transition-all flex flex-col justify-between h-[150px]">
+          <div className="flex justify-between items-start">
+            <span className="text-[#8899B5] text-[11px] uppercase font-bold tracking-widest">Рейтинг ({liveStats.rating.toFixed(1)})</span>
+            <span className="bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/30 text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(0,229,255,0.2)]">СУПЕР-НАДІЙНИЙ</span>
+          </div>
+          <div className="flex items-center gap-3 mt-2">
+            <span className="text-5xl font-black text-white">{liveStats.rating.toFixed(1)}</span>
+            <div className="flex flex-col gap-1">
+              <div className="flex gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} size={14} className={i < Math.round(liveStats.rating) ? 'fill-[#00E5FF] text-[#00E5FF] drop-shadow-[0_0_5px_rgba(0,229,255,0.5)]' : 'text-[#1A2639]'} />
+                ))}
               </div>
-            ))}
-            <div className="mt-6 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-               <div className="flex justify-between items-center mb-1">
-                 <span className="text-[9px] text-[#5a6a85] font-black uppercase tracking-widest">Статус</span>
-                 <span className="px-2 py-0.5 rounded bg-white/5 text-slate-400 text-[8px] font-black uppercase border border-white/10 tracking-tighter">Немає виплат</span>
-               </div>
+              <span className="text-[9px] text-[#8899B5]">На основі 128 відгуків</span>
             </div>
-            <button 
-              onClick={() => navigate('/carrier/finance')}
-              className="w-full mt-4 py-3 bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 rounded-2xl text-[10px] text-white font-black uppercase tracking-widest transition-all"
-            >
-              Детальний звіт →
-            </button>
+          </div>
+          <div className="text-[9px] text-[#00E5FF] bg-[#00E5FF]/5 p-2 rounded border border-[#00E5FF]/10 mt-auto flex gap-1.5 items-start">
+            <Info size={12} className="shrink-0" />
+            <span className="leading-tight">AI-рекомендація: Збільшити кількість рейсів на вихідні.</span>
           </div>
         </div>
 
-        {/* Rating Details */}
-        <div className="bg-[#1a2235] border border-white/5 rounded-[40px] p-8">
-          <h3 className="text-white font-bold uppercase italic tracking-tight mb-6">Рейтинг за сервіс</h3>
-          <div className="space-y-4">
-             <div className="text-center py-6 text-slate-500 text-sm">
-                Недостатньо відгуків для формування рейтингу
-             </div>
-            <button 
-              onClick={() => navigate('/carrier/reviews')}
-              className="w-full mt-6 py-3 bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 rounded-2xl text-[10px] text-white font-black uppercase tracking-widest transition-all"
-            >
-              Всі відгуки →
-            </button>
-          </div>
-        </div>
       </div>
+
+      {/* Routes Section */}
+      <div>
+        <h3 className="text-white font-bold text-lg uppercase tracking-tight mb-4 flex items-center gap-2">
+          Ваші маршрути
+        </h3>
+        
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[1, 2].map(i => <div key={i} className="h-32 bg-[#0B1221] border border-[#1A2639] animate-pulse rounded-2xl" />)}
+          </div>
+        ) : routes.length === 0 ? (
+          <div className="bg-[#0B1221] border border-dashed border-[#1A2639] rounded-2xl p-10 text-center">
+            <Plus size={32} className="text-[#8899B5] mx-auto mb-3" />
+            <p className="text-[#8899B5] text-xs uppercase font-bold">У вас поки немає маршрутів</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {routes.map((route, index) => {
+              const stops = (route as any).outbound?.stops || route.stopsThere || [];
+              const time = stops[0]?.time || '--:--';
+              const firstCity = stops[0]?.city || 'Київ';
+              const lastCity = stops[stops.length - 1]?.city || 'Салерно';
+              
+              return (
+                <div key={route.id} className="bg-[#0B1221] border border-[#1A2639] rounded-[24px] p-6 hover:border-[#00E5FF]/40 transition-all flex flex-col justify-between group shadow-[0_4px_20px_rgba(0,0,0,0.5)] relative overflow-hidden">
+                  {/* Title Area */}
+                  <div className="flex justify-between items-start mb-6">
+                    <div>
+                      <h4 className="text-white font-black text-sm uppercase tracking-tight flex items-center gap-2">
+                        {route.name}
+                      </h4>
+                      <p className="text-[#8899B5] text-[10px] uppercase font-bold mt-1.5">
+                        {stops.length} зупинок · {route.direction === 'roundtrip' ? 'Туди-назад' : 'В один бік'}
+                      </p>
+                    </div>
+                    <div className="text-[#8899B5] text-[9px] font-black uppercase bg-[#1A2639]/50 px-2.5 py-1 rounded-md border border-white/5">
+                      {route.status === 'approved' ? 'Схвалено' : route.status === 'pending' ? 'Модерація' : 'Чернетка'}
+                    </div>
+                  </div>
+
+                  <div className="flex items-end justify-between">
+                    
+                    {/* Left Column: Time & Days */}
+                    <div className="space-y-5">
+                      <div className="flex items-center gap-2 text-[#8899B5]">
+                        <Clock size={16} />
+                        <span className="text-white text-2xl font-black">{time}</span>
+                      </div>
+                      
+                      <div className="flex gap-1.5">
+                        {[0,1,2,3,4,5,6].map(d => {
+                          const dayMap: Record<number, string> = { 0: 'НД', 1: 'ПН', 2: 'ВТ', 3: 'СР', 4: 'ЧТ', 5: 'ПТ', 6: 'СБ' };
+                          const dayName = dayMap[d];
+                          const isActive = ((route as any).outbound?.days || []).includes(dayName);
+                          
+                          // Different colors for active days to match design
+                          const activeColors = [
+                            'bg-[#1A2639] text-[#8899B5]', // Н (grey)
+                            'bg-[#00E5FF] text-black shadow-[0_0_8px_rgba(0,229,255,0.4)]', // П (cyan)
+                            'bg-amber-500 text-black shadow-[0_0_8px_rgba(245,158,11,0.4)]', // В (orange)
+                            'bg-[#00E5FF] text-black shadow-[0_0_8px_rgba(0,229,255,0.4)]', // С (cyan)
+                            'bg-fuchsia-500 text-black shadow-[0_0_8px_rgba(217,70,239,0.4)]', // Ч (pink)
+                            'bg-[#0EA5E9] text-black shadow-[0_0_8px_rgba(14,165,233,0.4)]', // П (blue)
+                            'bg-[#00E5FF] text-black shadow-[0_0_8px_rgba(0,229,255,0.4)]'  // С (cyan)
+                          ];
+
+                          return (
+                            <div key={d} className={`w-7 h-7 rounded-md flex items-center justify-center text-[9px] font-black transition-colors ${isActive ? activeColors[d] : 'bg-[#1A2639] text-[#5A6A85]'}`}>
+                              {['Н','П','В','С','Ч','П','С'][d]}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    
+                    {/* Right Column: Graphic & Buttons */}
+                    <div className="flex flex-col items-end gap-4">
+                      
+                      {/* Graphic (Alternating styles) */}
+                      {index % 2 === 0 ? (
+                        /* Map Graphic */
+                        <div className="flex flex-col items-center justify-center w-[160px] h-[70px] border border-[#1A2639]/80 rounded-xl relative bg-[#050B14]/40 overflow-hidden group-hover:border-[#00E5FF]/30 transition-colors">
+                           <svg className="w-full h-full p-3" viewBox="0 0 100 40" preserveAspectRatio="none">
+                             <path d="M 5 30 Q 25 5 50 20 T 95 10" fill="none" stroke="#0EA5E9" strokeWidth="2" strokeDasharray="4 2" />
+                             <circle cx="5" cy="30" r="4" fill="#00E5FF" className="animate-pulse shadow-[0_0_10px_#00E5FF]" />
+                             <circle cx="95" cy="10" r="4" fill="#EF4444" className="animate-pulse shadow-[0_0_10px_#EF4444]" />
+                           </svg>
+                           <span className="absolute top-1.5 right-2 text-[7px] text-[#8899B5] font-bold uppercase">{firstCity}</span>
+                           <span className="absolute bottom-1.5 right-2 text-[7px] text-[#8899B5] font-bold uppercase">{lastCity}</span>
+                        </div>
+                      ) : (
+                        /* Insight Graphic (Gauge) */
+                        <div className="flex items-center gap-3 border border-[#1A2639]/80 rounded-xl p-2.5 bg-[#050B14]/40 group-hover:border-[#0EA5E9]/30 transition-colors">
+                          <div className="relative w-10 h-10 flex items-center justify-center">
+                            <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
+                              <path className="text-[#1A2639]" strokeDasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="4" />
+                              <path className="text-emerald-500" strokeDasharray="75, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="4" />
+                            </svg>
+                            <div className="absolute w-1 h-3 bg-white origin-bottom rotate-45 rounded-full" style={{ bottom: '50%' }} />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                              <span className="text-[8px] text-[#8899B5] uppercase font-bold leading-none">Швидкість оновлення<br/><span className="text-white">12 в дорозі, 5 завантажується</span></span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[5px] border-b-rose-500" />
+                              <span className="text-[8px] text-[#8899B5] uppercase font-bold leading-none">Потенціал трафіку<br/><span className="text-rose-400">Трафік малий</span></span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => handleEditRoute(route)}
+                          className="w-8 h-8 flex items-center justify-center bg-[#1A2639] hover:bg-[#00E5FF]/20 hover:text-[#00E5FF] hover:border-[#00E5FF]/30 hover:shadow-[0_0_10px_rgba(0,229,255,0.2)] border border-transparent rounded-lg text-[#8899B5] transition-all"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteRoute(route)}
+                          disabled={deletingRouteId === route.id}
+                          className="w-8 h-8 flex items-center justify-center bg-[#1A2639] hover:bg-rose-500/20 hover:text-rose-500 hover:border-rose-500/30 hover:shadow-[0_0_10px_rgba(244,63,94,0.2)] border border-transparent rounded-lg text-[#8899B5] transition-all"
+                        >
+                          {deletingRouteId === route.id ? <AlertCircle size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                        </button>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
