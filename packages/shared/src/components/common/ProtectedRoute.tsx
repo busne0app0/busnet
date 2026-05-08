@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
-import { supabase } from '../../supabase/config';
 
+/**
+ * ProtectedRoute — чекає на isInitialized (встановлюється initAuth після
+ * обробки першого onAuthStateChange, включно з hash-токенами після редіректу
+ * між доменами). Це усуває "темний екран" при переході з лендингу в кабінети.
+ */
 export function ProtectedRoute({ 
   children, 
   role, 
@@ -12,67 +15,10 @@ export function ProtectedRoute({
   role?: string, 
   loginUrl: string 
 }) {
-  const { user } = useAuthStore();
-  const [status, setStatus] = useState<'checking' | 'no-session' | 'ready'>('checking');
+  const { user, isInitialized } = useAuthStore();
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const check = async () => {
-      // ✅ ФІКС: Якщо в сторі ВЖЕ є user — ми готові. Не смикаємо базу зайвий раз.
-      const existingUser = useAuthStore.getState().user;
-      if (existingUser) {
-        if (!cancelled) setStatus('ready');
-        return;
-      }
-
-      try {
-        // Якщо в сторі пусто — перевіряємо живу сесію
-        const { data: { session } } = await supabase.auth.getSession();
-
-        if (!session) {
-          if (!cancelled) setStatus('no-session');
-          return;
-        }
-
-        // Сесія є — чекаємо поки стор завантажить user (макс 8 сек)
-        const start = Date.now();
-        const wait = () => {
-          if (cancelled) return;
-          
-          const state = useAuthStore.getState();
-          
-          // Якщо завантаження завершено — ми готові прийняти рішення
-          if (!state.loading) {
-            if (state.user) {
-              setStatus('ready');
-              return;
-            } else {
-              setStatus('no-session');
-              return;
-            }
-          }
-
-          if (Date.now() - start > 8000) {
-            console.warn('[ProtectedRoute] Timeout waiting for auth store synchronization');
-            setStatus('no-session');
-            return;
-          }
-          setTimeout(wait, 100);
-        };
-        wait();
-
-      } catch (err) {
-        console.error('[ProtectedRoute] Auth check error:', err);
-        if (!cancelled) setStatus('no-session');
-      }
-    };
-
-    check();
-    return () => { cancelled = true; };
-  }, []);
-
-  if (status === 'checking') {
+  // Supabase ще не обробив сесію (включно з URL hash-токенами)
+  if (!isInitialized) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-[#030712]">
         <div className="flex flex-col items-center gap-4">
@@ -85,20 +31,15 @@ export function ProtectedRoute({
     );
   }
 
-  if (status === 'no-session') {
+  // Немає юзера після ініціалізації — редіректим на логін
+  if (!user) {
     return <Navigate to={loginUrl} replace />;
   }
 
-  // Беремо user зі стору — LiveSession вже підтверджена вище
-  const currentUser = user;
-
-  console.log(`[ProtectedRoute] User: ${currentUser?.email}, Role: ${currentUser?.role}, Required: ${role}`);
-
-  // ✅ ФІКС: Адмін має доступ до ВСЬОГО. Або роль має збігатися.
-  const hasAccess = currentUser?.role === 'admin' || (role ? currentUser?.role === role : true);
-
+  // Перевірка ролі
+  const hasAccess = user.role === 'admin' || (role ? user.role === role : true);
   if (!hasAccess) {
-    console.warn(`[ProtectedRoute] Access Denied. Redirecting to home.`);
+    console.warn(`[ProtectedRoute] Access Denied. User role: ${user.role}, Required: ${role}`);
     return <Navigate to="/" replace />;
   }
 

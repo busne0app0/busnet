@@ -9,6 +9,7 @@ interface AuthState {
   error: string | null;
   activeRole: Role | null;
   initInProgress: boolean;
+  isInitialized: boolean; // true після першого onAuthStateChange — ProtectedRoute чекає цього флагу
   authSubscription: any;
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
@@ -34,6 +35,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   error: null,
   activeRole: null,
   initInProgress: false,
+  isInitialized: false,
   authSubscription: null,
 
   setUser: (user) => set({ 
@@ -108,7 +110,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (!session) {
           isHandling = false;
           isProcessingAuth = false;
-          set({ user: null, isAuthenticated: false, activeRole: null, loading: false, initInProgress: false });
+          set({ user: null, isAuthenticated: false, activeRole: null, loading: false, initInProgress: false, isInitialized: true });
           return;
         }
 
@@ -203,11 +205,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               loading: false,
               error: null,
               initInProgress: false,
+              isInitialized: true,
             });
 
           } catch (err: any) {
             console.error('[initAuth] Error:', err);
-            set({ loading: false, initInProgress: false });
+            set({ loading: false, initInProgress: false, isInitialized: true });
           } finally {
             isHandling = false;
             isProcessingAuth = false;
