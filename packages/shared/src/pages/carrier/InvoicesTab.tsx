@@ -16,7 +16,7 @@ const InvoicesTab: React.FC = () => {
       const { data, error } = await supabase
         .from('invoices')
         .select('*')
-        .eq('carrierId', user.uid);
+        .eq('carrier_id', user.uid);
       
       if (!error && data) {
         setInvoices(data.map(d => ({
@@ -112,77 +112,77 @@ const InvoicesTab: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-2">
         <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-2 h-6 bg-violet-500 rounded-full shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
-            <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white font-syne">Інвойси</h2>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-1.5 h-6 bg-[#A855F7] shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
+            <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white">ІНВОЙСИ</h2>
           </div>
-          <p className="text-[#5a6a85] text-sm font-medium tracking-wide ml-5 uppercase tracking-widest">Бухгалтерська звітність та акти виконаних робіт</p>
+          <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest ml-4">Бухгалтерська звітність та акти виконаних робіт</p>
         </div>
       </div>
 
-      <div className="bg-[#111520] border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
-         <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.01]">
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#5a6a85] flex items-center gap-2">
-               <Calendar size={14} /> Архів за 2026 рік
+      <div className="bg-[#0B1221] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl min-h-[400px]">
+         <div className="p-6 md:px-8 border-b border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
+            <h3 className="text-[12px] font-black uppercase tracking-widest text-[#5A6A85] flex items-center gap-3">
+               <Calendar size={16} /> АРХІВ ЗА 2026 РІК
             </h3>
             <div className="flex gap-4">
                <button 
                  onClick={() => toast.success('Архів інвойсів за 2026 рік готується до завантаження...')}
-                 className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-[#8899b5] hover:text-white transition-all text-xs font-black uppercase tracking-widest flex items-center gap-2"
+                 className="px-6 py-2.5 rounded-[12px] bg-[#1A2639] text-[#8899B5] hover:text-white transition-all text-[9px] font-black uppercase tracking-widest flex items-center gap-2 border border-transparent hover:border-white/10"
                >
-                  <Download size={18} /> Скачати всі
+                  <Download size={14} /> СКАЧАТИ ВСІ
                </button>
             </div>
          </div>
-         <div className="overflow-x-auto">
-            <table className="min-w-[800px] w-full text-left">
+         <div className="overflow-x-auto h-full">
+            <table className="min-w-[800px] w-full text-left h-full">
                <thead>
-                  <tr className="bg-white/[0.02]">
-                     <th className="py-5 px-8 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Номер та Період</th>
-                     <th className="py-5 px-8 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Дата</th>
-                     <th className="py-5 px-8 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Кількість послуг</th>
-                     <th className="py-5 px-8 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Сума (€)</th>
-                     <th className="py-5 px-8 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em] text-right">Статус</th>
+                  <tr className="bg-[#1A2639]/30 border-b border-white/5">
+                     <th className="py-4 px-8 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">НОМЕР ТА ПЕРІОД</th>
+                     <th className="py-4 px-8 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">ДАТА</th>
+                     <th className="py-4 px-8 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">КІЛЬКІСТЬ ПОСЛУГ</th>
+                     <th className="py-4 px-8 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">СУМА (€)</th>
+                     <th className="py-4 px-8 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest text-right">СТАТУС</th>
                   </tr>
                </thead>
                <tbody className="divide-y divide-white/5">
                   {invoices.map((inv, idx) => (
-                     <tr key={idx} className="group hover:bg-white/[0.01] transition-all cursor-pointer">
+                     <tr key={idx} className="group hover:bg-[#1A2639]/30 transition-all cursor-pointer">
                         <td className="py-6 px-8">
                            <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 rounded-2xl bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
+                              <div className="w-10 h-10 rounded-[12px] bg-[#A855F7]/10 border border-[#A855F7]/20 flex items-center justify-center text-[#A855F7]">
                                  <FileText size={20} />
                               </div>
                               <div>
                                  <p className="text-sm font-bold text-white tracking-tight">{inv.id}</p>
-                                 <p className="text-[10px] text-violet-400 font-black uppercase tracking-widest mt-0.5 italic">{inv.period}</p>
+                                 <p className="text-[9px] text-[#A855F7] font-black uppercase tracking-widest mt-0.5 italic">{inv.period}</p>
                               </div>
                            </div>
                         </td>
-                        <td className="py-6 px-8 text-xs font-bold text-[#8899b5] uppercase">
+                        <td className="py-6 px-8 text-xs font-bold text-[#5A6A85] uppercase">
                            {inv.date}
                         </td>
                         <td className="py-6 px-8">
-                           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/5">
+                           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[10px] bg-[#1A2639]/50 border border-transparent">
                               <span className="text-xs font-black text-white">{inv.items}</span>
-                              <span className="text-[9px] font-bold text-[#5a6a85] uppercase">Квитків</span>
+                              <span className="text-[9px] font-bold text-[#5A6A85] uppercase">КВИТКІВ</span>
                            </div>
                         </td>
-                        <td className="py-6 px-8 text-base font-black text-white italic tracking-tighter">
+                        <td className="py-6 px-8 text-sm font-black text-white italic tracking-tighter">
                            €{inv.amount.toLocaleString()}
                         </td>
                         <td className="py-6 px-8 text-right">
-                           <div className="flex items-center justify-end gap-6">
-                              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#00e676]/10 text-[#00e676] border border-[#00e676]/20">
+                           <div className="flex items-center justify-end gap-4">
+                              <div className="flex items-center gap-2 px-3 py-1.5 rounded-[10px] bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/20">
                                  <CheckCircle2 size={12} />
-                                 <span className="text-[9px] font-black uppercase tracking-widest leading-none">Сплачено</span>
+                                 <span className="text-[8px] font-black uppercase tracking-widest leading-none">СПЛАЧЕНО</span>
                               </div>
                               <button 
                                 onClick={(e) => { e.stopPropagation(); handleDownloadInvoice(inv); }}
-                                className="p-2 rounded-xl text-[#3d5670] hover:text-white hover:bg-white/5 transition-all"
+                                className="p-2 rounded-[10px] text-[#5A6A85] hover:text-white hover:bg-[#1A2639] transition-all"
                               >
                                  <Download size={18} />
                               </button>
@@ -195,22 +195,22 @@ const InvoicesTab: React.FC = () => {
          </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8">
-         <div className="p-8 rounded-[40px] bg-gradient-to-br from-violet-600/10 to-transparent border border-violet-500/10 flex items-center justify-between">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+         <div className="p-6 md:p-8 rounded-[32px] bg-[#1A2639]/20 border border-[#A855F7]/20 flex items-center justify-between shadow-lg">
             <div className="flex items-center gap-5">
-               <div className="w-14 h-14 rounded-2xl bg-violet-500/20 flex items-center justify-center text-violet-400">
-                  <Mail size={24} />
+               <div className="w-12 h-12 rounded-[16px] bg-[#A855F7]/10 flex items-center justify-center text-[#A855F7]">
+                  <Mail size={20} />
                </div>
                <div>
-                  <h4 className="text-base font-bold text-white italic tracking-tight">Email Розсилка</h4>
-                  <p className="text-xs text-[#5a6a85] uppercase font-black tracking-widest mt-1">Отримувати інвойси на пошту</p>
+                  <h4 className="text-[13px] font-black text-white italic tracking-tight">Email Розсилка</h4>
+                  <p className="text-[9px] text-[#5A6A85] uppercase font-black tracking-widest mt-1">ОТРИМУВАТИ ІНВОЙСИ НА ПОШТУ</p>
                </div>
             </div>
             <button 
                onClick={() => toast.success('Налаштування розсилки оновлено')}
-               className="px-6 py-2 rounded-full border border-violet-500/30 text-violet-400 text-[10px] font-black uppercase tracking-widest hover:bg-violet-500 hover:text-white transition-all"
+               className="px-6 py-2.5 rounded-full border border-[#A855F7]/30 text-[#A855F7] text-[9px] font-black uppercase tracking-widest hover:bg-[#A855F7] hover:text-white transition-all shadow-[0_0_10px_rgba(168,85,247,0.2)] hover:shadow-[0_0_15px_rgba(168,85,247,0.5)]"
             >
-               Увімкнено
+               УВІМКНЕНО
             </button>
          </div>
       </div>

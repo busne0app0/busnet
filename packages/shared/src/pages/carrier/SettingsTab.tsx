@@ -40,43 +40,43 @@ const SettingsTab: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in zoom-in-95 duration-500 pb-20">
       <div className="flex items-center gap-3 mb-12">
-        <div className="w-2 h-6 bg-[#ff6b35] rounded-full shadow-[0_0_10px_#ff6b35]" />
+        <div className="w-2 h-6 bg-[#10B981] rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
         <div>
-          <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white font-syne">Налаштування</h2>
-          <p className="text-[#5a6a85] text-sm font-black uppercase tracking-widest mt-1">Конфігурація кабінету та безпеки</p>
+          <h2 className="text-3xl font-black uppercase tracking-widest text-white">НАЛАШТУВАННЯ</h2>
+          <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest mt-1">Конфігурація кабінету та безпеки</p>
         </div>
       </div>
 
       <div className="space-y-16">
         {/* Section: Account & Security */}
         <section className="space-y-8">
-           <h3 className="text-[10px] font-black uppercase text-[#5a6a85] tracking-[.3em] flex items-center gap-3">
-              <Lock size={14} className="text-[#ff6b35]" /> Безпека та Доступ
+           <h3 className="text-[10px] font-black uppercase text-[#5A6A85] tracking-[.3em] flex items-center gap-3">
+              <Lock size={14} className="text-[#10B981]" /> БЕЗПЕКА ТА ДОСТУП
            </h3>
            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-2">
-                 <label className="text-[10px] font-black text-white uppercase tracking-widest px-1">Поточний пароль</label>
-                 <input type="password" placeholder="••••••••" className="w-full bg-[#111520] border border-white/5 rounded-2xl px-6 py-4 text-white focus:border-[#ff6b35] outline-none transition-all placeholder:text-[#3d5670]" />
+                 <label className="text-[9px] font-black text-[#5A6A85] uppercase tracking-widest px-1">ПОТОЧНИЙ ПАРОЛЬ</label>
+                 <input type="password" placeholder="••••••••" className="w-full bg-[#1A2639]/30 border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#10B981] outline-none transition-all placeholder:text-[#5A6A85] text-sm tracking-[0.2em]" />
               </div>
               <div className="space-y-2">
-                 <label className="text-[10px] font-black text-white uppercase tracking-widest px-1">Новий пароль</label>
-                 <input type="password" placeholder="••••••••" className="w-full bg-[#111520] border border-white/5 rounded-2xl px-6 py-4 text-white focus:border-cyan-500 outline-none transition-all placeholder:text-[#3d5670]" />
+                 <label className="text-[9px] font-black text-[#5A6A85] uppercase tracking-widest px-1">НОВИЙ ПАРОЛЬ</label>
+                 <input type="password" placeholder="••••••••" className="w-full bg-[#1A2639]/30 border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#10B981] outline-none transition-all placeholder:text-[#5A6A85] text-sm tracking-[0.2em]" />
               </div>
-              <div className="md:col-span-2 p-6 rounded-3xl bg-cyan-500/5 border border-cyan-500/20 flex items-center justify-between">
+              <div className="md:col-span-2 p-6 rounded-[32px] bg-[#1A2639]/50 border border-[#10B981]/20 flex items-center justify-between shadow-[0_0_20px_rgba(16,185,129,0.05)]">
                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-500">
-                       <Shield size={24} />
+                    <div className="w-12 h-12 rounded-full bg-[#10B981]/10 flex items-center justify-center text-[#10B981] border border-[#10B981]/20 shadow-lg">
+                       <Shield size={20} />
                     </div>
                     <div>
-                       <h4 className="text-sm font-bold text-white uppercase italic">Двофакторна автентифікація</h4>
-                       <p className="text-[10px] text-cyan-500/70 font-black uppercase tracking-widest mt-1">Рекомендовано для захисту балансу</p>
+                       <h4 className="text-sm font-bold text-white uppercase tracking-widest">ДВОФАКТОРНА АВТЕНТИФІКАЦІЯ</h4>
+                       <p className="text-[9px] text-[#10B981] font-black uppercase tracking-widest mt-1">Рекомендовано для захисту балансу</p>
                     </div>
                  </div>
                  <button 
                     onClick={() => toast.success('Запит на активацію 2FA надіслано')}
-                    className="px-6 py-2 bg-cyan-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-white transition-all"
+                    className="px-8 py-3 bg-white/5 border border-white/10 text-[#8899B5] text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-white/10 hover:text-white transition-all shadow-lg"
                  >
-                    Активувати
+                    АКТИВУВАТИ
                  </button>
               </div>
            </div>
@@ -84,27 +84,27 @@ const SettingsTab: React.FC = () => {
 
         {/* Section: Notifications */}
         <section className="space-y-8">
-           <h3 className="text-[10px] font-black uppercase text-[#5a6a85] tracking-[.3em] flex items-center gap-3">
-              <Bell size={14} className="text-amber-500" /> Сповіщення
+           <h3 className="text-[10px] font-black uppercase text-[#5A6A85] tracking-[.3em] flex items-center gap-3">
+              <Bell size={14} className="text-[#FBBF24]" /> СПОВІЩЕННЯ
            </h3>
-           <div className="bg-[#111520] border border-white/5 rounded-[40px] p-8 space-y-6">
+           <div className="bg-[#1A2639]/30 border border-white/5 rounded-[40px] p-10 space-y-8">
                {[
-                { key: 'notificationsBookings', label: 'Нові бронювання', desc: 'Отримувати миттєві Push та SMS при кожному проданому квитку' },
-                { key: 'notificationsFinance', label: 'Фінансові виписки', desc: 'Щотижневі звіти про транзакції та баланс на email' },
-                { key: 'notificationsReviews', label: 'Зміни в системі', desc: 'Бути в курсі технічних оновлень та нових правил' },
+                { key: 'notificationsBookings', label: 'НОВІ БРОНЮВАННЯ', desc: 'Отримувати миттєві Push та SMS при кожному проданому квитку' },
+                { key: 'notificationsFinance', label: 'ФІНАНСОВІ ВИПИСКИ', desc: 'Щотижневі звіти про транзакції та баланс на email' },
+                { key: 'notificationsReviews', label: 'ЗМІНИ В СИСТЕМІ', desc: 'Бути в курсі технічних оновлень та нових правил' },
               ].map((item, i) => {
                  const isActive = settings[item.key as keyof typeof settings];
                  return (
-                 <div key={i} className="flex items-center justify-between py-2 last:border-0 border-b border-white/5">
+                 <div key={i} className="flex items-center justify-between py-4 last:border-0 border-b border-white/5">
                     <div className="max-w-md">
-                       <h4 className="text-sm font-bold text-white mb-1 uppercase italic tracking-tight">{item.label}</h4>
-                       <p className="text-[10px] text-[#5a6a85] font-medium leading-relaxed uppercase tracking-wider">{item.desc}</p>
+                       <h4 className="text-[12px] font-bold text-white mb-2 uppercase tracking-widest">{item.label}</h4>
+                       <p className="text-[9px] text-[#8899B5] font-black uppercase tracking-widest leading-relaxed">{item.desc}</p>
                     </div>
                     <button 
                        onClick={() => toggleSetting(item.key)}
-                       className={`w-12 h-6 rounded-full p-1 transition-colors ${isActive ? 'bg-[#00e676]' : 'bg-white/10'}`}
+                       className={`w-14 h-7 rounded-full p-1 transition-colors shadow-inner ${isActive ? 'bg-[#10B981]' : 'bg-white/10'}`}
                     >
-                       <div className={`w-4 h-4 rounded-full bg-black transition-transform ${isActive ? 'translate-x-6' : 'translate-x-0'}`} />
+                       <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isActive ? 'translate-x-7' : 'translate-x-0'} shadow-md`} />
                     </button>
                  </div>
               )})}
@@ -113,21 +113,21 @@ const SettingsTab: React.FC = () => {
 
         {/* Section: Regional */}
         <section className="space-y-8">
-           <h3 className="text-[10px] font-black uppercase text-[#5a6a85] tracking-[.3em] flex items-center gap-3">
-              <Globe size={14} className="text-cyan-400" /> Регіональні налаштування
+           <h3 className="text-[10px] font-black uppercase text-[#5A6A85] tracking-[.3em] flex items-center gap-3">
+              <Globe size={14} className="text-[#0EA5E9]" /> РЕГІОНАЛЬНІ НАЛАШТУВАННЯ
            </h3>
            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-2">
-                 <label className="text-[10px] font-black text-white uppercase tracking-widest px-1">Мова інтерфейсу</label>
-                 <select className="w-full bg-[#111520] border border-white/5 rounded-2xl px-6 py-4 text-white focus:border-cyan-500 outline-none appearance-none cursor-pointer font-bold text-sm">
-                    <option>Українська</option>
-                    <option>English</option>
-                    <option>Polski</option>
+                 <label className="text-[9px] font-black text-[#5A6A85] uppercase tracking-widest px-1">МОВА ІНТЕРФЕЙСУ</label>
+                 <select className="w-full bg-[#1A2639]/30 border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#0EA5E9] outline-none appearance-none cursor-pointer font-bold text-sm tracking-widest uppercase">
+                    <option>УКРАЇНСЬКА</option>
+                    <option>ENGLISH</option>
+                    <option>POLSKI</option>
                  </select>
               </div>
               <div className="space-y-2">
-                 <label className="text-[10px] font-black text-white uppercase tracking-widest px-1">Основна валюта</label>
-                 <select className="w-full bg-[#111520] border border-white/5 rounded-2xl px-6 py-4 text-white focus:border-cyan-500 outline-none appearance-none cursor-pointer font-bold text-sm">
+                 <label className="text-[9px] font-black text-[#5A6A85] uppercase tracking-widest px-1">ОСНОВНА ВАЛЮТА</label>
+                 <select className="w-full bg-[#1A2639]/30 border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#0EA5E9] outline-none appearance-none cursor-pointer font-bold text-sm tracking-widest uppercase">
                     <option>EUR (€)</option>
                     <option>UAH (₴)</option>
                     <option>USD ($)</option>
@@ -137,11 +137,11 @@ const SettingsTab: React.FC = () => {
         </section>
 
         <div className="pt-10 border-t border-white/5 flex justify-end gap-4">
-           <button className="px-10 py-4 bg-white/5 text-[#5a6a85] text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-white/10 transition-all">
-              Скинути
+           <button className="px-10 py-4 bg-transparent border border-white/5 text-[#5A6A85] text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-white/5 hover:text-white transition-all shadow-lg">
+              СКИНУТИ
            </button>
-           <button className="px-12 py-4 bg-[#ff6b35] text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-white hover:text-black transition-all shadow-[0_10px_30px_rgba(255,107,53,0.3)] flex items-center gap-2">
-              <Save size={16} /> Зберегти зміни
+           <button className="px-10 py-4 bg-[#10B981] text-white text-[10px] font-black uppercase tracking-widest rounded-full hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all flex items-center justify-center gap-2">
+              <Save size={16} /> ЗБЕРЕГТИ ЗМІНИ
            </button>
         </div>
       </div>

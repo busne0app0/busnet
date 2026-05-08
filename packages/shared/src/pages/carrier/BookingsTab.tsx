@@ -34,32 +34,36 @@ const BookingsTab: React.FC = () => {
         .from('bookings')
         .select(`
           *,
-          trips!inner(
+          routes!inner(
             id,
-            departureCity,
-            arrivalCity,
-            departureDate,
-            departureTime,
-            carrierId
+            name,
+            carrier_id
           )
         `)
-        .eq('trips.carrierId', user.uid)
-        .order('createdAt', { ascending: false })
+        .eq('routes.carrier_id', user.uid)
+        .order('created_at', { ascending: false })
         .limit(50);
 
       if (error) throw error;
 
       const results: Booking[] = (data || []).map(booking => ({
         id: booking.id,
-        tripId: booking.tripId,
-        passengerName: booking.passengers?.[0] ? `${booking.passengers[0].firstName} ${booking.passengers[0].lastName}` : 'N/A',
-        route: booking.trips ? `${booking.trips.departureCity} → ${booking.trips.arrivalCity}` : 'Unknown Route',
-        date: booking.trips?.departureDate || 'N/A',
-        time: booking.trips?.departureTime || 'N/A',
-        seats: booking.passengers?.length || 0,
-        totalPrice: booking.totalPrice || 0,
+        tripId: booking.trip_id,
+        passengerName: booking.passengers?.[0]
+          ? `${booking.passengers[0].firstName} ${booking.passengers[0].lastName}`
+          : 'N/A',
+        // route_from/route_to (snake_case) — або ім'я маршруту з джоїну
+        route: (booking as any).routes?.name ||
+          (booking.route_from && booking.route_to
+            ? `${booking.route_from} → ${booking.route_to}`
+            : 'Невідомий маршрут'),
+        date: booking.departure_date ||
+          (booking.created_at ? new Date(booking.created_at).toLocaleDateString('uk-UA') : 'N/A'),
+        time: booking.departure_time || 'N/A',
+        seats: booking.seats || booking.passengers?.length || 0,
+        totalPrice: booking.total_price || 0,
         status: booking.status || 'pending',
-        createdAt: booking.createdAt
+        createdAt: booking.created_at
       }));
 
       setBookings(results);
@@ -97,27 +101,27 @@ const BookingsTab: React.FC = () => {
   const filtered = bookings.filter(b => filterStatus === 'all' || b.status === filterStatus);
 
   return (
-    <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-700">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-2">
         <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-2 h-6 bg-[#ff6b35] rounded-full shadow-[0_0_10px_rgba(255,107,53,0.5)]" />
-            <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white font-syne">Бронювання</h2>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-1.5 h-6 bg-[#F97316] shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
+            <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white">БРОНЮВАННЯ</h2>
           </div>
-          <p className="text-[#5a6a85] text-sm font-medium tracking-wide ml-5 uppercase tracking-widest">Усі замовлення квитків на ваші рейси</p>
+          <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest ml-4">Усі замовлення квитків на ваші рейси</p>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3 p-1 bg-[#111520] rounded-2xl w-fit border border-white/5">
+      <div className="flex flex-wrap items-center gap-2 p-1.5 bg-[#0B1221] rounded-full w-fit border border-white/5 shadow-lg">
         {['all', 'confirmed', 'pending', 'cancelled'].map((status) => (
           <button
             key={status}
             onClick={() => setFilterStatus(status)}
             className={`
-              px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
+              px-6 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all
               ${filterStatus === status 
-                ? 'bg-[#ff6b35] text-white shadow-lg' 
-                : 'text-[#5a6a85] hover:text-white hover:bg-white/5'}
+                ? 'bg-[#F97316] text-white shadow-[0_0_15px_rgba(249,115,22,0.3)]' 
+                : 'text-[#5A6A85] hover:text-white hover:bg-[#1A2639]'}
             `}
           >
             {status === 'all' ? 'Всі' : status === 'confirmed' ? 'Підтверджені' : status === 'pending' ? 'Очікують' : 'Скасовані'}
@@ -125,28 +129,28 @@ const BookingsTab: React.FC = () => {
         ))}
       </div>
 
-      <div className="bg-[#111520] border border-white/5 rounded-3xl overflow-hidden shadow-2xl relative">
-        <div className="overflow-x-auto">
+      <div className="bg-[#0B1221] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl relative min-h-[400px]">
+        <div className="overflow-x-auto h-full">
           {loading ? (
-            <div className="py-20 flex flex-col items-center justify-center space-y-4">
-              <Loader2 className="text-[#ff6b35] animate-spin" size={40} />
-              <p className="text-[#5a6a85] text-[10px] font-black uppercase tracking-widest">Завантаження бронювань...</p>
+            <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4">
+              <Loader2 className="text-[#F97316] animate-spin" size={40} />
+              <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest">ЗАВАНТАЖЕННЯ БРОНЮВАНЬ...</p>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="py-20 text-center space-y-4">
-              <Ticket className="mx-auto text-[#1c2e48]" size={60} />
-              <p className="text-[#5a6a85] text-sm font-bold uppercase italic tracking-tighter">Бронювань не знайдено</p>
+            <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4">
+              <Ticket className="text-[#1A2639]" size={70} />
+              <p className="text-[#5A6A85] text-[11px] font-black uppercase tracking-widest">БРОНЮВАНЬ НЕ ЗНАЙДЕНО</p>
             </div>
           ) : (
-            <table className="min-w-[800px] w-full text-left">
+            <table className="min-w-[800px] w-full text-left h-full">
               <thead>
-                <tr className="bg-white/[0.02] border-b border-white/5">
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Квиток / ID</th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Пасажир</th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Рейс та Маршрут</th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Місць / Ціна</th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Статус</th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em] text-right">Дії</th>
+                <tr className="bg-transparent border-b border-white/5">
+                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em]">Квиток / ID</th>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em]">Пасажир</th>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em]">Рейс та Маршрут</th>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em]">Місць / Ціна</th>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em]">Статус</th>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em] text-right">Дії</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -156,16 +160,16 @@ const BookingsTab: React.FC = () => {
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.03 }}
-                    className="group hover:bg-white/[0.01] transition-all"
+                    className="group hover:bg-[#1A2639]/30 transition-all"
                   >
                     <td className="py-5 px-6">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-[#ff6b35]/10 border border-[#ff6b35]/20 flex items-center justify-center text-[#ff6b35]">
+                        <div className="w-9 h-9 rounded-[10px] bg-[#F97316]/10 border border-[#F97316]/20 flex items-center justify-center text-[#F97316]">
                           <Ticket size={16} />
                         </div>
                         <div>
-                          <p className="text-xs font-black text-white italic tracking-widest uppercase">#{b.id.substring(0, 6).toUpperCase()}</p>
-                          <p className="text-[9px] text-[#3d5670] font-bold uppercase mt-0.5">
+                          <p className="text-xs font-black text-white italic tracking-widest uppercase group-hover:text-[#F97316] transition-colors">#{b.id.substring(0, 6).toUpperCase()}</p>
+                          <p className="text-[9px] text-[#5A6A85] font-bold uppercase mt-0.5">
                             {b.createdAt ? new Date(b.createdAt).toLocaleDateString('uk-UA') : 'Pending'}
                           </p>
                         </div>
@@ -173,14 +177,14 @@ const BookingsTab: React.FC = () => {
                     </td>
                     <td className="py-5 px-6">
                        <div className="flex items-center gap-2">
-                          <User size={12} className="text-[#5a6a85]" />
+                          <User size={12} className="text-[#5A6A85]" />
                           <p className="text-sm font-bold text-white tracking-tight">{b.passengerName}</p>
                        </div>
                     </td>
                     <td className="py-5 px-6">
                        <div className="space-y-1">
                           <p className="text-xs font-bold text-white leading-none">{b.route}</p>
-                          <div className="flex items-center gap-2 text-[10px] text-[#5a6a85] font-black uppercase tracking-widest">
+                          <div className="flex items-center gap-2 text-[10px] text-[#5A6A85] font-black uppercase tracking-widest">
                              <Calendar size={10} /> {b.date} · <Clock size={10} /> {b.time}
                           </div>
                        </div>
@@ -188,7 +192,7 @@ const BookingsTab: React.FC = () => {
                     <td className="py-5 px-6">
                        <div className="space-y-0.5">
                           <p className="text-xs font-black text-white italic">{b.seats} Місць</p>
-                          <p className="text-[10px] font-black text-[#00e676] uppercase tracking-widest">€{b.totalPrice.toLocaleString()}</p>
+                          <p className="text-[10px] font-black text-[#00E5FF] uppercase tracking-widest">€{b.totalPrice.toLocaleString()}</p>
                        </div>
                     </td>
                     <td className="py-5 px-6">
@@ -208,20 +212,20 @@ const BookingsTab: React.FC = () => {
                             <button 
                               onClick={() => handleUpdateStatus(b.id, 'confirmed')}
                               disabled={updating === b.id}
-                              className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-50"
+                              className="px-3 py-1.5 rounded-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-50"
                             >
                               Підтвердити
                             </button>
                             <button 
                               onClick={() => handleUpdateStatus(b.id, 'cancelled')}
                               disabled={updating === b.id}
-                              className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all disabled:opacity-50"
+                              className="p-1.5 rounded-[10px] bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all disabled:opacity-50"
                             >
                               <XCircle size={14} />
                             </button>
                           </>
                         ) : (
-                          <button className="px-4 py-1.5 rounded-lg bg-white/5 border border-white/5 text-[9px] font-black uppercase tracking-widest text-[#8899b5] hover:text-white hover:border-white/10 transition-all">
+                          <button className="px-4 py-1.5 rounded-[10px] bg-[#1A2639] border border-transparent text-[9px] font-black uppercase tracking-widest text-[#8899B5] hover:text-white hover:border-white/10 transition-all">
                             Деталі
                           </button>
                         )}

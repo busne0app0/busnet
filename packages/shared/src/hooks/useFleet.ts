@@ -26,7 +26,7 @@ export function useFleet() {
       const { data, error } = await supabase
         .from('buses')
         .select('*')
-        .eq('carrierId', carrierId);
+        .eq('carrier_id', carrierId);
       if (error) throw error;
       setBuses(data || []);
     } catch (error) {

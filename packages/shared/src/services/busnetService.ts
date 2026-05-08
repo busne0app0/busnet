@@ -3,23 +3,26 @@ import { RouteTemplate, Trip } from '../busnet/types';
 
 export const busnetService = {
   // ============================================================
-  // ROUTE TEMPLATES
+  // ROUTE TEMPLATES (Шаблони маршрутів)
   // ============================================================
   async saveRouteTemplate(data: Partial<RouteTemplate>): Promise<string> {
     const { data: { user } } = await supabase.auth.getUser();
     const carrierId = user?.id;
     if (!carrierId) throw new Error('Потрібна авторизація');
 
-    const payload = {
-      ...data,
-      carrierId: carrierId,
-      updatedAt: Date.now(),
-      createdAt: data.createdAt || Date.now(),
+    // Таблиця 'routes' за реальною схемою використовує snake_case для carrier_id
+    const payload: any = {
+      name: (data as any).name || '',
+      carrier_id: carrierId,
+      seats: data.seats || 50,
+      currency: data.currency || 'EUR',
+      status: data.status || 'pending',
+      outbound: (data as any).outbound || { stops: data.stopsThere || [], days: [] },
+      inbound: (data as any).inbound || { stops: data.stopsBack || [], days: [] },
     };
 
     try {
       if (data.id) {
-        // ✅ UPDATE — id вже є, просто оновлюємо
         const { error } = await supabase
           .from('routes')
           .update(payload)
@@ -27,11 +30,9 @@ export const busnetService = {
         if (error) throw error;
         return data.id!;
       } else {
-        // ✅ INSERT — прибираємо id, Postgres генерує UUID сам
-        const { id: _omit, ...payloadWithoutId } = payload as any;
         const { data: inserted, error } = await supabase
           .from('routes')
-          .insert(payloadWithoutId)
+          .insert(payload)
           .select('id')
           .single();
         if (error) throw error;
@@ -55,7 +56,26 @@ export const busnetService = {
         .eq('carrier_id', carrierId)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data || [];
+
+      const parseField = (field: any) => {
+        if (typeof field === 'string') {
+          try { return JSON.parse(field); } 
+          catch { return field; }
+        }
+        return field ?? [];
+      };
+
+      return (data || []).map(route => ({
+        ...route,
+        carrierId: route.carrier_id, // мапінг для UI
+        outbound: parseField(route.outbound),
+        inbound: parseField(route.inbound),
+        amenities: parseField(route.amenities),
+        rules: parseField(route.rules),
+        discounts: parseField(route.discounts),
+        custom_discounts: parseField(route.custom_discounts),
+        custom_rules: parseField(route.custom_rules),
+      }));
     } catch (error: any) {
       console.error('Error fetching route templates:', error);
       return [];
@@ -79,7 +99,6 @@ export const busnetService = {
     }
   },
 
-  // Admin: Get all templates
   async getAllRouteTemplates(): Promise<RouteTemplate[]> {
     try {
       const { data, error } = await supabase
@@ -87,7 +106,26 @@ export const busnetService = {
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data || [];
+
+      const parseField = (field: any) => {
+        if (typeof field === 'string') {
+          try { return JSON.parse(field); } 
+          catch { return field; }
+        }
+        return field ?? [];
+      };
+
+      return (data || []).map(route => ({
+        ...route,
+        carrierId: route.carrier_id,
+        outbound: parseField(route.outbound),
+        inbound: parseField(route.inbound),
+        amenities: parseField(route.amenities),
+        rules: parseField(route.rules),
+        discounts: parseField(route.discounts),
+        custom_discounts: parseField(route.custom_discounts),
+        custom_rules: parseField(route.custom_rules),
+      }));
     } catch (error: any) {
       console.error('Error fetching all route templates:', error);
       return [];
@@ -95,21 +133,21 @@ export const busnetService = {
   },
 
   // ============================================================
-  // TRIPS
+  // TRIPS (Конкретні рейси на дату)
   // ============================================================
   async saveTrip(data: Partial<Trip>): Promise<string> {
     const { data: { user } } = await supabase.auth.getUser();
     const carrierId = user?.id;
     if (!carrierId) throw new Error('Потрібна авторизація');
 
+    // Таблиця 'trips' використовує carrier_id (snake) та camelCase для іншого
     const payload = {
       ...data,
-      carrierId: carrierId,
+      carrier_id: carrierId,
     };
 
     try {
       if (data.id) {
-        // ✅ UPDATE — id вже є
         const { error } = await supabase
           .from('trips')
           .update(payload)
@@ -117,7 +155,6 @@ export const busnetService = {
         if (error) throw error;
         return data.id!;
       } else {
-        // ✅ INSERT — прибираємо id, Postgres генерує UUID сам
         const { id: _omit, ...payloadWithoutId } = payload as any;
         const { data: inserted, error } = await supabase
           .from('trips')
@@ -142,7 +179,7 @@ export const busnetService = {
       const { data, error } = await supabase
         .from('trips')
         .select('*')
-        .eq('carrierId', carrierId)
+        .eq('carrier_id', carrierId)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -161,7 +198,7 @@ export const busnetService = {
         .from('trips')
         .delete()
         .eq('id', id)
-        .eq('carrierId', user.id);
+        .eq('carrier_id', user.id);
       if (error) throw error;
     } catch (error: any) {
       console.error('Error deleting trip:', error);
@@ -175,19 +212,34 @@ export const busnetService = {
   async generateTripsFromTemplate(template: RouteTemplate, daysAhead = 30): Promise<void> {
     const now = new Date();
 
+    const dayMap: Record<string, number> = { 'НД': 0, 'ПН': 1, 'ВТ': 2, 'СР': 3, 'ЧТ': 4, 'ПТ': 5, 'СБ': 6 };
+    const outbound = (template as any).outbound || {};
+    const outboundStops: any[] = outbound.stops || template.stopsThere || [];
+    const outboundDays: string[] = outbound.days || [];
+
+    let activeDays: number[] = template.activeDays || [];
+    if (activeDays.length === 0 && outboundDays.length > 0) {
+      activeDays = outboundDays.map(d => dayMap[d]).filter(d => d !== undefined);
+    }
+
+    const carrierId = (template as any).carrier_id || template.carrierId;
+    const departureCity = outboundStops[0]?.city || '';
+    const arrivalCity = outboundStops[outboundStops.length - 1]?.city || '';
+    const departureTime = outboundStops[0]?.time || '';
+    const arrivalTime = outboundStops[outboundStops.length - 1]?.time || '';
+
     for (let i = 0; i < daysAhead; i++) {
       const date = new Date(now);
       date.setDate(now.getDate() + i);
-      const dayOfWeek = date.getDay(); // 0-6
+      const dayOfWeek = date.getDay();
 
-      if (template.activeDays.includes(dayOfWeek)) {
+      if (activeDays.includes(dayOfWeek)) {
         const dateStr = date.toISOString().split('T')[0];
 
-        // Перевіряємо чи рейс вже існує
         const { data: existing, error: checkError } = await supabase
           .from('trips')
           .select('id')
-          .eq('carrierId', template.carrierId)
+          .eq('carrier_id', carrierId)
           .eq('departureDate', dateStr)
           .eq('routeId', template.id)
           .limit(1);
@@ -195,22 +247,21 @@ export const busnetService = {
         if (checkError) throw checkError;
 
         if (!existing || existing.length === 0) {
-          // ✅ INSERT без id — Postgres генерує UUID сам
           const { error } = await supabase
             .from('trips')
             .insert({
-              carrierId: template.carrierId,
+              carrier_id: carrierId,
               routeId: template.id,
-              departureCity: template.stopsThere?.[0]?.city || (template as any).outbound?.stops?.[0]?.city || '',
-              arrivalCity: template.stopsThere?.[template.stopsThere?.length - 1]?.city || (template as any).outbound?.stops?.slice(-1)[0]?.city || '',
+              departureCity: departureCity,
+              arrivalCity: arrivalCity,
               departureDate: dateStr,
               price: template.singlePrice || 0,
               status: 'active',
               seatsBooked: 0,
-              seatsTotal: template.seats,
-              stops: template.stopsThere || (template as any).outbound?.stops || [],
-              departureTime: template.stopsThere?.[0]?.time || (template as any).outbound?.stops?.[0]?.time || '',
-              arrivalTime: template.stopsThere?.[template.stopsThere?.length - 1]?.time || (template as any).outbound?.stops?.slice(-1)[0]?.time || '',
+              seatsTotal: template.seats || 50,
+              stops: outboundStops,
+              departureTime: departureTime,
+              arrivalTime: arrivalTime,
             });
           if (error) throw error;
         }
@@ -218,4 +269,3 @@ export const busnetService = {
     }
   }
 };
-

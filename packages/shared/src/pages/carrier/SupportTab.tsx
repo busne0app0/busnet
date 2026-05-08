@@ -69,8 +69,8 @@ const SupportTab: React.FC = () => {
       const { data, error } = await supabase
         .from('support')
         .select('*')
-        .eq('userId', user.uid)
-        .order('createdAt', { ascending: false });
+        .eq('user_id', user.uid)
+        .order('created_at', { ascending: false });
       
       if (!error && data) {
         setTickets(data.map(d => ({
@@ -169,31 +169,29 @@ const SupportTab: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-2 h-6 bg-cyan-500 rounded-full shadow-[0_0_10px_#06b6d4]" />
-            <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white font-syne">ПІДТРИМКА</h2>
-          </div>
-          <p className="text-[#5a6a85] text-sm font-medium tracking-wide ml-5 uppercase tracking-widest">Центр допомоги та технічні запити</p>
+          <div className="w-12 h-1 bg-[#A855F7] mb-4 shadow-[0_0_10px_rgba(168,85,247,0.5)] rounded-full" />
+          <h2 className="text-3xl font-black uppercase tracking-widest text-white">ПІДТРИМКА</h2>
+          <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest mt-2">Центр допомоги та технічні запити</p>
         </div>
         <button
           onClick={() => setShowNewModal(true)}
-          className="px-8 py-3 bg-cyan-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-white transition-all shadow-lg flex items-center gap-2"
+          className="px-6 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-[#A855F7] hover:text-white hover:shadow-[0_0_20px_rgba(168,85,247,0.4)] transition-all flex items-center justify-center gap-2"
         >
-          <Plus size={14} /> Створити тікет
+          <Plus size={16} strokeWidth={2.5} /> СТВОРИТИ ТІКЕТ
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Всього тікетів', val: tickets.length, color: '#00c8ff' },
-          { label: 'Відкриті', val: openTickets.length, color: '#ff6b35' },
-          { label: 'Вирішені', val: closedTickets.length, color: '#00e676' },
-          { label: 'Сер. відповідь', val: '< 24 год', color: '#9c6fff' },
+          { label: 'ВСЬОГО ТІКЕТІВ', val: tickets.length, color: 'text-[#A855F7]' },
+          { label: 'ВІДКРИТІ', val: openTickets.length, color: 'text-[#0EA5E9]' },
+          { label: 'ВИРІШЕНІ', val: closedTickets.length, color: 'text-[#10B981]' },
+          { label: 'СЕР. ВІДПОВІДЬ', val: '< 24 ГОД', color: 'text-[#FBBF24]' },
         ].map((s, i) => (
-          <div key={i} className="bg-[#111520] border border-white/5 rounded-3xl p-5">
-            <p className="text-[9px] font-black text-[#5a6a85] uppercase tracking-widest mb-1">{s.label}</p>
-            <h4 className="text-xl font-black text-white italic tracking-tighter" style={{ color: s.color }}>{s.val}</h4>
+          <div key={i} className="bg-[#1A2639]/30 border border-white/5 rounded-[32px] p-6 relative overflow-hidden h-[120px] flex flex-col justify-between group hover:bg-[#1A2639]/50 transition-colors">
+             <p className="text-[9px] font-black text-[#5a6a85] uppercase tracking-widest">{s.label}</p>
+             <h4 className="text-2xl font-black text-white tracking-widest">{s.val}</h4>
           </div>
         ))}
       </div>
@@ -206,9 +204,9 @@ const SupportTab: React.FC = () => {
           </h3>
 
           {openTickets.length === 0 ? (
-            <div className="bg-[#111520] border border-white/5 rounded-3xl p-8 text-center">
-              <HelpCircle className="mx-auto mb-3 text-[#3d5670]" size={32} />
-              <p className="text-[#5a6a85] text-sm font-bold uppercase tracking-widest">Немає активних тікетів</p>
+            <div className="bg-[#1A2639]/30 border border-white/5 rounded-[32px] p-8 text-center h-[200px] flex flex-col items-center justify-center">
+              <HelpCircle className="mx-auto mb-3 text-[#5A6A85] opacity-20" size={48} />
+              <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest">НЕМАЄ АКТИВНИХ ТІКЕТІВ</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -216,9 +214,9 @@ const SupportTab: React.FC = () => {
                 <button
                   key={t.id}
                   onClick={() => setSelectedTicket(t)}
-                  className={`w-full text-left p-5 rounded-3xl border transition-all group ${selectedTicket?.id === t.id
-                    ? 'bg-cyan-500/10 border-cyan-500/30'
-                    : 'bg-[#111520] border-white/5 hover:border-cyan-500/20'}`}
+                  className={`w-full text-left p-5 rounded-[24px] border transition-all group ${selectedTicket?.id === t.id
+                    ? 'bg-[#A855F7]/10 border-[#A855F7]/30'
+                    : 'bg-[#1A2639]/30 border-white/5 hover:border-[#A855F7]/20 hover:bg-[#1A2639]/50'}`}
                 >
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-[9px] font-black uppercase text-[#3d5670]">{t.displayId}</span>
@@ -262,24 +260,24 @@ const SupportTab: React.FC = () => {
         {/* Ticket detail */}
         <div className="lg:col-span-2">
           {selectedTicket ? (
-            <div className="bg-[#111520] border border-white/5 rounded-[40px] p-8 h-full flex flex-col">
+            <div className="bg-[#1A2639]/30 border border-white/5 rounded-[40px] p-8 h-full flex flex-col shadow-2xl relative overflow-hidden">
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <span className="text-[9px] font-black text-[#3d5670] uppercase tracking-widest">{selectedTicket.displayId}</span>
-                  <h3 className="text-xl font-bold text-white mt-1 italic tracking-tight">{selectedTicket.subject}</h3>
+                  <span className="text-[10px] font-black text-[#8899B5] uppercase tracking-widest">{selectedTicket.displayId}</span>
+                  <h3 className="text-xl font-bold text-white mt-1 uppercase tracking-wide">{selectedTicket.subject}</h3>
                   <div className="flex items-center gap-3 mt-2">
-                    <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full border ${STATUS_COLORS[selectedTicket.status]}`}>
+                    <span className={`text-[9px] font-black uppercase px-3 py-1.5 rounded-full border ${STATUS_COLORS[selectedTicket.status]}`}>
                       {STATUS_LABELS[selectedTicket.status]}
                     </span>
-                    <span className="text-[9px] text-[#5a6a85] uppercase font-bold">{selectedTicket.category}</span>
+                    <span className="text-[9px] text-[#5A6A85] uppercase font-black tracking-widest">{selectedTicket.category}</span>
                   </div>
                 </div>
                 {(selectedTicket.status === 'open' || selectedTicket.status === 'in_progress') && (
                   <button
                     onClick={() => handleCloseTicket(selectedTicket.id)}
-                    className="px-4 py-2 rounded-xl bg-rose-500/10 text-rose-400 text-[10px] font-black uppercase tracking-widest border border-rose-500/20 hover:bg-rose-500/20 transition-all"
+                    className="px-5 py-2.5 rounded-full bg-rose-500/10 text-rose-400 text-[9px] font-black uppercase tracking-widest border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all shadow-lg"
                   >
-                    Закрити тікет
+                    ЗАКРИТИ ТІКЕТ
                   </button>
                 )}
               </div>
@@ -314,16 +312,18 @@ const SupportTab: React.FC = () => {
                 )}
               </div>
 
-              <div className="mt-4 flex items-center gap-2 text-[9px] text-[#3d5670] uppercase font-bold">
+              <div className="mt-4 flex items-center gap-2 text-[9px] text-[#5A6A85] uppercase font-black tracking-widest justify-end">
                 <Clock size={12} />
-                Останнє оновлення: {selectedTicket.lastUpdate}
+                ОСТАННЄ ОНОВЛЕННЯ: {selectedTicket.lastUpdate}
               </div>
             </div>
           ) : (
-            <div className="bg-[#111520] border border-white/5 rounded-[40px] p-8 h-full flex flex-col items-center justify-center text-center gap-4">
-              <MessageSquare className="text-[#3d5670]" size={48} />
-              <p className="text-[#5a6a85] text-sm font-bold uppercase tracking-widest">Виберіть тікет для перегляду</p>
-              <p className="text-[#3d5670] text-xs">або створіть новий запит до служби підтримки</p>
+            <div className="bg-[#1A2639]/30 border border-white/5 rounded-[40px] p-8 h-full flex flex-col items-center justify-center text-center gap-4">
+              <MessageSquare className="text-[#5A6A85] opacity-20" size={64} />
+              <div>
+                 <p className="text-[#8899B5] text-[12px] font-black uppercase tracking-widest">ВИБЕРІТЬ ТІКЕТ ДЛЯ ПЕРЕГЛЯДУ</p>
+                 <p className="text-[#5A6A85] text-[10px] font-bold mt-1 uppercase tracking-widest">або створіть новий запит</p>
+              </div>
               <button
                 onClick={() => setShowNewModal(true)}
                 className="mt-2 px-6 py-3 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-cyan-500/20 transition-all"
@@ -349,11 +349,11 @@ const SupportTab: React.FC = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#111520] border border-white/10 rounded-[40px] p-10 w-full max-w-lg space-y-6"
+              className="bg-[#0B1221] border border-[#A855F7]/20 rounded-[40px] p-10 w-full max-w-lg space-y-6 shadow-[0_0_30px_rgba(168,85,247,0.1)] relative"
             >
               <div className="flex justify-between items-center">
-                <h3 className="text-xl font-black uppercase italic tracking-tighter text-white">Новий запит</h3>
-                <button onClick={() => setShowNewModal(false)} className="w-8 h-8 rounded-xl bg-white/5 text-[#5a6a85] hover:text-white transition-colors flex items-center justify-center">
+                <h3 className="text-xl font-black uppercase tracking-widest text-white">НОВИЙ ЗАПИТ</h3>
+                <button onClick={() => setShowNewModal(false)} className="w-8 h-8 rounded-full bg-white/5 text-[#5A6A85] hover:text-white transition-colors flex items-center justify-center">
                   <X size={18} />
                 </button>
               </div>
@@ -420,17 +420,17 @@ const SupportTab: React.FC = () => {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowNewModal(false)}
-                  className="flex-1 py-3 bg-white/5 border border-white/5 rounded-2xl text-[10px] font-black uppercase text-[#8899b5] hover:text-white transition-all"
+                  className="flex-1 py-4 bg-transparent border border-white/5 rounded-full text-[10px] font-black uppercase tracking-widest text-[#8899b5] hover:text-white hover:bg-white/5 transition-all"
                 >
-                  Скасувати
+                  СКАСУВАТИ
                 </button>
                 <button
                   onClick={handleCreateTicket}
                   disabled={submitting}
-                  className="flex-1 py-3 bg-cyan-500 text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-1 py-4 bg-[#A855F7] text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:shadow-[0_0_20px_rgba(168,85,247,0.4)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="animate-spin" size={14} /> : <Send size={14} />}
-                  Відправити
+                  ВІДПРАВИТИ
                 </button>
               </div>
             </motion.div>

@@ -31,7 +31,7 @@ const AdminLayout: React.FC = () => {
         const { data, error } = await supabase
           .from('notifications')
           .select('*')
-          .eq('userId', user.uid)
+          .eq('user_id', user.uid)
           .order('created_at', { ascending: false })
           .limit(20);
         if (!error && data) setNotifications(data);

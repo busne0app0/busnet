@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Bus, Tag, Map, Clock, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@busnet/shared/context/LanguageContext';
 import { supabase } from '@busnet/shared/supabase/config';
-import { Trip } from '../../types';
 
 interface BusnetCalendarProps {
   selectedDate: string; // YYYY-MM-DD
@@ -12,33 +11,53 @@ interface BusnetCalendarProps {
   onClose?: () => void;
 }
 
+// ─── Day-of-week helper (UTC noon — same logic as useTrips.ts) ────────────────
+const UA_DAYS = ['НД', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ'] as const;
+
+function getUaDayOfWeek(dateString: string): string {
+  const date = new Date(dateString + 'T12:00:00Z');
+  return UA_DAYS[date.getUTCDay()];
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface DayInfo {
+  count: number;
+  minPrice: number;
+  routes: string[];
+  amenities: string[];
+}
+
+const AMENITY_MAP: Record<string, string> = {
+  wifi: 'Wi-Fi', usb: 'USB', ac: 'Клімат',
+  toilet: 'WC', coffee: 'Кава', tv: 'TV',
+};
+
+const ICON = {
+  bus:   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><circle cx="7" cy="20" r="2"/><circle cx="17" cy="20" r="2"/><path d="M7 8h10M7 12h5"/></svg>,
+  tag:   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
+  map:   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>,
+  clock: <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+};
+
 export default function BusnetCalendar({ selectedDate, onSelect, tripContext, onClose }: BusnetCalendarProps) {
   const { language, t } = useLanguage();
+
   const [currentDate, setCurrentDate] = useState(() => {
     const d = selectedDate ? new Date(selectedDate) : new Date();
-    // Ensure we are at noon to avoid timezone issues during month switching
     d.setHours(12, 0, 0, 0);
     return d;
   });
-  
-  const [monthTrips, setMonthTrips] = useState<Record<number, { count: number; minPrice: number; routes: string[]; amenities: string[] }>>({});
+
+  const [monthTrips, setMonthTrips] = useState<Record<number, DayInfo>>({});
   const [loading, setLoading] = useState(false);
   const [tooltip, setTooltip] = useState<{ day: number; x: number; y: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const curYear = currentDate.getFullYear();
+  const curYear  = currentDate.getFullYear();
   const curMonth = currentDate.getMonth();
 
-  const MONTHS_UK = [
-    'Січень', 'Лютий', 'Березень', 'Квітень',
-    'Травень', 'Червень', 'Липень', 'Серпень',
-    'Вересень', 'Жовтень', 'Листопад', 'Грудень'
-  ];
-  const MONTHS_GEN = [
-    'січня', 'лютого', 'березня', 'квітня',
-    'травня', 'червня', 'липня', 'серпня',
-    'вересня', 'жовтня', 'листопада', 'грудня'
-  ];
-  
+  const MONTHS_UK = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+  const MONTHS_GEN = ['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
   const weekdays = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'НД'];
 
   const plural = (n: number, forms: [string, string, string]) => {
@@ -46,71 +65,87 @@ export default function BusnetCalendar({ selectedDate, onSelect, tripContext, on
     return forms[(n % 100 > 4 && n % 100 < 20) ? 2 : cases[(n % 10 < 5) ? n % 10 : 5]];
   };
 
-  const ICON = {
-    bus: <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><circle cx="7" cy="20" r="2"/><circle cx="17" cy="20" r="2"/><path d="M7 8h10M7 12h5"/></svg>,
-    tag: <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
-    map: <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>,
-    clock: <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-  };
-
-  const AMENITY_MAP: Record<string, string> = {
-    wifi: 'Wi-Fi',
-    usb: 'USB',
-    ac: 'Клімат',
-    toilet: 'WC',
-    coffee: 'Кава',
-    tv: 'TV'
-  };
-
-  // Fetch trips for the current month
+  // ─── Fetch routes from Supabase and compute which days have trips ─────────
   useEffect(() => {
     const fetchMonthData = async () => {
       setLoading(true);
-      const startOfMonth = new Date(curYear, curMonth, 1).toISOString().split('T')[0];
-      const endOfMonth = new Date(curYear, curMonth + 1, 0).toISOString().split('T')[0];
 
       try {
-        let query = supabase
-          .from('trips')
-          .select('*')
-          .eq('status', 'active')
-          .gte('departure_date', startOfMonth)
-          .lte('departure_date', endOfMonth);
+        // Pull all active routes
+        const { data: routes, error } = await supabase
+          .from('routes')
+          .select('id, name, outbound, amenities, currency')
+          .eq('status', 'active');
 
-        // If we have search context, filter trips by route to show relevant dots
-        if (tripContext?.from) {
-          query = query.eq('departure_city', tripContext.from);
-        }
-        if (tripContext?.to) {
-          query = query.eq('arrival_city', tripContext.to);
-        }
-
-        const { data, error } = await query;
         if (error) throw error;
+        if (!routes || routes.length === 0) {
+          setMonthTrips({});
+          return;
+        }
 
-        const tripsData: Record<number, any> = {};
+        const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate();
+        const data: Record<number, DayInfo> = {};
 
-        (data || []).forEach(trip => {
-          const day = new Date(trip.departure_date).getDate();
+        // For each day in the displayed month, check which routes run on that day
+        for (let d = 1; d <= daysInMonth; d++) {
+          const iso = `${curYear}-${String(curMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const uaDay = getUaDayOfWeek(iso);
 
-          if (!tripsData[day]) {
-            tripsData[day] = { count: 0, minPrice: Infinity, routes: [], amenities: [] };
+          for (const route of routes) {
+            const stops: any[] = route.outbound?.stops ?? [];
+            const days: string[] = route.outbound?.days ?? [];
+
+            // Must run on this weekday
+            if (!days.includes(uaDay)) continue;
+
+            const from = tripContext?.from?.trim().toLowerCase() ?? '';
+            const to   = tripContext?.to?.trim().toLowerCase() ?? '';
+
+            let fromIdx = -1;
+            let toIdx   = -1;
+
+            if (from) fromIdx = stops.findIndex(s => s.city?.toLowerCase().includes(from));
+            if (to)   toIdx   = stops.findIndex(s => s.city?.toLowerCase().includes(to));
+
+            // If search context given — both cities must be present in correct order
+            if (from && to) {
+              if (fromIdx === -1 || toIdx === -1 || fromIdx >= toIdx) continue;
+            } else if (from) {
+              if (fromIdx === -1) continue;
+            } else if (to) {
+              if (toIdx === -1) continue;
+            }
+
+            // Determine price: use fromStop price if available, else first priced stop
+            const priceStop = fromIdx !== -1 ? stops[fromIdx] : stops.find(s => s.price > 0);
+            const price: number = priceStop?.price ?? 0;
+
+            // Route label
+            const firstStop = stops[0]?.city ?? '';
+            const lastStop  = stops[stops.length - 1]?.city ?? '';
+            const routeStr  = `${firstStop} → ${lastStop}`;
+
+            if (!data[d]) {
+              data[d] = { count: 0, minPrice: Infinity, routes: [], amenities: [] };
+            }
+
+            data[d].count += 1;
+            if (price > 0) data[d].minPrice = Math.min(data[d].minPrice, price);
+            if (!data[d].routes.includes(routeStr)) data[d].routes.push(routeStr);
+
+            const amenities: string[] = route.amenities ?? [];
+            amenities.forEach(a => {
+              if (!data[d].amenities.includes(a)) data[d].amenities.push(a);
+            });
           }
 
-          tripsData[day].count += 1;
-          tripsData[day].minPrice = Math.min(tripsData[day].minPrice, trip.price);
-          const routeStr = `${trip.departure_city} → ${trip.arrival_city}`;
-          if (!tripsData[day].routes.includes(routeStr)) {
-            tripsData[day].routes.push(routeStr);
-          }
-          trip.amenities?.forEach((a: string) => {
-            if (!tripsData[day].amenities.includes(a)) tripsData[day].amenities.push(a);
-          });
-        });
+          // Clean up Infinity
+          if (data[d] && data[d].minPrice === Infinity) data[d].minPrice = 0;
+        }
 
-        setMonthTrips(tripsData);
+        setMonthTrips(data);
       } catch (err) {
-        console.error("Error fetching calendar data:", err);
+        console.error('[BusnetCalendar] Error fetching calendar data:', err);
       } finally {
         setLoading(false);
       }
@@ -119,63 +154,38 @@ export default function BusnetCalendar({ selectedDate, onSelect, tripContext, on
     fetchMonthData();
   }, [curYear, curMonth, tripContext?.from, tripContext?.to]);
 
-  const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate();
+  // ─── Grid cells ───────────────────────────────────────────────────────────
+  const daysInMonth     = new Date(curYear, curMonth + 1, 0).getDate();
   const firstDayOfMonth = new Date(curYear, curMonth, 1).getDay();
-  const offset = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
+  const offset          = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
   const daysInPrevMonth = new Date(curYear, curMonth, 0).getDate();
-
-  const handlePrevMonth = () => {
-    setCurrentDate(new Date(curYear, curMonth - 1, 15));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentDate(new Date(curYear, curMonth + 1, 15));
-  };
-
-  const handleToday = () => {
-    setCurrentDate(new Date());
-  };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const cells = useMemo(() => {
-    const items = [];
-    
-    // Prev month filler
+    const items: any[] = [];
+
     for (let i = 0; i < offset; i++) {
-      items.push({ 
-        day: daysInPrevMonth - offset + 1 + i, 
-        type: 'other', 
-        key: `prev-${i}` 
-      });
+      items.push({ day: daysInPrevMonth - offset + 1 + i, type: 'other', key: `prev-${i}` });
     }
 
-    // Current month
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${curYear}-${String(curMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const dt = new Date(curYear, curMonth, d);
-      dt.setHours(0,0,0,0);
-      
+      dt.setHours(0, 0, 0, 0);
       items.push({
-        day: d,
-        type: 'current',
-        date: dateStr,
+        day: d, type: 'current', date: dateStr,
         isToday: dt.getTime() === today.getTime(),
         trip: monthTrips[d] || null,
-        key: `curr-${d}`
+        key: `curr-${d}`,
       });
     }
 
-    // Next month filler
     const total = offset + daysInMonth;
-    const tail = total % 7 === 0 ? 0 : 7 - (total % 7);
+    const tail  = total % 7 === 0 ? 0 : 7 - (total % 7);
     for (let i = 1; i <= tail; i++) {
-      items.push({ 
-        day: i, 
-        type: 'other', 
-        key: `next-${i}` 
-      });
+      items.push({ day: i, type: 'other', key: `next-${i}` });
     }
 
     return items;
@@ -186,12 +196,11 @@ export default function BusnetCalendar({ selectedDate, onSelect, tripContext, on
     if (onClose) onClose();
   };
 
-  const containerRef = useRef<HTMLDivElement>(null);
-
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="cal-wrapper select-none w-full max-w-[340px] sm:max-w-[420px]" ref={containerRef}>
       <div className="bg-[#0e1420] border border-white/10 rounded-[24px] p-5 shadow-[0_24px_48px_rgba(0,0,0,0.5)] overflow-hidden relative backdrop-blur-3xl">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex flex-col gap-0.5">
@@ -200,27 +209,30 @@ export default function BusnetCalendar({ selectedDate, onSelect, tripContext, on
             </div>
             <div className="text-slate-500 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan shadow-[0_0_8px_#00D4FF]" />
-              {Object.keys(monthTrips).length} {plural(Object.keys(monthTrips).length, ['день', 'дні', 'днів'])} з рейсами
+              {loading
+                ? 'Завантаження...'
+                : `${Object.keys(monthTrips).length} ${plural(Object.keys(monthTrips).length, ['день', 'дні', 'днів'])} з рейсами`
+              }
             </div>
           </div>
           <div className="flex gap-2">
-            <button 
-              onClick={handlePrevMonth}
+            <button
+              onClick={() => setCurrentDate(new Date(curYear, curMonth - 1, 15))}
               className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-95"
             >
-              <ChevronLeft size={18} />
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
-            <button 
-              onClick={handleToday}
+            <button
+              onClick={() => setCurrentDate(new Date())}
               className="px-3 h-10 rounded-xl bg-neon-cyan/10 border border-neon-cyan/20 flex items-center justify-center text-neon-cyan text-[10px] font-black uppercase tracking-widest hover:bg-neon-cyan/20 transition-all active:scale-95"
             >
-              {t.search.today}
+              {t?.search?.today || 'СЬОГОДНІ'}
             </button>
-            <button 
-              onClick={handleNextMonth}
+            <button
+              onClick={() => setCurrentDate(new Date(curYear, curMonth + 1, 15))}
               className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-95"
             >
-              <ChevronRight size={18} />
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
           </div>
         </div>
@@ -247,20 +259,20 @@ export default function BusnetCalendar({ selectedDate, onSelect, tripContext, on
             >
               {cells.map((cell) => {
                 const isSelected = selectedDate === cell.date;
-                const hasTrip = !!cell.trip;
-                
+                const hasTrip    = !!cell.trip;
+
                 return (
-                  <div 
+                  <div
                     key={cell.key}
                     onMouseEnter={(e) => {
                       if (cell.trip) {
                         const rect = e.currentTarget.getBoundingClientRect();
                         const containerRect = containerRef.current?.getBoundingClientRect();
                         if (containerRect) {
-                          setTooltip({ 
-                            day: cell.day!, 
-                            x: rect.left - containerRect.left + rect.width / 2, 
-                            y: rect.top - containerRect.top + rect.height + 8
+                          setTooltip({
+                            day: cell.day!,
+                            x: rect.left - containerRect.left + rect.width / 2,
+                            y: rect.top - containerRect.top + rect.height + 8,
                           });
                         }
                       }
@@ -286,7 +298,7 @@ export default function BusnetCalendar({ selectedDate, onSelect, tripContext, on
                       {cell.day}
                     </span>
 
-                    {/* Indicators */}
+                    {/* Dot indicator */}
                     <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-0.5">
                       {hasTrip && <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-neon-cyan'}`} />}
                       {cell.isToday && !hasTrip && <div className="w-1 h-1 rounded-full bg-slate-500" />}
@@ -317,11 +329,7 @@ export default function BusnetCalendar({ selectedDate, onSelect, tripContext, on
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 5, scale: 0.95 }}
-              style={{ 
-                left: tooltip.x, 
-                top: tooltip.y,
-                transform: 'translateX(-50%)'
-              }}
+              style={{ left: tooltip.x, top: tooltip.y, transform: 'translateX(-50%)' }}
               className="absolute z-[100] w-[220px] bg-[#0a0f1a] border border-white/10 rounded-2xl p-4 shadow-2xl backdrop-blur-2xl pointer-events-none"
             >
               <div className="flex items-center justify-between mb-4">
@@ -329,27 +337,31 @@ export default function BusnetCalendar({ selectedDate, onSelect, tripContext, on
                   {tooltip.day} {MONTHS_GEN[curMonth]}
                 </div>
                 <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-neon-cyan/10 border border-neon-cyan/20">
-                   <div className="w-1 h-1 rounded-full bg-neon-cyan animate-pulse" />
-                   <span className="text-neon-cyan text-[8px] font-black uppercase tracking-wider">ACTIVE</span>
+                  <div className="w-1 h-1 rounded-full bg-neon-cyan animate-pulse" />
+                  <span className="text-neon-cyan text-[8px] font-black uppercase tracking-wider">ACTIVE</span>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-2.5 text-[#5a6a85]">
+                  <div className="flex items-center gap-2.5 text-[#5a6a85]">
                     <span className="text-neon-cyan/60">{ICON.bus}</span>
                     <span className="text-[9px] font-black uppercase tracking-widest">Рейсів знайдено</span>
                   </div>
                   <div className="text-white font-black text-xs italic">{monthTrips[tooltip.day].count}</div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5 text-[#5a6a85]">
-                    <span className="text-neon-cyan/60">{ICON.tag}</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest">Найнижча ціна</span>
+                {monthTrips[tooltip.day].minPrice > 0 && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 text-[#5a6a85]">
+                      <span className="text-neon-cyan/60">{ICON.tag}</span>
+                      <span className="text-[9px] font-black uppercase tracking-widest">Найнижча ціна</span>
+                    </div>
+                    <div className="text-emerald-400 font-black text-xs italic">
+                      {monthTrips[tooltip.day].minPrice} ГРН
+                    </div>
                   </div>
-                  <div className="text-emerald-400 font-black text-xs italic">€{monthTrips[tooltip.day].minPrice}</div>
-                </div>
+                )}
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5 text-[#5a6a85]">
@@ -371,13 +383,15 @@ export default function BusnetCalendar({ selectedDate, onSelect, tripContext, on
                         </span>
                       ))}
                       {monthTrips[tooltip.day].routes.length > 4 && (
-                        <span className="text-[8px] font-black text-neon-cyan uppercase">+{monthTrips[tooltip.day].routes.length - 4} MORE</span>
+                        <span className="text-[8px] font-black text-neon-cyan uppercase">
+                          +{monthTrips[tooltip.day].routes.length - 4} MORE
+                        </span>
                       )}
                     </div>
                   </>
                 )}
 
-                {monthTrips[tooltip.day].amenities?.length > 0 && (
+                {monthTrips[tooltip.day].amenities.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {monthTrips[tooltip.day].amenities.slice(0, 4).map((a, i) => (
                       <span key={i} className="px-1.5 py-0.5 rounded-md bg-neon-cyan/5 text-neon-cyan text-[8px] font-bold uppercase border border-neon-cyan/10">
@@ -394,3 +408,4 @@ export default function BusnetCalendar({ selectedDate, onSelect, tripContext, on
     </div>
   );
 }
+

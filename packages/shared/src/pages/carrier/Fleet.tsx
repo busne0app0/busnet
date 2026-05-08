@@ -96,18 +96,21 @@ export default function Fleet() {
   const maintenanceCount = buses.filter(b => b.status === 'maintenance').length;
   
   return (
-    <div className="space-y-8 pb-12 relative">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8 pb-12 relative animate-in fade-in duration-700">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-2">
         <div>
-          <h2 className="font-syne font-black text-3xl italic tracking-tighter uppercase text-white">Мій автопарк</h2>
-          <p className="text-[#5a6a85] text-sm font-medium mt-1 uppercase tracking-widest">Управління транспортними засобами вашої компанії</p>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-1.5 h-6 bg-[#F97316] shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
+            <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white">МІЙ АВТОПАРК</h2>
+          </div>
+          <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest ml-4">Управління транспортними засобами вашої компанії</p>
         </div>
         <button 
           onClick={() => setIsAddingModalOpen(true)}
-          className="px-6 py-2 bg-gradient-to-r from-[#ff6b35] to-[#cc3300] text-white rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+          className="px-8 py-3.5 bg-[#F97316] text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(249,115,22,0.4)] hover:scale-105 transition-all flex items-center justify-center gap-2"
         >
           <Plus size={16} /> 
-          Додати автобус
+          ДОДАТИ АВТОБУС
         </button>
       </div>
 
@@ -213,31 +216,31 @@ export default function Fleet() {
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: 'Всього автобусів', val: buses.length.toString(), icon: BusIcon, color: 'text-orange-500' },
-          { label: 'Активних', val: activeCount.toString(), icon: CheckCircle2, color: 'text-emerald-500' },
-          { label: 'На техобслуговуванні', val: maintenanceCount.toString(), icon: Wrench, color: 'text-amber-500' },
-          { label: 'Справність парку', val: buses.length > 0 ? `${Math.round((activeCount / buses.length) * 100)}%` : '0%', icon: Settings, color: 'text-cyan-500' },
+          { label: 'ВСЬОГО АВТОБУСІВ', val: buses.length.toString(), icon: BusIcon, color: 'text-white' },
+          { label: 'АКТИВНИХ', val: activeCount.toString(), icon: CheckCircle2, color: 'text-white' },
+          { label: 'НА ТЕХОБСЛУГОВУВАННІ', val: maintenanceCount.toString(), icon: Wrench, color: 'text-white' },
+          { label: 'СПРАВНІСТЬ ПАРКУ', val: buses.length > 0 ? `${Math.round((activeCount / buses.length) * 100)}%` : '0%', icon: Settings, color: 'text-white' },
         ].map((stat, i) => (
-          <div key={i} className="bg-[#1a2235] border border-white/5 rounded-[32px] p-6 relative overflow-hidden">
-             <p className="text-[10px] font-black text-[#5a6a85] uppercase tracking-widest">{stat.label}</p>
-             <h3 className="font-syne font-black text-2xl text-white italic tracking-tighter mt-1">{stat.val}</h3>
-             <stat.icon size={48} className={`absolute -right-2 -bottom-2 opacity-[0.03] ${stat.color}`} />
+          <div key={i} className="bg-[#1A2639]/30 border border-white/5 rounded-[24px] p-6 relative overflow-hidden flex flex-col justify-center min-h-[120px]">
+             <p className="text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">{stat.label}</p>
+             <h3 className="font-syne font-black text-3xl text-white italic tracking-tighter mt-2">{stat.val}</h3>
+             <stat.icon size={80} strokeWidth={1} className={`absolute -right-6 -bottom-6 opacity-[0.03] ${stat.color}`} />
           </div>
         ))}
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {loading ? (
-          <div className="py-20 text-center">
-             <Loader2 size={48} className="animate-spin text-[#ff6b35] mx-auto mb-4" />
-             <p className="text-[#5a6a85] text-xs font-black uppercase tracking-widest">Завантаження автопарку...</p>
+          <div className="py-32 text-center border border-dashed border-white/10 rounded-[32px] bg-[#0B1221] flex flex-col items-center justify-center">
+             <Loader2 size={48} className="animate-spin text-[#F97316] mx-auto mb-6" />
+             <p className="text-[#5A6A85] text-[11px] font-black uppercase tracking-widest">ЗАВАНТАЖЕННЯ АВТОПАРКУ...</p>
           </div>
         ) : buses.length === 0 ? (
-          <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-[40px]">
-             <BusIcon size={48} className="text-[#5a6a85] mx-auto mb-4 opacity-20" />
-             <p className="text-[#5a6a85] text-xs font-black uppercase tracking-widest">Автопарк порожній</p>
+          <div className="py-32 text-center border border-dashed border-white/10 rounded-[32px] bg-[#0B1221] flex flex-col items-center justify-center">
+             <BusIcon size={64} className="text-[#1A2639] mx-auto mb-6" />
+             <p className="text-[#5A6A85] text-[11px] font-black uppercase tracking-widest">АВТОПАРК ПОРОЖНІЙ</p>
           </div>
         ) : buses.map((bus, idx) => (
           <motion.div
@@ -312,14 +315,14 @@ export default function Fleet() {
         ))}
 
         <button 
-          onClick={handleAddBus}
+          onClick={() => setIsAddingModalOpen(true)}
           disabled={isAdding}
-          className="w-full py-8 border-2 border-dashed border-white/5 rounded-[32px] text-[#5a6a85] hover:text-[#ff6b35] hover:border-[#ff6b35]/20 hover:bg-[#ff6b35]/5 transition-all text-xs font-black uppercase tracking-widest flex flex-col items-center gap-3 group disabled:opacity-50"
+          className="w-full py-10 border border-dashed border-white/10 rounded-[32px] bg-[#0B1221] text-[#5A6A85] hover:text-white hover:border-white/20 transition-all text-[11px] font-black uppercase tracking-widest flex flex-col items-center gap-4 group disabled:opacity-50"
         >
-           <div className="w-12 h-12 rounded-full bg-white/[0.02] flex items-center justify-center group-hover:scale-110 transition-transform">
-              {isAdding ? <Loader2 size={24} className="animate-spin" /> : <Plus size={24} />}
+           <div className="w-12 h-12 rounded-full bg-[#1A2639] flex items-center justify-center group-hover:bg-[#1A2639]/80 transition-colors">
+              {isAdding ? <Loader2 size={16} className="animate-spin" /> : <Plus size={20} className="text-white" />}
            </div>
-           Додати ще один транспортний засіб
+           ДОДАТИ ЩЕ ОДИН ТРАНСПОРТНИЙ ЗАСІБ
         </button>
       </div>
     </div>

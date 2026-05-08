@@ -7,6 +7,7 @@ export interface City {
   };
   countryCode: string;
   popular?: boolean;
+  fromDb?: boolean;
 }
 
 export const cities: City[] = [

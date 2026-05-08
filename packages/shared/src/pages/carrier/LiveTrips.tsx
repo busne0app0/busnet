@@ -23,7 +23,7 @@ export default function LiveTrips() {
       const { data, error } = await supabase
         .from('trips')
         .select('*')
-        .eq('carrierId', user.uid)
+        .eq('carrier_id', user.uid)
         .in('status', ['active', 'in_progress']);
       
       if (!error && data) {

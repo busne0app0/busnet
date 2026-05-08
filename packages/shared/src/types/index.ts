@@ -31,20 +31,28 @@ export interface SearchParams {
 
 export interface Trip {
   id: string;
+  routeId?: string;
   carrierId: string;
   carrierName: string;
   from: string;
   to: string;
   departureCity?: string;
+  departure_city?: string;
   arrivalCity?: string;
+  arrival_city?: string;
   departureTime: string;
+  departure_time?: string;
   departureDate?: string;
+  departure_date?: string;
   date?: string; // YYYY-MM-DD
   arrivalTime: string;
+  arrival_time?: string;
   price: number;
+  price_eur?: number;
+  carrier_id?: string;
   currency?: string;
   availableSeats: number;
-  totalSeats: number;
+  totalSeats?: number;
   seatsTotal?: number;
   seatsBooked?: number;
   busInfo: string;
@@ -52,6 +60,9 @@ export interface Trip {
   driverId?: string;
   amenities: string[];
   status?: string;
+  name?: string;
+  operator?: string;
+  stops?: any[];
 }
 
 export interface Booking {

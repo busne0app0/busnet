@@ -53,7 +53,7 @@ const DocsTab: React.FC = () => {
       const { data, error } = await supabase
         .from('carrier_documents')
         .select('*')
-        .eq('carrierId', user.uid);
+        .eq('carrier_id', user.uid);
       
       if (!error && data) {
         setDocuments((data as any[]).sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)));
@@ -188,125 +188,123 @@ const DocsTab: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-2 h-6 bg-cyan-500 rounded-full" />
-            <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white font-syne">ПАКЕТ ДОКУМЕНТІВ</h2>
-          </div>
-          <p className="text-[#5a6a85] text-sm font-medium tracking-wide ml-5 uppercase tracking-widest">Ліцензії, договори та юридичні документи</p>
+          <div className="w-12 h-1 bg-[#10B981] mb-4 shadow-[0_0_10px_rgba(16,185,129,0.5)] rounded-full" />
+          <h2 className="text-3xl font-black uppercase tracking-widest text-white">ПАКЕТ ДОКУМЕНТІВ</h2>
+          <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest mt-2">Ліцензії, договори та юридичні документи</p>
         </div>
         <button
           onClick={() => setShowUploadModal(true)}
-          className="px-8 py-3 bg-[#00c8ff] text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-white transition-all shadow-lg flex items-center gap-2"
+          className="px-6 py-3 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-[#10B981] hover:text-white hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all flex items-center justify-center gap-2"
         >
-          <Upload size={14} /> Завантажити документ
+          <Upload size={16} strokeWidth={2.5} /> ЗАВАНТАЖИТИ ДОКУМЕНТ
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <div className="bg-[#111520] border border-cyan-500/20 p-6 rounded-3xl">
-          <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 mb-4"><ShieldCheck size={20} /></div>
-          <p className="text-[9px] font-black uppercase text-[#5a6a85] tracking-widest mb-1">Верифікація</p>
-          <h4 className="text-sm font-bold text-white">{verifiedCount > 0 ? 'Пройдена' : 'Не пройдена'}</h4>
+        <div className="bg-[#1A2639]/30 border border-[#10B981]/20 p-6 rounded-[32px] group hover:bg-[#1A2639]/50 transition-colors">
+          <div className="w-10 h-10 rounded-full bg-[#10B981]/10 flex items-center justify-center text-[#10B981] mb-4 border border-[#10B981]/20"><ShieldCheck size={20} /></div>
+          <p className="text-[9px] font-black uppercase text-[#5A6A85] tracking-widest mb-1">ВЕРИФІКАЦІЯ</p>
+          <h4 className="text-lg font-black text-white tracking-widest">{verifiedCount > 0 ? 'ПРОЙДЕНА' : 'НЕ ПРОЙДЕНА'}</h4>
         </div>
-        <div className="bg-[#111520] border border-white/5 p-6 rounded-3xl">
-          <div className="w-10 h-10 rounded-xl bg-[#00e676]/10 flex items-center justify-center text-[#00e676] mb-4"><CheckCircle2 size={20} /></div>
-          <p className="text-[9px] font-black uppercase text-[#5a6a85] tracking-widest mb-1">Верифіковані</p>
-          <h4 className="text-sm font-bold text-white">{String(verifiedCount).padStart(2, '0')} документи</h4>
+        <div className="bg-[#1A2639]/30 border border-white/5 p-6 rounded-[32px] group hover:bg-[#1A2639]/50 transition-colors">
+          <div className="w-10 h-10 rounded-full bg-[#10B981]/10 flex items-center justify-center text-[#10B981] mb-4 border border-[#10B981]/20"><CheckCircle2 size={20} /></div>
+          <p className="text-[9px] font-black uppercase text-[#5A6A85] tracking-widest mb-1">ВЕРИФІКОВАНІ</p>
+          <h4 className="text-lg font-black text-white tracking-widest">{String(verifiedCount).padStart(2, '0')} ДОКУМЕНТИ</h4>
         </div>
-        <div className="bg-[#111520] border border-white/5 p-6 rounded-3xl">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 mb-4"><Clock size={20} /></div>
-          <p className="text-[9px] font-black uppercase text-[#5a6a85] tracking-widest mb-1">На перевірці</p>
-          <h4 className="text-sm font-bold text-white">{String(pendingCount).padStart(2, '0')} документи</h4>
+        <div className="bg-[#1A2639]/30 border border-white/5 p-6 rounded-[32px] group hover:bg-[#1A2639]/50 transition-colors">
+          <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-400 mb-4 border border-amber-500/20"><Clock size={20} /></div>
+          <p className="text-[9px] font-black uppercase text-[#5A6A85] tracking-widest mb-1">НА ПЕРЕВІРЦІ</p>
+          <h4 className="text-lg font-black text-white tracking-widest">{String(pendingCount).padStart(2, '0')} ДОКУМЕНТИ</h4>
         </div>
-        <div className="bg-[#111520] border border-white/5 p-6 rounded-3xl">
-          <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-400 mb-4"><AlertCircle size={20} /></div>
-          <p className="text-[9px] font-black uppercase text-[#5a6a85] tracking-widest mb-1">Потребують уваги</p>
-          <h4 className="text-sm font-bold text-white">{String(warningCount).padStart(2, '0')} документи</h4>
+        <div className="bg-[#1A2639]/30 border border-white/5 p-6 rounded-[32px] group hover:bg-[#1A2639]/50 transition-colors">
+          <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-400 mb-4 border border-orange-500/20"><AlertCircle size={20} /></div>
+          <p className="text-[9px] font-black uppercase text-[#5A6A85] tracking-widest mb-1">ПОТРЕБУЮТЬ УВАГИ</p>
+          <h4 className="text-lg font-black text-white tracking-widest">{String(warningCount).padStart(2, '0')} ДОКУМЕНТИ</h4>
         </div>
       </div>
 
       {/* Documents table */}
-      <div className="bg-[#111520] border border-white/5 rounded-[40px] overflow-hidden">
+      <div className="bg-transparent overflow-hidden">
         {loading ? (
           <div className="p-12 flex items-center justify-center">
-            <Loader2 className="animate-spin text-cyan-400" size={32} />
+            <Loader2 className="animate-spin text-[#10B981]" size={32} />
           </div>
         ) : documents.length === 0 ? (
-          <div className="p-12 text-center">
-            <FileIcon className="mx-auto mb-4 text-[#3d5670]" size={48} />
-            <p className="text-[#5a6a85] font-bold uppercase tracking-widest text-sm mb-2">Документи не завантажені</p>
-            <p className="text-[#3d5670] text-xs mb-6">Завантажте ліцензії та юридичні документи для верифікації</p>
+          <div className="p-12 text-center bg-[#1A2639]/30 border border-white/5 rounded-[40px]">
+            <FileIcon className="mx-auto mb-4 text-[#5A6A85] opacity-20" size={64} />
+            <p className="text-[#8899B5] font-black uppercase tracking-widest text-[12px] mb-2">ДОКУМЕНТИ НЕ ЗАВАНТАЖЕНІ</p>
+            <p className="text-[#5A6A85] text-[10px] font-bold uppercase tracking-widest mb-6">Завантажте ліцензії та юридичні документи для верифікації</p>
             <button
               onClick={() => setShowUploadModal(true)}
-              className="px-6 py-3 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-cyan-500/20 transition-all"
+              className="px-6 py-3 bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981] rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-[#10B981]/20 transition-all shadow-lg"
             >
-              <Upload size={14} className="inline mr-2" />Завантажити перший документ
+              <Upload size={14} className="inline mr-2" />ЗАВАНТАЖИТИ ПЕРШИЙ ДОКУМЕНТ
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-[800px] w-full text-left">
+          <div className="overflow-x-auto scrollbar-hide">
+            <table className="min-w-[900px] w-full text-left border-separate border-spacing-y-2">
               <thead>
-                <tr className="bg-white/[0.02] border-b border-white/5">
-                  <th className="py-4 px-8 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Назва</th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Формат</th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Завантажено</th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Термін дії</th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Статус</th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Дії</th>
+                <tr className="bg-[#1A2639]/30">
+                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest rounded-l-full">НАЗВА</th>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">ФОРМАТ</th>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">ЗАВАНТАЖЕНО</th>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">ТЕРМІН ДІЇ</th>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">СТАТУС</th>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest text-right rounded-r-full">ДІЇ</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody>
                 {documents.map((docItem) => (
-                  <tr key={docItem.id} className="group hover:bg-white/[0.01] transition-all">
-                    <td className="py-5 px-8">
+                  <tr key={docItem.id} className="bg-[#1A2639]/30 hover:bg-[#1A2639]/50 transition-colors group">
+                    <td className="py-4 px-6 rounded-l-[16px]">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
-                          <FileIcon size={18} />
+                        <div className="w-10 h-10 rounded-full bg-[#10B981]/10 border border-[#10B981]/20 flex items-center justify-center text-[#10B981] shrink-0">
+                          <FileIcon size={16} />
                         </div>
-                        <p className="text-sm font-bold text-white">{docItem.name}</p>
+                        <p className="text-[12px] font-bold text-white uppercase tracking-widest">{docItem.name}</p>
                       </div>
                     </td>
-                    <td className="py-5 px-6">
-                      <span className="px-2 py-1 bg-white/5 rounded-lg text-[10px] font-black text-[#8899b5] uppercase">
+                    <td className="py-4 px-6">
+                      <span className="px-3 py-1 bg-white/5 rounded-full text-[9px] font-black text-[#8899B5] uppercase tracking-widest">
                         {docItem.type} · {docItem.size}
                       </span>
                     </td>
-                    <td className="py-5 px-6 text-xs font-bold text-[#5a6a85] uppercase">{docItem.uploadedAt}</td>
-                    <td className="py-5 px-6 text-xs font-bold text-[#5a6a85]">{docItem.expiryDate || '—'}</td>
-                    <td className="py-5 px-6">
-                      <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[9px] font-black uppercase ${STATUS_MAP[docItem.status]?.color || STATUS_MAP.pending.color}`}>
+                    <td className="py-4 px-6 text-[10px] font-black text-[#5A6A85] uppercase tracking-widest">{docItem.uploadedAt}</td>
+                    <td className="py-4 px-6 text-[10px] font-black text-[#5A6A85] uppercase tracking-widest">{docItem.expiryDate || '—'}</td>
+                    <td className="py-4 px-6">
+                      <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest ${STATUS_MAP[docItem.status]?.color || STATUS_MAP.pending.color}`}>
                         {STATUS_MAP[docItem.status]?.icon}
                         {STATUS_MAP[docItem.status]?.label}
                       </div>
                     </td>
-                    <td className="py-5 px-6">
-                      <div className="flex items-center gap-2">
+                    <td className="py-4 px-6 text-right rounded-r-[16px]">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <a
                           href={docItem.downloadUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-2 rounded-xl text-[#3d5670] hover:text-cyan-400 hover:bg-cyan-500/10 transition-all"
+                          className="p-2.5 rounded-full text-[#8899B5] bg-white/[0.03] hover:text-[#10B981] hover:bg-[#10B981]/10 transition-all shadow-lg border border-white/5 hover:border-[#10B981]/20"
                           title="Переглянути"
                         >
-                          <Eye size={16} />
+                          <Eye size={14} />
                         </a>
                         <a
                           href={docItem.downloadUrl}
                           download
-                          className="p-2 rounded-xl text-[#3d5670] hover:text-[#00e676] hover:bg-[#00e676]/10 transition-all"
+                          className="p-2.5 rounded-full text-[#8899B5] bg-white/[0.03] hover:text-[#0EA5E9] hover:bg-[#0EA5E9]/10 transition-all shadow-lg border border-white/5 hover:border-[#0EA5E9]/20"
                           title="Завантажити"
                         >
-                          <Download size={16} />
+                          <Download size={14} />
                         </a>
                         <button
                           onClick={() => handleDelete(docItem)}
                           disabled={deletingId === docItem.id}
-                          className="p-2 rounded-xl text-[#3d5670] hover:text-rose-400 hover:bg-rose-500/10 transition-all disabled:opacity-40"
+                          className="p-2.5 rounded-full text-rose-500 bg-rose-500/5 hover:text-white hover:bg-rose-500 transition-all disabled:opacity-40 shadow-lg border border-rose-500/10"
                           title="Видалити"
                         >
-                          {deletingId === docItem.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                          {deletingId === docItem.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                         </button>
                       </div>
                     </td>
@@ -332,12 +330,12 @@ const DocsTab: React.FC = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#111520] border border-white/10 rounded-[40px] p-10 w-full max-w-md space-y-6"
+              className="bg-[#0B1221] border border-[#10B981]/20 rounded-[40px] p-10 w-full max-w-md space-y-6 shadow-[0_0_30px_rgba(16,185,129,0.1)] relative"
             >
               <div className="flex justify-between items-center">
-                <h3 className="text-xl font-black uppercase italic tracking-tighter text-white">Завантажити документ</h3>
+                <h3 className="text-xl font-black uppercase tracking-widest text-white">ЗАВАНТАЖИТИ ДОКУМЕНТ</h3>
                 {!uploading && (
-                  <button onClick={() => setShowUploadModal(false)} className="w-8 h-8 rounded-xl bg-white/5 text-[#5a6a85] hover:text-white transition-colors flex items-center justify-center">
+                  <button onClick={() => setShowUploadModal(false)} className="w-8 h-8 rounded-full bg-white/5 text-[#5A6A85] hover:text-white transition-colors flex items-center justify-center">
                     <X size={18} />
                   </button>
                 )}
@@ -346,29 +344,29 @@ const DocsTab: React.FC = () => {
               {/* Drop zone */}
               <div
                 onClick={() => !uploading && fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-3xl p-8 text-center cursor-pointer transition-all ${selectedFile ? 'border-cyan-500/50 bg-cyan-500/5' : 'border-white/10 hover:border-cyan-500/30 hover:bg-cyan-500/5'} ${uploading ? 'pointer-events-none' : ''}`}
+                className={`border-2 border-dashed rounded-[32px] p-8 text-center cursor-pointer transition-all ${selectedFile ? 'border-[#10B981]/50 bg-[#10B981]/5' : 'border-white/10 hover:border-[#10B981]/30 hover:bg-[#10B981]/5'} ${uploading ? 'pointer-events-none' : ''}`}
               >
                 {uploading ? (
                   <div className="space-y-3">
-                    <Loader2 className="mx-auto animate-spin text-cyan-400" size={32} />
-                    <p className="text-sm font-bold text-white">{uploadingFileName}</p>
+                    <Loader2 className="mx-auto animate-spin text-[#10B981]" size={32} />
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white">{uploadingFileName}</p>
                     <div className="w-full bg-white/5 rounded-full h-2">
-                      <div className="bg-cyan-500 h-2 rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
+                      <div className="bg-[#10B981] h-2 rounded-full transition-all shadow-[0_0_10px_rgba(16,185,129,0.5)]" style={{ width: `${uploadProgress}%` }} />
                     </div>
-                    <p className="text-cyan-400 font-black text-sm">{uploadProgress}%</p>
+                    <p className="text-[#10B981] font-black text-[10px] uppercase">{uploadProgress}%</p>
                   </div>
                 ) : selectedFile ? (
                   <div className="space-y-2">
-                    <CheckCircle2 className="mx-auto text-cyan-400" size={32} />
-                    <p className="text-sm font-bold text-white">{selectedFile.name}</p>
-                    <p className="text-xs text-[#5a6a85]">{(selectedFile.size / 1024 / 1024).toFixed(2)} МБ</p>
-                    <p className="text-[10px] text-cyan-400 font-bold uppercase">Натисніть щоб замінити</p>
+                    <CheckCircle2 className="mx-auto text-[#10B981]" size={32} />
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white truncate px-4">{selectedFile.name}</p>
+                    <p className="text-[9px] font-black tracking-widest text-[#5A6A85]">{(selectedFile.size / 1024 / 1024).toFixed(2)} МБ</p>
+                    <p className="text-[9px] text-[#10B981] font-black uppercase tracking-widest">НАТИСНІТЬ ЩОБ ЗАМІНИТИ</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <Upload className="mx-auto text-[#3d5670]" size={32} />
-                    <p className="text-sm font-bold text-[#8899b5]">Натисніть або перетягніть файл</p>
-                    <p className="text-[10px] text-[#3d5670] uppercase font-bold">PDF, JPG, PNG, ZIP · До {MAX_SIZE_MB} МБ</p>
+                    <Upload className="mx-auto text-[#5A6A85] opacity-50" size={32} />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[#8899B5]">НАТИСНІТЬ АБО ПЕРЕТЯГНІТЬ ФАЙЛ</p>
+                    <p className="text-[9px] text-[#5A6A85] uppercase font-bold tracking-widest">PDF, JPG, PNG, ZIP · ДО {MAX_SIZE_MB} МБ</p>
                   </div>
                 )}
               </div>
@@ -378,23 +376,23 @@ const DocsTab: React.FC = () => {
 
               {/* Doc name */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-[#5a6a85] uppercase tracking-widest">Назва документа *</label>
+                <label className="text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">НАЗВА ДОКУМЕНТА *</label>
                 <input
                   value={docName}
                   onChange={(e) => setDocName(e.target.value)}
                   placeholder="напр. Ліцензія на перевезення"
-                  className="w-full bg-black/20 border border-white/5 rounded-2xl py-3 px-5 text-sm font-medium text-white outline-none focus:border-cyan-500 transition-all"
+                  className="w-full bg-black/20 border border-white/5 rounded-2xl py-3 px-5 text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-[#10B981] transition-all"
                 />
               </div>
 
               {/* Expiry date */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-[#5a6a85] uppercase tracking-widest">Термін дії (необов'язково)</label>
+                <label className="text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">ТЕРМІН ДІЇ (НЕОБОВ'ЯЗКОВО)</label>
                 <input
                   type="date"
                   value={docExpiry}
                   onChange={(e) => setDocExpiry(e.target.value)}
-                  className="w-full bg-black/20 border border-white/5 rounded-2xl py-3 px-5 text-sm font-medium text-white outline-none focus:border-cyan-500 transition-all"
+                  className="w-full bg-black/20 border border-white/5 rounded-2xl py-3 px-5 text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-[#10B981] transition-all"
                 />
               </div>
 
@@ -402,17 +400,17 @@ const DocsTab: React.FC = () => {
                 <button
                   onClick={() => !uploading && setShowUploadModal(false)}
                   disabled={uploading}
-                  className="flex-1 py-3 bg-white/5 border border-white/5 rounded-2xl text-[10px] font-black uppercase text-[#8899b5] hover:text-white transition-all disabled:opacity-40"
+                  className="flex-1 py-4 bg-transparent border border-white/5 rounded-full text-[10px] font-black uppercase tracking-widest text-[#8899B5] hover:text-white hover:bg-white/5 transition-all disabled:opacity-40"
                 >
-                  Скасувати
+                  СКАСУВАТИ
                 </button>
                 <button
                   onClick={handleUpload}
                   disabled={!selectedFile || !docName.trim() || uploading}
-                  className="flex-1 py-3 bg-[#00c8ff] text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex-1 py-4 bg-[#10B981] text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {uploading ? <Loader2 className="animate-spin" size={14} /> : <Upload size={14} />}
-                  {uploading ? `${uploadProgress}%` : 'Завантажити'}
+                  {uploading ? `${uploadProgress}%` : 'ЗАВАНТАЖИТИ'}
                 </button>
               </div>
             </motion.div>

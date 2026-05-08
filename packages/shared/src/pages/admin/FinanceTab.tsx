@@ -40,7 +40,7 @@ const FinanceTab: React.FC = () => {
       const { data, error } = await supabase
         .from('bookings')
         .select('*')
-        .order('createdAt', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(6);
       if (!error && data) {
         setRecentTx(data.map(d => ({

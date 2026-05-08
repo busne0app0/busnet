@@ -21,10 +21,10 @@ const AgentsTab: React.FC = () => {
       if (error) {
         console.error('Error fetching agents:', error);
       } else if (isMounted) {
-        const { data: bData } = await supabase.from('bookings').select('userId, totalPrice');
+        const { data: bData } = await supabase.from('bookings').select('user_id, total_price');
         const enriched = (agentsData || []).map(a => {
-           const agentSales = (bData || []).filter(b => b.userId === a.uid);
-           const totalGmv = agentSales.reduce((acc, b) => acc + (b.totalPrice || 0), 0);
+           const agentSales = (bData || []).filter(b => b.user_id === a.uid);
+           const totalGmv = agentSales.reduce((acc, b) => acc + (b.total_price || 0), 0);
            return { 
              ...a, 
              sales: totalGmv, 

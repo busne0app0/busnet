@@ -92,10 +92,10 @@ export default function Dashboard() {
         try {
           const { data, error } = await supabase
             .from('bookings')
-            // JOIN з trips — отримуємо дані маршруту для старих бронювань без routeFrom/routeTo
-            .select('*, trips(departureCity, arrivalCity, departureDate, departureTime, arrivalTime, carrierName)')
-            .eq('userId', user.uid)
-            .order('createdAt', { ascending: false });
+            // JOIN з routes для отримання назви маршруту
+            .select('*, routes(name)')
+            .eq('user_id', user.uid)
+            .order('created_at', { ascending: false });
 
           if (error) throw error;
           setRealBookings(data || []);
@@ -121,8 +121,8 @@ export default function Dashboard() {
             supabase
               .from('notifications')
               .select('*')
-              .eq('userId', user.uid)
-              .order('createdAt', { ascending: false })
+              .eq('user_id', user.uid)
+              .order('created_at', { ascending: false })
               .then(({ data }) => setRealNotifications(data || []));
           })
           .subscribe();
@@ -131,8 +131,8 @@ export default function Dashboard() {
         supabase
           .from('notifications')
           .select('*')
-          .eq('userId', user.uid)
-          .order('createdAt', { ascending: false })
+          .eq('user_id', user.uid)
+          .order('created_at', { ascending: false })
           .then(({ data }) => setRealNotifications(data || []));
 
         return () => {
@@ -155,7 +155,7 @@ export default function Dashboard() {
             supabase
               .from('passengers')
               .select('*')
-              .eq('userId', user.uid)
+              .eq('user_id', user.uid)
               .then(({ data }) => {
                 const results = data || [];
                 // Add primary passenger (user) if not present
@@ -178,7 +178,7 @@ export default function Dashboard() {
         supabase
           .from('passengers')
           .select('*')
-          .eq('userId', user.uid)
+          .eq('user_id', user.uid)
           .then(({ data }) => {
             const results = data || [];
             // Add primary passenger (user) if not present
@@ -214,7 +214,7 @@ export default function Dashboard() {
             supabase
               .from('forum_posts')
               .select('*')
-              .order('createdAt', { ascending: false })
+              .order('created_at', { ascending: false })
               .then(({ data }) => setRealForumPosts(data || []));
           })
           .subscribe();
@@ -223,7 +223,7 @@ export default function Dashboard() {
         supabase
           .from('forum_posts')
           .select('*')
-          .order('createdAt', { ascending: false })
+          .order('created_at', { ascending: false })
           .then(({ data }) => setRealForumPosts(data || []));
 
         return () => {
@@ -247,18 +247,17 @@ export default function Dashboard() {
   const userTickets = React.useMemo(() => {
     return realBookings.map((b: any) => ({
       id: b.id,
-      // Використовуємо routeFrom/routeTo (дублюються при бронюванні)
-      // або trips-joined fields якщо є, fallback 'Маршрут'
-      route: `${b.routeFrom || b.departureCity || b.trips?.departureCity || 'Звідси'} → ${b.routeTo || b.arrivalCity || b.trips?.arrivalCity || 'Туди'}`,
+      // route_from/route_to — snake_case поля з таблиці bookings
+      route: `${b.route_from || b.departureCity || '?'} → ${b.route_to || b.arrivalCity || '?'}`,
       status: b.status === 'confirmed' ? 'active' : b.status === 'cancelled' ? 'cancelled' : 'completed',
-      date: b.departureDate
-        ? new Date(b.departureDate).toLocaleDateString('uk-UA')
-        : (b.createdAt ? new Date(b.createdAt).toLocaleDateString('uk-UA') : 'В обробці'),
-      time: b.departureTime || '—',
-      duration: b.arrivalTime || '—',
+      date: b.departure_date
+        ? new Date(b.departure_date).toLocaleDateString('uk-UA')
+        : (b.created_at ? new Date(b.created_at).toLocaleDateString('uk-UA') : 'В обробці'),
+      time: b.departure_time || '—',
+      duration: b.arrival_time || '—',
       seats: `${b.seats || b.passengers?.length || 1} місць`,
-      price: b.totalPrice,
-      carrier: b.carrierName || 'Busnet Carrier'
+      price: b.total_price || 0,
+      carrier: b.carrier_name || 'Busnet Carrier'
     }));
   }, [realBookings]);
 
@@ -356,10 +355,7 @@ export default function Dashboard() {
 
   const handleCancelTicket = async (ticketId: string) => {
     try {
-      // 1. Отримуємо дані бронювання щоб знати tripId та кількість місць
-      const bookingToCancel = realBookings.find(b => b.id === ticketId) as any;
-      
-      // 2. Скасовуємо бронювання
+      // 1. Скасовуємо бронювання
       const { error } = await supabase
         .from('bookings')
         .update({ status: 'cancelled' })
@@ -367,23 +363,8 @@ export default function Dashboard() {
 
       if (error) throw error;
 
-      // 3. Повертаємо місця на рейс — без цього місця залишаються зайнятими в БД
-      if (bookingToCancel?.tripId) {
-        const seatsToReturn = bookingToCancel.passengers?.length || 1;
-        // Читаємо поточне значення seatsBooked
-        const { data: tripData } = await supabase
-          .from('trips')
-          .select('seatsBooked')
-          .eq('id', bookingToCancel.tripId)
-          .single();
-        
-        if (tripData) {
-          await supabase
-            .from('trips')
-            .update({ seatsBooked: Math.max(0, (tripData.seatsBooked || 0) - seatsToReturn) })
-            .eq('id', bookingToCancel.tripId);
-        }
-      }
+      // Увага: не чіпаємо trips.seatsBooked —
+      // таблиця trips майже не використовується в продакшні
 
       setRealBookings(prev => prev.map(b => b.id === ticketId ? { ...b, status: 'cancelled' } : b));
       toast.success('Білет скасовано');

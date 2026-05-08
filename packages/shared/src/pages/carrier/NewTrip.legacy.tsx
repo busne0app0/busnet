@@ -284,6 +284,10 @@ export default function NewTrip() {
   const [exchangeRate, setExchangeRate] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  // Edit mode: ID of the route being edited (set by Schedule.tsx)
+  const [editingRouteId] = useState<string | null>(
+    () => localStorage.getItem('busnet_editing_route_id')
+  );
   const [previewCollapsed, setPreviewCollapsed] = useState({
     outbound: false,
     inbound: false,
@@ -464,6 +468,24 @@ export default function NewTrip() {
       const dayMap: Record<string, number> = { 'НД': 0, 'ПН': 1, 'ВТ': 2, 'СР': 3, 'ЧТ': 4, 'ПТ': 5, 'СБ': 6 };
       const activeDays = trip.outbound.days.map(d => dayMap[d]).filter(d => d !== undefined);
 
+      // Застосовуємо ціни з priceMemory до зупинок
+      const applyPrices = (stops: Stop[]) => stops.map(stop => ({
+        ...stop,
+        price: priceMemory[stop.city.toLowerCase()] !== undefined
+          ? priceMemory[stop.city.toLowerCase()]
+          : stop.price
+      }));
+
+      const outboundWithPrices = {
+        ...trip.outbound,
+        stops: applyPrices(trip.outbound.stops)
+      };
+
+      const inboundWithPrices = {
+        ...trip.inbound,
+        stops: applyPrices(trip.inbound.stops)
+      };
+
       const routeData = {
         name: trip.routeName,
         operator: finalOperator,
@@ -478,26 +500,39 @@ export default function NewTrip() {
         custom_discounts: trip.customDiscounts,
         rules: trip.rules,
         custom_rules: trip.customRules,
-        outbound: trip.outbound,
-        inbound: trip.inbound,
-        // Compatibility fields for Dashboard and other modules
-        stopsThere: trip.outbound.stops,
-        stopsBack: trip.inbound.stops,
-        activeDays: activeDays,
-        status: 'active'
+        outbound: outboundWithPrices,
+        inbound: inboundWithPrices,
+        status: 'pending'  // Goes to admin for approval
       };
 
-      const { error } = await supabase.from('routes').insert(routeData);
+      let dbError;
+      if (editingRouteId) {
+        // UPDATE existing route
+        const { error } = await supabase
+          .from('routes')
+          .update({ ...routeData, status: 'pending' })
+          .eq('id', editingRouteId);
+        dbError = error;
+      } else {
+        // INSERT new route
+        const { error } = await supabase.from('routes').insert(routeData);
+        dbError = error;
+      }
 
-      if (error) throw error;
+      if (dbError) throw dbError;
 
-      toast.success('Маршрут успішно збережено!');
+      toast.success(
+        editingRouteId
+          ? 'Маршрут оновлено та надіслано на повторну перевірку!'
+          : 'Маршрут надіслано на перевірку адміністратором!'
+      );
       localStorage.removeItem('busnet_trip_draft');
       localStorage.removeItem('busnet_current_step');
+      localStorage.removeItem('busnet_editing_route_id');
       
-      // Повертаємось на дашборд
+      // Navigate back to dashboard (relative to base /carrier/)
       setTimeout(() => {
-        navigate(`/${activeRole}/`);
+        navigate('/');
       }, 1500);
 
     } catch (err: any) {
@@ -1073,22 +1108,22 @@ export default function NewTrip() {
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
   return (
-    <div className="flex flex-col font-sans h-full bg-[#030712] rounded-2xl border border-white/5 overflow-hidden">
+    <div className="flex flex-col font-sans h-full bg-[#050B14] overflow-hidden">
       {/* Header */}
-      <header className="h-14 md:h-20 border-b border-white/5 flex items-center justify-between px-4 md:px-8 bg-black/20 backdrop-blur-xl shrink-0 z-10">
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-[#00e5ff] to-[#016f7c] flex items-center justify-center shadow-lg shadow-[#00e5ff]/10">
-            <Bus className="w-4 h-4 md:w-5 md:h-5 text-white" />
+      <header className="h-20 flex items-center justify-between px-8 bg-transparent shrink-0 z-10 pt-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-[#00E5FF] to-[#0EA5E9] flex items-center justify-center shadow-[0_0_15px_rgba(0,229,255,0.3)]">
+            <Bus className="w-5 h-5 text-black" />
           </div>
           <div>
-            <h1 className="text-sm md:text-xl font-black text-white italic tracking-tighter leading-none">
-              BUSNET<span className="text-[#00e5ff]">/</span>SMART
+            <h1 className="text-xl font-black text-white uppercase tracking-tight leading-none">
+              BUSNET<span className="text-[#00E5FF]">/SMART</span>
             </h1>
-            <p className="text-[7px] md:text-[10px] text-slate-500 uppercase tracking-[0.2em] font-black mt-0.5">Route Architect v3.0</p>
+            <p className="text-[9px] text-[#5A6A85] uppercase tracking-[0.2em] font-bold mt-1">Route Architect v3.0</p>
           </div>
         </div>
         
-        <div className="hidden md:flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-3">
           {[1, 2, 3, 4, 5, 6, 7].map(step => {
             const hasConflict = conflicts.some(c => c.step === step);
             const severity = hasConflict && conflicts.find(c => c.step === step)?.severity === 'error' ? 'error' : 'warning';
@@ -1099,8 +1134,8 @@ export default function NewTrip() {
                 onClick={() => setCurrentStep(step)}
                 className="flex items-center group cursor-pointer relative"
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${currentStep === step ? 'bg-[#00e5ff] text-[#0a0b10] glow-cyan' : currentStep > step ? 'bg-green-500 text-white' : 'bg-white/5 text-slate-500 border border-white/10'}`}>
-                  {currentStep > step ? <CheckCircle2 size={16} /> : step}
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black transition-all ${currentStep === step ? 'bg-[#00E5FF] text-black shadow-[0_0_15px_rgba(0,229,255,0.4)]' : 'bg-[#1A2639] text-[#8899B5] hover:bg-[#1A2639]/80'}`}>
+                  {step}
                 </div>
 
                 {hasConflict && (
@@ -1113,9 +1148,9 @@ export default function NewTrip() {
           })}
         </div>
 
-        <div className="flex items-center gap-2 md:gap-4">
-          <div className="hidden sm:flex items-center gap-2 bg-white/5 px-2 md:px-4 py-1.5 rounded-full border border-white/10">
-            <span className="text-[8px] text-slate-500 font-bold uppercase whitespace-nowrap">EUR:</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-[#0B1221] px-5 py-2 rounded-full border border-white/5">
+            <span className="text-[10px] text-[#8899B5] font-black uppercase">EUR:</span>
             <input 
               type="text"
               inputMode="decimal"
@@ -1126,16 +1161,9 @@ export default function NewTrip() {
                   setExchangeRate(parseFloat(val) || 0);
                 }
               }}
-              className="bg-transparent border-none outline-none text-xs text-[#00e5ff] font-bold w-10 md:w-12"
+              className="bg-transparent border-none outline-none text-xs text-[#00E5FF] font-black w-12 text-center"
             />
           </div>
-
-          {conflicts.length > 0 && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-full">
-              <AlertCircle size={10} className="text-red-400" />
-              <span className="text-[8px] md:text-[9px] font-black text-red-300 uppercase tracking-wider">{conflicts.length}</span>
-            </div>
-          )}
           
           <button 
             onClick={() => {
@@ -1143,11 +1171,9 @@ export default function NewTrip() {
                 resetApp();
               }
             }}
-            className="flex items-center gap-2 p-2 rounded-lg text-slate-500 hover:text-red-400 transition-all active:scale-95"
-            title="Очистити чернетку"
+            className="flex items-center gap-2 text-[#8899B5] hover:text-white transition-all text-[10px] font-black uppercase tracking-widest active:scale-95"
           >
-            <RefreshCcw size={18} />
-            <span className="hidden lg:inline text-[9px] font-black uppercase tracking-wider">Скинути</span>
+            <RefreshCcw size={14} /> СКИНУТИ
           </button>
         </div>
       </header>
@@ -1189,173 +1215,171 @@ export default function NewTrip() {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-6"
               >
-                <div className="immersive-card p-6">
-                  <h2 className="text-sm font-black text-[#00e5ff] uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <Settings2 size={16} /> Основна Інформація
+                <div className="space-y-6 pt-12">
+                  <h2 className="text-[12px] font-black text-[#00E5FF] uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <Settings2 size={16} /> ОСНОВНА ІНФОРМАЦІЯ
                   </h2>
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
-                    {/* Smart Input for Step 1 */}
-                    <div className="lg:col-span-4 space-y-4">
-                      <div className="bg-black/20 p-4 md:p-5 rounded-2xl border border-white/5">
-                        <h3 className="text-[10px] font-bold text-[#00e5ff] uppercase tracking-widest mb-3 flex items-center gap-2">
-                          <Zap size={14} className="fill-[#00e5ff]" /> Швидке заповнення
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    {/* Left side: Smart Input */}
+                    <div className="lg:col-span-4 h-full">
+                      <div className="bg-[#0B1221] p-6 rounded-[24px] border border-white/5 flex flex-col h-full min-h-[300px]">
+                        <h3 className="text-[10px] font-black text-[#00E5FF] uppercase tracking-widest mb-4 flex items-center gap-2">
+                          <Zap size={14} className="fill-[#00E5FF]" /> ШВИДКЕ ЗАПОВНЕННЯ
                         </h3>
+                        <p className="text-[10px] text-[#5A6A85] mb-4">Вставте текст для назви та перевізника...</p>
                         <textarea 
                           value={smartInputStep1}
                           onChange={(e) => setSmartInputStep1(e.target.value)}
-                          placeholder="Вставте текст для назви та перевізника..."
-                          className="w-full h-32 md:h-40 bg-transparent border-none focus:ring-0 text-slate-300 placeholder-slate-600 resize-none font-mono text-[11px] leading-relaxed outline-none"
+                          className="flex-1 w-full bg-transparent border-none focus:ring-0 text-[#8899B5] resize-none font-medium text-[11px] leading-relaxed outline-none"
                         />
                         <button 
                           onClick={handleSmartParseStep1}
-                          className="w-full mt-2 bg-[#00e5ff]/10 text-[#00e5ff] py-3 rounded-xl text-[10px] font-black uppercase hover:bg-[#00e5ff] hover:text-black transition-all active:scale-95"
+                          className="w-full mt-4 bg-[#0A1A26] border border-white/5 text-[#00E5FF] hover:bg-[#00E5FF] hover:text-black py-4 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(0,229,255,0.1)] hover:shadow-[0_0_20px_rgba(0,229,255,0.4)]"
                         >
-                          Витягнути дані
+                          ВИТЯГНУТИ ДАНІ
                         </button>
                       </div>
                     </div>
 
-                    <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-                      <div className="space-y-4">
-                        <div>
-                          <div className="flex items-center justify-between mb-1 px-1">
-                            <label className="text-[10px] text-slate-500 font-bold uppercase block tracking-wider">Назва рейсу</label>
-                            <div className="group/hint relative">
-                              <HelpCircle size={14} className="text-slate-600 cursor-help" />
-                              <div className="absolute bottom-full mb-2 right-0 w-48 p-2 bg-slate-900 border border-white/10 rounded-lg text-[9px] text-slate-300 font-medium invisible group-hover/hint:visible opacity-0 group-hover/hint:opacity-100 transition-all z-50 shadow-2xl leading-tight">
-                                Наприклад: <span className="text-[#00e5ff]">Київ — Варшава</span>. Це заголовок маршруту в кабінеті.
-                              </div>
+                    {/* Right side: Form */}
+                    <div className="lg:col-span-8 space-y-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Route Name & Operator */}
+                        <div className="space-y-6">
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <label className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest block">НАЗВА РЕЙСУ</label>
+                              <HelpCircle size={12} className="text-[#5A6A85] cursor-help" />
                             </div>
+                            <input 
+                              value={trip.routeName}
+                              onChange={(e) => setTrip({...trip, routeName: e.target.value})}
+                              placeholder="Місто - Місто"
+                              className="w-full bg-[#1A2639] border border-transparent rounded-[16px] px-5 py-4 text-[13px] text-white font-bold outline-none focus:border-[#00E5FF]/30 transition-colors placeholder-[#4A5A75]"
+                            />
                           </div>
-                          <input 
-                            value={trip.routeName}
-                            onChange={(e) => setTrip({...trip, routeName: e.target.value})}
-                            placeholder="Місто - Місто"
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-[#00e5ff]/50 transition-colors"
-                          />
-                        </div>
-                        <div className={`grid ${activeRole === 'carrier' ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
+
                           {activeRole !== 'carrier' && (
-                            <div className="space-y-1">
-                              <label className="text-[10px] text-slate-500 font-bold uppercase block tracking-wider px-1">Призначити Перевізника</label>
+                            <div>
+                              <label className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest block mb-2">ПРИЗНАЧИТИ ПЕРЕВІЗНИКА</label>
                               <select 
                                 value={trip.operator}
                                 onChange={(e) => setTrip({...trip, operator: e.target.value})}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-[#00e5ff]/50 transition-colors appearance-none"
+                                className="w-full bg-[#1A2639] border border-transparent rounded-[16px] px-5 py-4 text-[13px] text-white font-bold outline-none focus:border-[#00E5FF]/30 transition-colors appearance-none"
                               >
-                                <option value="" className="bg-slate-900">Оберіть перевізника</option>
+                                <option value="" className="bg-[#0B1221]">Оберіть перевізника</option>
                                 {carriers.map(c => (
-                                  <option key={c.uid} value={`${c.uid}::${c.companyName || c.email}`} className="bg-slate-900 text-white">
+                                  <option key={c.uid} value={`${c.uid}::${c.companyName || c.email}`} className="bg-[#0B1221] text-white">
                                     {c.companyName || c.email}
                                   </option>
                                 ))}
                               </select>
                             </div>
                           )}
-                          <div className="space-y-1">
-                            <label className="text-[10px] text-slate-500 font-bold uppercase block tracking-wider px-1">Кількість місць</label>
+
+                          <div>
+                            <label className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest block mb-2">КІЛЬКІСТЬ МІСЦЬ</label>
                             <input 
                               type="text"
                               inputMode="numeric"
                               value={trip.seats || ''}
                               onChange={(e) => setTrip({...trip, seats: parseInt(e.target.value.replace(/\D/g, '')) || 0})}
-                              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-[#00e5ff]/50 transition-colors"
+                              className="w-full bg-[#1A2639] border border-transparent rounded-[16px] px-5 py-4 text-[13px] text-white font-bold outline-none focus:border-[#00E5FF]/30 transition-colors"
                             />
                           </div>
                         </div>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        <div>
-                          <label className="text-[9px] text-slate-500 font-bold uppercase block mb-2">Переваги</label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {AMENITIES_CONFIG.map(amenity => (
-                              <button
-                                key={amenity.id}
-                                onClick={() => {
-                                  setTrip(prev => ({
-                                    ...prev,
-                                    amenities: prev.amenities.includes(amenity.id) 
-                                      ? prev.amenities.filter(a => a !== amenity.id)
-                                      : [...prev.amenities, amenity.id]
-                                  }));
-                                }}
-                                className={`flex items-center gap-2 p-2 rounded-xl border text-[10px] font-bold transition-all ${trip.amenities.includes(amenity.id) ? 'bg-[#00e5ff]/10 border-[#00e5ff]/50 text-[#00e5ff]' : 'bg-white/5 border-white/5 text-slate-500'}`}
-                              >
-                                <amenity.icon size={14} /> {amenity.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        <div className="pt-2 space-y-6">
+
+                        {/* Amenities & Type & Discounts */}
+                        <div className="space-y-6">
                           <div>
-                            <label className="text-[9px] text-slate-500 font-bold uppercase block mb-2">Тип рейсу</label>
+                            <label className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest block mb-2">ПЕРЕВАГИ</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {AMENITIES_CONFIG.map(amenity => (
+                                <button
+                                  key={amenity.id}
+                                  onClick={() => {
+                                    setTrip(prev => ({
+                                      ...prev,
+                                      amenities: prev.amenities.includes(amenity.id) 
+                                        ? prev.amenities.filter(a => a !== amenity.id)
+                                        : [...prev.amenities, amenity.id]
+                                    }));
+                                  }}
+                                  className={`flex items-center gap-2 px-4 py-3 rounded-full border text-[9px] font-bold transition-all ${trip.amenities.includes(amenity.id) ? 'bg-[#00E5FF]/10 border-[#00E5FF]/50 text-[#00E5FF]' : 'bg-transparent border-white/5 text-[#8899B5] hover:border-white/10'}`}
+                                >
+                                  <amenity.icon size={14} /> {amenity.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest block mb-2">ТИП РЕЙСУ</label>
                             <div className="grid grid-cols-2 gap-2">
                               <button
                                 onClick={() => setTrip({...trip, isTransfer: false, transferType: 'direct'})}
-                                className={`py-2 rounded-xl text-[10px] font-black uppercase transition-all border ${!trip.isTransfer ? 'bg-[#00e5ff] text-[#0a0b10] border-[#00e5ff] shadow-[0_0_15px_rgba(0,229,255,0.2)]' : 'bg-white/5 border-white/5 text-slate-500'}`}
+                                className={`py-3 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${!trip.isTransfer ? 'bg-[#00E5FF] text-black border-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.4)]' : 'bg-transparent border-white/5 text-[#8899B5] hover:border-white/10'}`}
                               >
-                                Прямий рейс
+                                ПРЯМИЙ РЕЙС
                               </button>
                               <button
                                 onClick={() => setTrip({...trip, isTransfer: true, transferType: 'transfer'})}
-                                className={`py-2 rounded-xl text-[10px] font-black uppercase transition-all border ${trip.isTransfer ? 'bg-[#00e5ff] text-[#0a0b10] border-[#00e5ff] shadow-[0_0_15px_rgba(0,229,255,0.2)]' : 'bg-white/5 border-white/5 text-slate-500'}`}
+                                className={`py-3 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${trip.isTransfer ? 'bg-[#00E5FF] text-black border-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.4)]' : 'bg-transparent border-white/5 text-[#8899B5] hover:border-white/10'}`}
                               >
-                                Можлива пересадка
+                                ПЕРЕСАДКА
                               </button>
                             </div>
                           </div>
 
                           <div>
                             <div className="flex items-center justify-between mb-2">
-                              <label className="text-[9px] text-slate-500 font-bold uppercase block">Система знижок</label>
+                              <label className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest block">СИСТЕМА ЗНИЖОК</label>
                               <button 
                                 onClick={addCustomDiscount}
-                                className="text-[8px] font-black text-[#00e5ff] uppercase flex items-center gap-1 hover:opacity-80"
+                                className="text-[8px] font-black text-[#00E5FF] uppercase tracking-widest flex items-center gap-1 hover:text-white transition-all"
                               >
-                                + Додати власну знижку
+                                + ДОДАТИ ВЛАСНУ ЗНИЖКУ
                               </button>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <button
                                 onClick={() => setTrip(prev => ({ ...prev, discounts: { ...prev.discounts, child04: !prev.discounts.child04 } }))}
-                                className={`p-2 rounded-xl border text-[10px] font-bold transition-all flex flex-col items-center gap-1 ${trip.discounts.child04 ? 'bg-[#00e5ff]/10 border-[#00e5ff]/50 text-[#00e5ff]' : 'bg-white/5 border-white/5 text-slate-500'}`}
+                                className={`p-3 rounded-full border text-[9px] font-bold transition-all flex flex-col items-center gap-0.5 ${trip.discounts.child04 ? 'bg-[#1A2639] border-white/5 text-[#00E5FF]' : 'bg-transparent border-white/5 text-[#5A6A85]'}`}
                               >
                                 <span>Дітям до 4 р.</span>
-                                <span className="text-[8px] opacity-70 underline decoration-[#00e5ff]/30">-50% ЗНИЖКА</span>
+                                <span className="text-[8px] opacity-60">-50% ЗНИЖКА</span>
                               </button>
                               <button
                                 onClick={() => setTrip(prev => ({ ...prev, discounts: { ...prev.discounts, child412: !prev.discounts.child412 } }))}
-                                className={`p-2 rounded-xl border text-[10px] font-bold transition-all flex flex-col items-center gap-1 ${trip.discounts.child412 ? 'bg-[#00e5ff]/10 border-[#00e5ff]/50 text-[#00e5ff]' : 'bg-white/5 border-white/5 text-slate-500'}`}
+                                className={`p-3 rounded-full border text-[9px] font-bold transition-all flex flex-col items-center gap-0.5 ${trip.discounts.child412 ? 'bg-[#1A2639] border-white/5 text-[#00E5FF]' : 'bg-transparent border-white/5 text-[#5A6A85]'}`}
                               >
                                 <span>Дітям 4-12 р.</span>
-                                <span className="text-[8px] opacity-70 underline decoration-[#00e5ff]/30">-30% ЗНИЖКА</span>
+                                <span className="text-[8px] opacity-60">-30% ЗНИЖКА</span>
                               </button>
                             </div>
                             
                             <div className="mt-3 space-y-2">
                               {trip.customDiscounts.map((discount) => (
-                                <div key={discount.id} className="flex items-center gap-2 bg-white/5 p-2 rounded-xl border border-white/5 animate-in fade-in slide-in-from-top-1">
+                                <div key={discount.id} className="flex items-center gap-2 bg-[#1A2639]/50 p-2 rounded-full border border-white/5">
                                   <input 
-                                    placeholder="Назва знижки (напр. Студент)"
+                                    placeholder="Назва..."
                                     value={discount.label}
                                     onChange={(e) => updateCustomDiscount(discount.id, { label: e.target.value })}
-                                    className="flex-1 bg-transparent text-[10px] text-white outline-none font-bold placeholder:text-slate-600"
+                                    className="flex-1 bg-transparent px-3 text-[10px] text-white outline-none font-bold placeholder-[#5A6A85]"
                                   />
-                                  <div className="flex items-center gap-1 bg-black/40 rounded px-2 py-1">
+                                  <div className="flex items-center gap-1 bg-[#0B1221] rounded-full px-3 py-1.5">
                                     <input 
                                       type="text"
                                       inputMode="numeric"
                                       value={discount.value === 0 ? '' : discount.value}
                                       onChange={(e) => updateCustomDiscount(discount.id, { value: parseInt(e.target.value.replace(/\D/g, '')) || 0 })}
-                                      className="bg-transparent text-[#00e5ff] text-xs font-black outline-none w-8 text-center"
+                                      className="bg-transparent text-[#00E5FF] text-[10px] font-black outline-none w-8 text-center"
                                     />
-                                    <span className="text-[10px] text-[#00e5ff] font-black">%</span>
+                                    <span className="text-[10px] text-[#00E5FF] font-black">%</span>
                                   </div>
                                   <button 
                                     onClick={() => removeCustomDiscount(discount.id)}
-                                    className="text-slate-700 hover:text-red-500 transition-colors p-1"
+                                    className="text-[#5A6A85] hover:text-red-500 transition-colors p-2 pr-3"
                                   >
                                     <Trash2 size={12} />
                                   </button>
@@ -2404,22 +2428,22 @@ export default function NewTrip() {
           </AnimatePresence>
 
           {/* Wizard Navigation */}
-          <div className="flex justify-between items-center mt-12 bg-black/40 p-4 rounded-2xl border border-white/10">
+          <div className="flex justify-between items-center mt-12 mb-8 bg-[#0B1221] p-2 pr-2 pl-6 rounded-full border border-white/5 w-full max-w-3xl mx-auto shadow-xl">
             <button 
               onClick={prevStep}
               disabled={currentStep === 1}
-              className="flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black text-slate-500 hover:text-white disabled:opacity-20 transition-all uppercase tracking-widest"
+              className="flex items-center gap-2 px-4 py-3 rounded-full text-[10px] font-black text-[#5A6A85] hover:text-white disabled:opacity-20 transition-all uppercase tracking-widest"
             >
-              <ChevronLeft size={16} /> Назад
+              <ChevronLeft size={14} /> НАЗАД
             </button>
-            <div className="text-[10px] font-black text-[#00e5ff] uppercase tracking-[0.3em]">
-               Етап {currentStep} з 7
+            <div className="text-[10px] font-black text-[#00E5FF] uppercase tracking-[0.2em]">
+               ЕТАП {currentStep} З 7
             </div>
             <button 
               onClick={nextStep}
-              className={`flex items-center gap-2 px-8 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${currentStep === 7 ? 'bg-green-500 text-white glow-green' : 'bg-[#00e5ff] text-black glow-cyan hover:scale-105'}`}
+              className={`flex items-center gap-2 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${currentStep === 7 ? 'bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'bg-[#00E5FF] text-black shadow-[0_0_15px_rgba(0,229,255,0.4)] hover:scale-105'}`}
             >
-              {currentStep === 7 ? 'Завершити' : 'Далі'} <ChevronRight size={16} />
+              {currentStep === 7 ? 'ЗАВЕРШИТИ' : 'ДАЛІ'} <ChevronRight size={14} />
             </button>
           </div>
         </div>

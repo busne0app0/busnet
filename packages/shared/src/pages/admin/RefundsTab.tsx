@@ -16,7 +16,7 @@ const RefundsTab: React.FC = () => {
         .from('bookings')
         .select('*')
         .in('status', ['cancelled', 'CANCELLED'])
-        .order('createdAt', { ascending: false });
+        .order('created_at', { ascending: false });
       
       if (!error && data) {
         setRefunds(data);

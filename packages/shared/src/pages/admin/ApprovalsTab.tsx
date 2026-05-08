@@ -20,7 +20,26 @@ const ApprovalsTab: React.FC = () => {
           .select('*');
         
         if (!error && data) {
-          setTemplates(data as any[]);
+          const parseField = (field: any) => {
+            if (typeof field === 'string') {
+              try { return JSON.parse(field); } 
+              catch { return field; }
+            }
+            return field ?? [];
+          };
+
+          const parsedData = data.map((route: any) => ({
+            ...route,
+            outbound: parseField(route.outbound),
+            inbound: parseField(route.inbound),
+            amenities: parseField(route.amenities),
+            rules: parseField(route.rules),
+            discounts: parseField(route.discounts),
+            custom_discounts: parseField(route.custom_discounts),
+            custom_rules: parseField(route.custom_rules),
+          }));
+
+          setTemplates(parsedData);
         }
       } catch (err) {
         console.error('Error fetching templates:', err);
@@ -41,7 +60,7 @@ const ApprovalsTab: React.FC = () => {
   }, []);
 
   const onHandle = async (template: RouteTemplate, status: RouteStatus) => {
-    setProcessing(template.id || null);
+    setProcessing(template.id ?? null);
     try {
       const { error } = await supabase
         .from('routes')
@@ -51,7 +70,7 @@ const ApprovalsTab: React.FC = () => {
       if (error) throw error;
       
       if (status === RouteStatus.APPROVED) {
-        toast.promise(
+        await toast.promise(
           busnetService.generateTripsFromTemplate(template),
           {
             loading: 'Генерація рейсів на 30 днів...',
@@ -212,7 +231,11 @@ const ApprovalsTab: React.FC = () => {
                           </td>
                           <td className="py-4 px-8 text-right">
                              <button 
-                               onClick={() => onHandle(tpl, RouteStatus.PENDING)}
+                               onClick={() => {
+                                 if (window.confirm('Повернути цей маршрут на повторну модерацію?')) {
+                                   onHandle(tpl, RouteStatus.PENDING);
+                                 }
+                               }}
                                className="text-cyan-400 hover:text-white transition-colors uppercase font-black text-[9px] tracking-widest"
                              >
                                 Переглянути
@@ -230,4 +253,3 @@ const ApprovalsTab: React.FC = () => {
 };
 
 export default ApprovalsTab;
-

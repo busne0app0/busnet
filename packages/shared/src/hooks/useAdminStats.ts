@@ -30,7 +30,7 @@ export function useAdminStats() {
 
       // Active Trips
       const { count: activeCount } = await supabase
-        .from('trips')
+        .from('routes')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'active');
       setStats(s => ({ ...s, activeTrips: activeCount || 0 }));

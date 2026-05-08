@@ -63,7 +63,7 @@ export default function ForumPage() {
           .from('forum_comments')
           .select('*')
           .eq('postId', activePostId)
-          .order('createdAt', { ascending: false });
+          .order('created_at', { ascending: false });
 
         if (error) throw error;
         setComments(data || []);

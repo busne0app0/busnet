@@ -196,11 +196,11 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       // Bookings
       let query = supabase
         .from('bookings')
-        .select('*, trips(departureCity, arrivalCity)')
-        .order('createdAt', { ascending: false });
+        .select('*, routes(name)')
+        .order('created_at', { ascending: false });
         
       if (globalDateRange) {
-        query = query.gte('createdAt', globalDateRange.start).lte('createdAt', globalDateRange.end);
+        query = query.gte('created_at', globalDateRange.start).lte('created_at', globalDateRange.end);
       }
 
       const { data: bookingData } = await query;
@@ -226,7 +226,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           return {
             id: b.id,
             passengerName: name || 'Гість',
-            route: `${b.trips?.departureCity || '—'} → ${b.trips?.arrivalCity || '—'}`,
+            route: b.routes?.name || '—',
             date: b.createdAt
               ? new Date(b.createdAt).toLocaleDateString('uk-UA')
               : '—',
@@ -266,7 +266,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
       // Live trips
       const { data: tripData } = await supabase
-        .from('trips')
+        .from('routes')
         .select('*')
         .eq('status', 'active')
         .order('created_at', { ascending: false })
@@ -275,7 +275,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       if (tripData) {
         const liveTrips: AdminLiveTrip[] = tripData.map((t: any) => ({
           id: t.id,
-          route: `${t.departureCity || '—'} → ${t.arrivalCity || '—'}`,
+          route: t.name || '—',
           carrier: t.carrierName || '—',
           depart: t.departureTime || '—',
           arrive: '—',
@@ -311,7 +311,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         .eq('status', 'pending');
       
       const { count: activeTripsCount } = await supabase
-        .from('trips').select('*', { count: 'exact', head: true })
+        .from('routes').select('*', { count: 'exact', head: true })
         .eq('status', 'active');
       
       const { count: carriersCount } = await supabase
@@ -419,10 +419,10 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
       const approvals: AdminApproval[] = (data || []).map((r: any) => ({
         id: r.id,
-        carrierId: r.carrier_id || '',
+        carrierId: r.carrierId || '',
         carrierName: '—', // В цій таблиці немає імені, треба було б джоінити або просто ID
         route: r.name || r.direction || '—',
-        date: r.created_at ? new Date(r.created_at).toLocaleDateString('uk-UA') : '—',
+        date: r.createdAt ? new Date(Number(r.createdAt)).toLocaleDateString('uk-UA') : '—',
         seats: r.seats || 0,
         price: `€${r.singlePrice || r.zoneAPrice || 0}`,
         status: 'pending',
@@ -459,8 +459,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('bookings')
-        .select('*, trips(departureCity, arrivalCity)')
-        .order('createdAt', { ascending: false })
+        .select('*, routes(name)')
+        .order('created_at', { ascending: false })
         .limit(100);
 
       if (error) throw error;
@@ -473,7 +473,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         return {
           id: b.id,
           passengerName: name || 'Гість',
-          route: `${b.trips?.departureCity || '—'} → ${b.trips?.arrivalCity || '—'}`,
+          route: b.routes?.name || '—',
           date: b.createdAt
             ? new Date(b.createdAt).toLocaleDateString('uk-UA')
             : '—',

@@ -92,17 +92,18 @@ export default function Drivers() {
     
   return (
     <div className="space-y-8 pb-12 relative">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
         <div>
-          <h2 className="font-syne font-black text-3xl italic tracking-tighter uppercase text-white">Водії</h2>
-          <p className="text-[#5a6a85] text-sm font-medium mt-1 uppercase tracking-widest">Управління командою професіоналів</p>
+          <div className="w-12 h-1 bg-[#0EA5E9] mb-4 shadow-[0_0_10px_rgba(14,165,233,0.5)] rounded-full" />
+          <h2 className="text-3xl font-black uppercase tracking-widest text-white">ВОДІЇ</h2>
+          <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest mt-2">Управління командою професіоналів</p>
         </div>
         <button 
           onClick={() => setIsAddingModalOpen(true)}
-          className="px-6 py-2 bg-gradient-to-r from-[#ff6b35] to-[#cc3300] text-white rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+          className="px-6 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-[#0EA5E9] hover:text-white hover:shadow-[0_0_20px_rgba(14,165,233,0.4)] transition-all flex items-center justify-center gap-2"
         >
-          <Plus size={16} /> 
-          Додати водія
+          <Plus size={16} strokeWidth={2.5} /> 
+          ДОДАТИ ВОДІЯ
         </button>
       </div>
 
@@ -120,7 +121,7 @@ export default function Drivers() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-lg bg-[#1a2235] border border-white/10 rounded-[32px] p-8 relative z-10 shadow-2xl"
+              className="w-full max-w-lg bg-[#0B1221] border border-[#0EA5E9]/20 rounded-[32px] p-8 relative z-10 shadow-[0_0_30px_rgba(14,165,233,0.1)]"
             >
               <button 
                 onClick={() => setIsAddingModalOpen(false)}
@@ -128,7 +129,7 @@ export default function Drivers() {
               >
                  <X size={24} />
               </button>
-              <h3 className="text-xl font-black italic uppercase text-white mb-6">Новий Водій</h3>
+              <h3 className="text-xl font-black uppercase tracking-widest text-white mb-6">НОВИЙ ВОДІЙ</h3>
               
               <form onSubmit={handleAddDriver} className="space-y-5">
                  <div className="grid grid-cols-2 gap-4">
@@ -179,9 +180,9 @@ export default function Drivers() {
                  <button 
                   type="submit"
                   disabled={isAdding}
-                  className="w-full mt-6 py-4 bg-gradient-to-r from-[#ff6b35] to-[#cc3300] text-white rounded-xl text-xs font-black uppercase tracking-widest flex justify-center items-center gap-2 hover:scale-[1.02] transition-all disabled:opacity-50"
+                  className="w-full mt-6 py-4 bg-[#0EA5E9] text-white rounded-full text-[11px] font-black uppercase tracking-widest flex justify-center items-center gap-2 hover:shadow-[0_0_20px_rgba(14,165,233,0.4)] transition-all disabled:opacity-50"
                  >
-                   {isAdding ? <Loader2 size={16} className="animate-spin" /> : 'Зберегти водія'}
+                   {isAdding ? <Loader2 size={16} className="animate-spin" /> : 'ЗБЕРЕГТИ ВОДІЯ'}
                  </button>
               </form>
             </motion.div>
@@ -191,34 +192,33 @@ export default function Drivers() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Всього водіїв', val: drivers.length.toString(), icon: UserCircle2, color: 'text-orange-500' },
-          { label: 'На зміні', val: activeCount.toString(), icon: UserCheck2, color: 'text-emerald-500' },
-          { label: 'Середній рейтинг', val: avgRating, icon: Star, color: 'text-amber-500' },
-          { label: 'Перевірено', val: '100%', icon: ShieldCheck, color: 'text-cyan-500' },
+          { label: 'ВСЬОГО ВОДІЇВ', val: drivers.length.toString(), icon: UserCircle2, color: 'text-[#0EA5E9]' },
+          { label: 'НА ЗМІНІ', val: activeCount.toString(), icon: UserCheck2, color: 'text-[#10B981]' },
+          { label: 'СЕРЕДНІЙ РЕЙТИНГ', val: avgRating, icon: Star, color: 'text-[#FBBF24]' },
+          { label: 'ПЕРЕВІРЕНО', val: '100%', icon: ShieldCheck, color: 'text-[#E879F9]' },
         ].map((stat, i) => (
-          <div key={i} className="bg-[#1a2235] border border-white/5 rounded-[32px] p-6 relative overflow-hidden">
-             <p className="text-[10px] font-black text-[#5a6a85] uppercase tracking-widest">{stat.label}</p>
-             <h3 className="font-syne font-black text-2xl text-white italic tracking-tighter mt-1">{stat.val}</h3>
-             <stat.icon size={48} className={`absolute -right-2 -bottom-2 opacity-[0.03] ${stat.color}`} />
+          <div key={i} className="bg-[#1A2639]/30 border border-white/5 rounded-[32px] p-6 relative overflow-hidden h-[120px] flex flex-col justify-between group hover:bg-[#1A2639]/50 transition-colors">
+             <p className="text-[9px] font-black text-[#5a6a85] uppercase tracking-widest">{stat.label}</p>
+             <h3 className="font-black text-3xl text-white tracking-widest">{stat.val}</h3>
+             <stat.icon size={64} className={`absolute -right-4 -bottom-4 opacity-[0.03] ${stat.color} group-hover:scale-110 transition-transform duration-500`} />
           </div>
         ))}
       </div>
 
-      <div className="bg-[#1a2235] border border-white/5 rounded-[40px] overflow-hidden shadow-2xl">
-        <div className="overflow-x-auto scrollbar-hide">
-          <table className="min-w-[800px] w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-white/[0.02] border-b border-white/5">
-                <th className="px-8 py-5 text-[10px] font-black text-[#5a6a85] uppercase tracking-widest">Водій</th>
-                <th className="px-6 py-5 text-[10px] font-black text-[#5a6a85] uppercase tracking-widest">Посвідчення</th>
-                <th className="px-6 py-5 text-[10px] font-black text-[#5a6a85] uppercase tracking-widest">Стаж / Рейси</th>
-                <th className="px-6 py-5 text-[10px] font-black text-[#5a6a85] uppercase tracking-widest">Рейтинг</th>
-                <th className="px-6 py-5 text-[10px] font-black text-[#5a6a85] uppercase tracking-widest">Поточний рейс</th>
-                <th className="px-6 py-5 text-[10px] font-black text-[#5a6a85] uppercase tracking-widest">Статус</th>
-                <th className="px-8 py-5 text-[10px] font-black text-[#5a6a85] uppercase tracking-widest text-right">Дії</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/[0.03]">
+      <div className="overflow-x-auto scrollbar-hide">
+        <table className="min-w-[900px] w-full text-left border-separate border-spacing-y-2">
+          <thead>
+            <tr className="bg-[#1A2639]/30">
+              <th className="px-6 py-4 text-[9px] font-black text-[#5a6a85] uppercase tracking-widest rounded-l-full">ВОДІЙ</th>
+              <th className="px-6 py-4 text-[9px] font-black text-[#5a6a85] uppercase tracking-widest">ПОСВІДЧЕННЯ</th>
+              <th className="px-6 py-4 text-[9px] font-black text-[#5a6a85] uppercase tracking-widest">СТАЖ / РЕЙСИ</th>
+              <th className="px-6 py-4 text-[9px] font-black text-[#5a6a85] uppercase tracking-widest">РЕЙТИНГ</th>
+              <th className="px-6 py-4 text-[9px] font-black text-[#5a6a85] uppercase tracking-widest">ПОТОЧНИЙ РЕЙС</th>
+              <th className="px-6 py-4 text-[9px] font-black text-[#5a6a85] uppercase tracking-widest">СТАТУС</th>
+              <th className="px-6 py-4 text-[9px] font-black text-[#5a6a85] uppercase tracking-widest text-right rounded-r-full">ДІЇ</th>
+            </tr>
+          </thead>
+          <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={7} className="py-20 text-center">
@@ -239,61 +239,61 @@ export default function Drivers() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
-                  className="hover:bg-white/[0.01] transition-colors group"
+                  className="bg-[#1A2639]/30 hover:bg-[#1A2639]/50 transition-colors group"
                 >
-                  <td className="px-8 py-6">
+                  <td className="px-6 py-4 rounded-l-[16px]">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-700/20 flex items-center justify-center text-orange-500 font-bold border border-orange-500/20">
+                      <div className="w-10 h-10 rounded-full bg-[#0EA5E9]/10 flex items-center justify-center text-[#0EA5E9] font-black border border-[#0EA5E9]/20">
                         {driver.firstName.charAt(0)}
                       </div>
-                      <div className="max-w-[200px]">
-                        <h4 className="text-sm font-bold text-white tracking-tight leading-tight">{driver.firstName} {driver.lastName}</h4>
+                      <div>
+                        <h4 className="text-[12px] font-bold text-white tracking-widest uppercase">{driver.firstName} {driver.lastName}</h4>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-6 text-xs text-[#8899b5] font-medium uppercase tracking-wider">{driver.licenseNumber}</td>
-                  <td className="px-6 py-6">
+                  <td className="px-6 py-4 text-[11px] text-[#8899b5] font-bold uppercase tracking-widest">{driver.licenseNumber}</td>
+                  <td className="px-6 py-4">
                     <div className="space-y-1">
-                      <p className="text-xs font-bold text-white italic">12 р. стажу</p>
-                      <p className="text-[10px] font-black text-[#5a6a85] uppercase tracking-widest">284 рейсів</p>
+                      <p className="text-[11px] font-black text-white uppercase tracking-widest">12 Р. СТАЖУ</p>
+                      <p className="text-[9px] font-black text-[#5a6a85] uppercase tracking-widest">284 РЕЙСИ</p>
                     </div>
                   </td>
-                  <td className="px-6 py-6">
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 w-fit">
-                       <Star size={12} className="text-amber-400 fill-amber-400" />
-                       <span className="text-xs font-black text-amber-400">{driver.rating}</span>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FBBF24]/10 border border-[#FBBF24]/20 w-fit">
+                       <Star size={12} className="text-[#FBBF24] fill-[#FBBF24]" />
+                       <span className="text-[10px] font-black text-[#FBBF24]">{driver.rating}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-6">
+                  <td className="px-6 py-4">
                     <span className="text-[10px] font-black text-[#5a6a85] uppercase tracking-widest">—</span>
                   </td>
-                  <td className="px-6 py-6">
-                    <span className={`px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest whitespace-nowrap ${
-                      driver.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                  <td className="px-6 py-4">
+                    <span className={`px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest whitespace-nowrap ${
+                      driver.status === 'active' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' :
                       driver.status === 'resting' ? 'bg-white/[0.05] text-[#5a6a85] border-white/5' :
-                      'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                      'bg-[#FBBF24]/10 text-[#FBBF24] border-[#FBBF24]/20'
                     }`}>
-                      {driver.status === 'active' ? '● В роботі' : driver.status === 'resting' ? 'Вихідний' : 'Відпустка'}
+                      {driver.status === 'active' ? '● В РОБОТІ' : driver.status === 'resting' ? 'ВИХІДНИЙ' : 'ВІДПУСТКА'}
                     </span>
                   </td>
-                   <td className="px-8 py-6 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                   <td className="px-6 py-4 text-right rounded-r-[16px]">
+                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                        <button 
                          onClick={() => handleToggleStatus(driver)}
-                         className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-[#8899b5] hover:text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/20 transition-all"
+                         className="p-2.5 rounded-full bg-white/[0.03] border border-white/5 text-[#8899b5] hover:text-[#0EA5E9] hover:bg-[#0EA5E9]/10 hover:border-[#0EA5E9]/20 transition-all shadow-lg"
                          title="Змінити статус"
                        >
-                          <UserCheck2 size={16} />
+                          <UserCheck2 size={14} />
                        </button>
-                       <button className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-[#8899b5] hover:text-white transition-all">
-                          <Phone size={16} />
+                       <button className="p-2.5 rounded-full bg-white/[0.03] border border-white/5 text-[#8899b5] hover:text-white hover:bg-white/10 transition-all shadow-lg">
+                          <Phone size={14} />
                        </button>
                        <button 
                          onClick={() => handleDeleteDriver(driver.id, `${driver.firstName} ${driver.lastName}`)}
-                         className="p-2.5 rounded-xl bg-rose-500/5 border border-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all"
+                         className="p-2.5 rounded-full bg-rose-500/5 border border-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-lg"
                          title="Видалити водія"
                        >
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                        </button>
                     </div>
                   </td>
@@ -302,7 +302,6 @@ export default function Drivers() {
             </tbody>
           </table>
         </div>
-      </div>
     </div>
   );
 }

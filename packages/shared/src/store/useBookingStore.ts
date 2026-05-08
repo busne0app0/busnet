@@ -95,9 +95,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
 
       const requestedSeats = passengers.length;
 
-      // Атомарна операція через RPC — вирішує race condition
-      // PostgreSQL блокує рядок FOR UPDATE, жоден паралельний запит
-      // не може забронювати ті самі місця одночасно
+      // Атомарна операція через RPC
       const { data: bookResult, error: rpcError } = await supabase
         .rpc('book_seats', {
           p_trip_id: selectedTrip.id,
@@ -110,29 +108,30 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       }
 
       // Отримуємо дані рейсу для збереження в бронюванні
+      // Таблиця routes використовує carrier_id (snake)
       const { data: tripData } = await supabase
-        .from('trips')
-        .select('carrierId, departureCity, arrivalCity, departureDate, departureTime, arrivalTime')
-        .eq('id', selectedTrip.id)
+        .from('routes')
+        .select('carrier_id, name, outbound')
+        .eq('id', selectedTrip.routeId || (selectedTrip as any).route_id || selectedTrip.id)
         .single();
 
-      // Створюємо бронювання з дублюванням критичних полів маршруту
+      // Створюємо бронювання згідно з реальною схемою (все в snake_case)
       const bookingId = "BK-" + Math.random().toString(36).substring(2, 9).toUpperCase();
       const { error: insertError } = await supabase
         .from('bookings')
         .insert({
           id: bookingId,
-          userId: user.id,
-          tripId: selectedTrip.id,
+          user_id: user.id,
+          trip_id: selectedTrip.id,
           status: 'confirmed',
           passengers: passengers,
-          totalPrice: totalPrice,
-          carrierId: tripData?.carrierId || null,
-          routeFrom: selectedTrip.departureCity || tripData?.departureCity || '',
-          routeTo: selectedTrip.arrivalCity || tripData?.arrivalCity || '',
-          departureDate: selectedTrip.departureDate || tripData?.departureDate || null,
-          departureTime: selectedTrip.departureTime || tripData?.departureTime || null,
-          arrivalTime: selectedTrip.arrivalTime || tripData?.arrivalTime || null,
+          total_price: totalPrice,
+          carrier_id: tripData?.carrier_id || null,
+          route_from: selectedTrip.departureCity || (tripData as any)?.departureCity || '',
+          route_to: selectedTrip.arrivalCity || (tripData as any)?.arrivalCity || '',
+          departure_date: selectedTrip.departureDate || (tripData as any)?.departureDate || null,
+          departure_time: selectedTrip.departureTime || (tripData as any)?.departureTime || null,
+          arrival_time: selectedTrip.arrivalTime || (tripData as any)?.arrivalTime || null,
         });
 
       if (insertError) {
@@ -146,4 +145,3 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     }
   }
 }));
-

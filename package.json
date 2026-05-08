@@ -12,7 +12,8 @@
     "clean": "rm -rf dist",
     "lint": "turbo run lint",
     "deploy:prep": "powershell -ExecutionPolicy Bypass -File ./prepare-deploy.ps1",
-    "deploy:full": "npm run deploy:prep && vercel --prod"
+    "deploy:full": "npm run deploy:prep && vercel --prod",
+    "deploy": "npm run build && npx gh-pages -d dist"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

@@ -6,364 +6,241 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  LayoutDashboard, Map, Calendar, PlusCircle, Users, Ticket, 
+  LayoutGrid, Calendar, PlusCircle, Users, Ticket, 
   Wallet, RotateCcw, FileText, BarChart3, Star, Handshake, 
-  Bus, UserCircle2, MessageSquare, Bell, Building2, ClipboardList, 
-  Settings, LogOut, Search, Clock, ChevronRight, Menu, X
+  Bus, LogOut, MessageSquare, Bell, Building, ClipboardList, Settings
 } from 'lucide-react';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
-import { supabase } from '@busnet/shared/supabase/config';
 
-interface NavItem {
-  id: string;
-  label: string;
-  path: string;
-  icon: React.ElementType;
-  badge?: string | number;
-  badgeColor?: string;
-}
-
-interface NavGroup {
-  group: string;
-  items: NavItem[];
-}
+const MENU_CATEGORIES = [
+  {
+    id: 'dashboard',
+    icon: LayoutGrid,
+    color: 'text-[#00E5FF]',
+    glowClass: 'group-hover:shadow-[0_0_15px_rgba(0,229,255,0.6)] group-hover:border-[#00E5FF]/50',
+    path: '/',
+    subItems: []
+  },
+  {
+    id: 'transport',
+    icon: Bus,
+    color: 'text-[#0EA5E9]',
+    glowClass: 'group-hover:shadow-[0_0_15px_rgba(14,165,233,0.6)] group-hover:border-[#0EA5E9]/50',
+    subItems: [
+      { label: 'Розклад рейсів', path: '/trips', icon: Calendar },
+      { label: 'Створити рейс', path: '/newtrip', icon: PlusCircle },
+      { label: 'Пасажири', path: '/passengers', icon: Users },
+      { label: 'Бронювання', path: '/bookings', icon: Ticket },
+      { label: 'Мій автопарк', path: '/fleet', icon: Bus },
+      { label: 'Водії', path: '/drivers', icon: Users },
+    ]
+  },
+  {
+    id: 'finance',
+    icon: Wallet,
+    color: 'text-[#FBBF24]',
+    glowClass: 'group-hover:shadow-[0_0_15px_rgba(251,191,36,0.6)] group-hover:border-[#FBBF24]/50',
+    subItems: [
+      { label: 'Доходи & Виплати', path: '/finance', icon: Wallet },
+      { label: 'Повернення', path: '/refunds', icon: RotateCcw },
+      { label: 'Інвойси', path: '/invoices', icon: FileText },
+    ]
+  },
+  {
+    id: 'analytics',
+    icon: BarChart3,
+    color: 'text-[#E879F9]',
+    glowClass: 'group-hover:shadow-[0_0_15px_rgba(232,121,249,0.6)] group-hover:border-[#E879F9]/50',
+    subItems: [
+      { label: 'Аналітика маршрутів', path: '/analytics', icon: BarChart3 },
+      { label: 'Відгуки & Рейтинг', path: '/reviews', icon: Star },
+      { label: 'Агенти', path: '/agents', icon: Handshake },
+    ]
+  },
+  {
+    id: 'communication',
+    icon: MessageSquare,
+    color: 'text-[#A855F7]',
+    glowClass: 'group-hover:shadow-[0_0_15px_rgba(168,85,247,0.6)] group-hover:border-[#A855F7]/50',
+    subItems: [
+      { label: 'Підтримка', path: '/support', icon: MessageSquare },
+      { label: 'Сповіщення', path: '/notifications', icon: Bell },
+    ]
+  },
+  {
+    id: 'profile',
+    icon: Settings,
+    color: 'text-[#10B981]',
+    glowClass: 'group-hover:shadow-[0_0_15px_rgba(16,185,129,0.6)] group-hover:border-[#10B981]/50',
+    subItems: [
+      { label: 'Профіль компанії', path: '/profile', icon: Building },
+      { label: 'Документи', path: '/documents', icon: ClipboardList },
+      { label: 'Налаштування', path: '/settings', icon: Settings },
+    ]
+  }
+];
 
 export default function CarrierLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout, user } = useAuthStore();
-  const [clock, setClock] = useState(new Date().toLocaleTimeString('uk-UA'));
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) return false;
-    return true;
-  });
-  const [stats, setStats] = useState({ activeTrips: 0, revenueToday: 0, passengersToday: 0, newBookings: 0, newTickets: 0 });
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024 && isSidebarOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
-  }, [isSidebarOpen]);
-
-  const carrierName = user?.companyName || user?.firstName || 'Перевізник';
-  const carrierInitials = carrierName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-
-  useEffect(() => {
-    if (!user) return;
-    
-    const fetchStats = async () => {
-      // 1. Fetch active trips count
-      const { count: activeTripsCount } = await supabase
-        .from('trips')
-        .select('*', { count: 'exact', head: true })
-        .eq('carrierId', user.uid)
-        .in('status', ['active', 'in_progress']);
-
-      // 2. Fetch bookings for today's revenue and passengers
-      const startOfToday = new Date();
-      startOfToday.setHours(0,0,0,0);
-      
-      const { data: bookings } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('carrierId', user.uid);
-
-      let dailyRev = 0;
-      let dailyPax = 0;
-      let pendingTicks = 0;
-
-      if (bookings) {
-        bookings.forEach(data => {
-          if (data.status === 'confirmed') pendingTicks++;
-          const createdAt = new Date(data.createdAt);
-          if (createdAt >= startOfToday) {
-            if (data.status === 'confirmed') {
-              dailyRev += (data.totalPrice || 0) / 42;
-              dailyPax += data.passengers?.length || 0;
-            }
-          }
-        });
-      }
-
-      // 3. Fetch open support tickets
-      const { count: supportCount } = await supabase
-        .from('support')
-        .select('*', { count: 'exact', head: true })
-        .eq('userId', user.uid)
-        .eq('status', 'open');
-
-      setStats({
-        activeTrips: activeTripsCount || 0,
-        revenueToday: dailyRev,
-        passengersToday: dailyPax,
-        newBookings: pendingTicks,
-        newTickets: supportCount || 0
-      });
-    };
-
-    fetchStats();
-    
-    // Subscribe to changes
-    const channel = supabase.channel(`carrier_stats_${user.uid}_${Date.now()}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'trips', filter: `carrierId=eq.${user.uid}` }, fetchStats)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `carrierId=eq.${user.uid}` }, fetchStats)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'support', filter: `userId=eq.${user.uid}` }, fetchStats)
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
+  const [clock, setClock] = useState('');
+  const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setClock(new Date().toLocaleTimeString('uk-UA'));
+      const now = new Date();
+      setClock(`${now.toLocaleDateString('uk-UA')} ${now.toLocaleTimeString('uk-UA')}`);
     }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const NAV_GROUPS: NavGroup[] = [
-    {
-      group: 'Огляд',
-      items: [
-        { id: 'dashboard', label: 'Дашборд', path: '/', icon: LayoutDashboard, badge: 'Live', badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-        { id: 'livetrips', label: 'Мої рейси Live', path: '/livetrips', icon: Map, badge: stats.activeTrips || undefined, badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-      ]
-    },
-    {
-      group: 'Управління',
-      items: [
-        { id: 'trips', label: 'Розклад рейсів', path: '/trips', icon: Calendar },
-        { id: 'newtrip', label: 'Створити рейс', path: '/newtrip', icon: PlusCircle },
-        { id: 'passengers', label: 'Пасажири', path: '/passengers', icon: Users, badge: stats.newBookings || undefined, badgeColor: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
-        { id: 'bookings', label: 'Бронювання', path: '/bookings', icon: Ticket },
-      ]
-    },
-    {
-      group: 'Фінанси',
-      items: [
-        { id: 'finance', label: 'Доходи & Виплати', path: '/finance', icon: Wallet },
-        { id: 'refunds', label: 'Повернення', path: '/refunds', icon: RotateCcw, badge: undefined, badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-        { id: 'invoices', label: 'Інвойси', path: '/invoices', icon: FileText },
-      ]
-    },
-    {
-      group: 'Аналітика',
-      items: [
-        { id: 'analytics', label: 'Аналітика маршрутів', path: '/analytics', icon: BarChart3 },
-        { id: 'reviews', label: 'Відгуки & Рейтинг', path: '/reviews', icon: Star },
-        { id: 'agents', label: 'Агенти', path: '/agents', icon: Handshake },
-      ]
-    },
-    {
-      group: 'Транспорт',
-      items: [
-        { id: 'buses', label: 'Мій автопарк', path: '/buses', icon: Bus },
-        { id: 'drivers', label: 'Водії', path: '/drivers', icon: UserCircle2 },
-      ]
-    },
-    {
-      group: 'Комунікація',
-      items: [
-        { id: 'support', label: 'Підтримка', path: '/support', icon: MessageSquare, badge: stats.newTickets || undefined, badgeColor: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
-        { id: 'notifications', label: 'Сповіщення', path: '/notifications', icon: Bell },
-      ]
-    },
-    {
-      group: 'Профіль',
-      items: [
-        { id: 'profile', label: 'Профіль компанії', path: '/profile', icon: Building2 },
-        { id: 'docs', label: 'Документи', path: '/docs', icon: ClipboardList },
-        { id: 'settings', label: 'Налаштування', path: '/settings', icon: Settings },
-      ]
-    }
-  ];
-
-  const activeItem = NAV_GROUPS.flatMap(g => g.items).find(i => 
-    i.path === location.pathname || (i.path !== '/' && location.pathname.startsWith(i.path))
-  ) || NAV_GROUPS[0].items[0];
+  const carrierName = user?.companyName || user?.firstName || 'Перевізник';
+  const carrierInitials = carrierName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
-    <div className="flex h-screen bg-[#0b0e14] text-[#e8edf5] overflow-hidden font-sans">
-      {/* Sidebar Overlay */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
+    <div className="flex h-screen bg-[#050B14] text-[#e8edf5] overflow-hidden font-sans relative">
+      {/* Background Starry/Space Effect */}
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-40" style={{
+        backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(0, 229, 255, 0.05) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(232, 121, 249, 0.05) 0%, transparent 40%)'
+      }} />
 
-      {/* Sidebar */}
-      <aside className={`
-        fixed inset-y-0 left-0 z-50 lg:relative lg:translate-x-0
-        ${isSidebarOpen ? 'translate-x-0 w-[250px]' : '-translate-x-full lg:w-[80px] lg:translate-x-0'} 
-        bg-[#111520] border-r border-white/5 flex flex-col h-full transition-all duration-300 ease-in-out shrink-0
-      `}>
-        <div className="p-6 border-b border-white/5 flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-[#ff6b35] to-[#cc3300] rounded-xl flex items-center justify-center shrink-0">
-            <Bus className="text-white" size={24} />
+      {/* Floating Clock - Moved to bottom right to avoid overlapping top buttons */}
+      <div className="absolute bottom-6 right-8 z-10 text-[#8899B5] font-mono text-[11px] tracking-widest pointer-events-none">
+        {clock}
+      </div>
+
+      {/* Floating Sidebar */}
+      <aside className="relative z-50 w-[90px] h-[calc(100vh-48px)] my-6 ml-6 flex flex-col items-center py-6 rounded-[32px] bg-[#0B1221]/80 backdrop-blur-xl border border-white/5 shadow-[0_0_30px_rgba(0,229,255,0.05)] before:absolute before:inset-0 before:rounded-[32px] before:border before:border-transparent before:[background:linear-gradient(to_bottom,rgba(0,229,255,0.3),rgba(232,121,249,0.1),transparent) border-box] before:[mask-composite:exclude] before:[mask:linear-gradient(white_0_0)_padding-box,_linear-gradient(white_0_0)]">
+        
+        {/* Top Logo */}
+        <div className="flex flex-col items-center gap-1 mb-6 cursor-pointer" onClick={() => window.location.href = '/'}>
+          <div className="w-12 h-10 border border-[#00E5FF]/40 rounded-xl flex items-center justify-center text-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.2)] group-hover:shadow-[0_0_25px_rgba(0,229,255,0.4)] transition-all">
+            <Bus size={20} />
           </div>
-          {isSidebarOpen && (
-            <div className="flex-1">
-              <div className="font-syne font-black text-sm tracking-tight">BUS<span className="text-[#ff6b35]">NET</span> UA</div>
-              <div className="text-[9px] text-[#5a6a85] uppercase tracking-widest leading-none mt-1">Cabinet</div>
-            </div>
-          )}
-          <button className="lg:hidden text-[#8899b5]" onClick={() => setIsSidebarOpen(false)}>
-            <X size={20} />
-          </button>
+          <div className="text-center mt-1">
+            <div className="text-[9px] font-black tracking-widest text-white">BUSNET UA</div>
+            <div className="text-[8px] font-bold text-[#8899B5]">2026</div>
+          </div>
         </div>
 
-        {/* Carrier Info Area */}
-        {isSidebarOpen && (
-          <div className="p-4 border-b border-white/5 bg-white/[0.02]">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-700 flex items-center justify-center font-black text-white shrink-0 shadow-lg shadow-orange-500/10">
-                {carrierInitials}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-bold truncate leading-tight text-white">{carrierName}</div>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest leading-none">Verified Partner</span>
-                </div>
+        {/* Avatar with Upload */}
+        <div className="relative mb-8 group cursor-pointer">
+          <label className="cursor-pointer block relative">
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+              if (e.target.files?.[0]) {
+                alert('Функція завантаження логотипу в розробці (Файл вибрано: ' + e.target.files[0].name + ')');
+              }
+            }} />
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#00E5FF]/20 to-[#E879F9]/20 border border-white/10 flex items-center justify-center shadow-[0_0_20px_rgba(0,229,255,0.1)] group-hover:shadow-[0_0_25px_rgba(0,229,255,0.3)] transition-all overflow-hidden relative">
+              <span className="text-white font-black text-lg tracking-tighter">{carrierInitials}</span>
+              {/* Overlay on hover */}
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                <span className="text-[8px] text-white font-bold uppercase tracking-widest text-center">Завантажити<br/>Логотип</span>
               </div>
             </div>
-            <div className="mt-4 px-3 py-2 rounded-xl bg-amber-500/5 border border-amber-500/10 flex items-center gap-2 group cursor-help transition-all hover:bg-amber-500/10">
-              <Star size={12} className="text-amber-400 fill-amber-400 group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-black text-amber-400 tracking-tighter">4.8 Rating</span>
-              <div className="flex-1" />
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-500/20" />
-            </div>
+          </label>
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#1A2639] border border-[#FBBF24]/30 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-[0_0_10px_rgba(251,191,36,0.2)] pointer-events-none">
+            <Star size={8} className="fill-[#FBBF24] text-[#FBBF24]" />
+            <span className="text-[8px] font-black text-[#FBBF24]">4.8</span>
           </div>
-        )}
+        </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 scrollbar-hide">
-          {NAV_GROUPS.map((group, gIdx) => (
-            <div key={gIdx} className="mb-4">
-              {isSidebarOpen && (
-                <div className="px-6 mb-2 text-[10px] font-black text-[#5a6a85] uppercase tracking-widest">
-                  {group.group}
-                </div>
-              )}
-              <div className="space-y-1">
-                {group.items.map((item) => {
-                  const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        navigate(item.path);
-                        if (window.innerWidth < 1024) setIsSidebarOpen(false);
-                      }}
-                      className={`
-                        w-full flex items-center gap-3 px-6 py-2 transition-all relative
-                        ${isActive 
-                          ? 'bg-[#ff6b35]/12 text-[#ff6b35] border-l-4 border-[#ff6b35] font-semibold' 
-                          : 'text-[#8899b5] hover:bg-white/[0.03] hover:text-white border-l-4 border-transparent'}
-                      `}
+        {/* Navigation Icons */}
+        <nav className="flex-1 flex flex-col gap-4 w-full px-3 relative z-50">
+          {MENU_CATEGORIES.map((cat) => {
+            const isActive = cat.path === location.pathname || cat.subItems.some(sub => location.pathname.startsWith(sub.path));
+            const isHovered = hoveredMenu === cat.id;
+            
+            return (
+              <div 
+                key={cat.id} 
+                className="relative flex justify-center group"
+                onMouseEnter={() => setHoveredMenu(cat.id)}
+                onMouseLeave={() => setHoveredMenu(null)}
+              >
+                {/* Neon Thread (Active Indicator) */}
+                {isActive && (
+                  <div className={`absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-8 rounded-full ${cat.color.replace('text-', 'bg-')} shadow-[0_0_10px_currentColor]`} />
+                )}
+
+                <button
+                  onClick={() => cat.path && navigate(cat.path)}
+                  className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 border ${
+                    isActive 
+                      ? `bg-white/10 border-white/20 shadow-inner` 
+                      : `bg-transparent border-transparent ${cat.glowClass}`
+                  }`}
+                >
+                  <cat.icon size={26} strokeWidth={1.5} className={`${cat.color} ${isActive ? 'drop-shadow-[0_0_8px_currentColor]' : ''}`} />
+                </button>
+
+                {/* Glassmorphic Popover for sub-items */}
+                <AnimatePresence>
+                  {isHovered && cat.subItems.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: -10, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className={`absolute left-[70px] top-0 w-[200px] bg-[#0B1221]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-2 z-50 flex flex-col gap-1 shadow-[0_0_20px_${cat.color.replace('text-[', '').replace(']', '')}40]`}
                     >
-                      <item.icon size={18} className="shrink-0" />
-                      {isSidebarOpen && (
-                        <>
-                          <span className="text-xs flex-1 text-left">{item.label}</span>
-                          {item.badge && (
-                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${item.badgeColor}`}>
-                              {item.badge}
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </button>
-                  );
-                })}
+                      {/* Arrow pointing left */}
+                      <div className={`absolute top-5 -left-[6px] w-3 h-3 bg-[#0B1221] border-l border-b border-white/10 rotate-45`} />
+                      
+                      {cat.subItems.map((sub, i) => (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            navigate(sub.path);
+                            setHoveredMenu(null);
+                          }}
+                          className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${
+                            location.pathname.startsWith(sub.path)
+                              ? `${cat.color.replace('text-', 'bg-')}/10 ${cat.color} font-bold`
+                              : 'text-[#8899B5] hover:bg-white/5 hover:text-white'
+                          }`}
+                        >
+                          <sub.icon size={16} />
+                          <span className="text-[11px] uppercase tracking-widest">{sub.label}</span>
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+
+                  {/* Simple Tooltip for items without sub-items (like Dashboard) */}
+                  {isHovered && cat.subItems.length === 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute left-[70px] top-1/2 -translate-y-1/2 whitespace-nowrap bg-[#0B1221]/90 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-xl text-xs font-bold tracking-widest text-white z-50 shadow-xl"
+                    >
+                      <div className="absolute top-1/2 -translate-y-1/2 -left-[5px] w-2.5 h-2.5 bg-[#0B1221] border-l border-b border-white/10 rotate-45" />
+                      ДАШБОРД
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
-        <div className="p-4 border-t border-white/5">
+        {/* Logout Bottom */}
+        <div className="mt-auto pt-4 group">
           <button 
             onClick={() => logout()}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-rose-500/5 border border-rose-500/20 text-rose-500 hover:bg-rose-500/10 transition-all text-xs font-semibold"
+            className="w-12 h-12 rounded-full border border-rose-500/20 bg-rose-500/5 flex items-center justify-center text-rose-500 transition-all group-hover:bg-rose-500/20 group-hover:shadow-[0_0_15px_rgba(244,63,94,0.4)] group-hover:border-rose-500/50"
           >
-            <LogOut size={16} />
-            {isSidebarOpen && "Вийти з кабінету"}
+            <LogOut size={20} strokeWidth={1.5} className="ml-1" />
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Topbar */}
-        <header className="h-[54px] bg-[#111520] border-b border-white/5 flex items-center justify-between px-4 lg:px-6 shrink-0 relative z-30 shadow-lg">
-          <div className="flex items-center gap-3">
-            <button className="lg:hidden text-[#ff6b35]" onClick={() => setIsSidebarOpen(true)}>
-              <Menu size={20} />
-            </button>
-            <activeItem.icon size={18} className="text-[#ff6b35] hidden sm:block" />
-            <h1 className="font-syne font-bold text-sm tracking-tight">{activeItem.label}</h1>
-          </div>
-
-          <div className="flex items-center gap-2 lg:gap-4">
-            <div className="flex items-center gap-1.5">
-              <div className="relative group hidden sm:block">
-                <button className="w-9 h-9 rounded-xl bg-[#161c2a] border border-white/5 flex items-center justify-center text-[#8899b5] hover:text-cyan-400 hover:border-cyan-500/30 transition-all focus:ring-2 ring-cyan-500/20 outline-none">
-                  <Search size={16} />
-                </button>
-              </div>
-              <button className="w-9 h-9 rounded-xl bg-[#161c2a] border border-white/5 flex items-center justify-center text-[#8899b5] hover:text-rose-400 hover:border-rose-500/30 transition-all relative">
-                <Bell size={16} />
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-[#111520] animate-bounce">5</span>
-              </button>
-            </div>
-            
-            <div className="h-4 w-px bg-white/5 mx-2 hidden sm:block" />
-            
-            <div className="bg-[#161c2a] border border-white/5 px-2 py-1.5 lg:px-4 lg:py-1.5 rounded-xl flex items-center gap-3 text-[#5a6a85] group overflow-hidden hidden sm:flex">
-              <div className="flex flex-col items-end text-right">
-                <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-40 leading-none mb-1">Potentia Sync</span>
-                <span className="font-mono font-bold text-xs tracking-widest text-[#ff6b35]">{clock}</span>
-              </div>
-              <div className="w-1 h-6 bg-[#ff6b35]/20 rounded-full group-hover:bg-[#ff6b35]/40 transition-colors" />
-            </div>
-          </div>
-        </header>
-
-        {/* Pulse Bar */}
-        <div className="bg-[#161c2a] border-b border-white/5 py-2 px-6 flex items-center gap-8 overflow-x-auto scrollbar-hide text-[10px] uppercase font-black tracking-widest shrink-0">
-          <div className="flex items-center gap-2 whitespace-nowrap">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981]" />
-            <span className="text-[#5a6a85]">Активні рейси:</span>
-            <span className="text-[#e8edf5]">{stats.activeTrips}</span>
-          </div>
-          <div className="w-px h-3 bg-white/5" />
-          <div className="flex items-center gap-2 whitespace-nowrap">
-            <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 shadow-[0_0_6px_#06b6d4]" />
-            <span className="text-[#5a6a85]">Пасажирів сьогодні:</span>
-            <span className="text-[#e8edf5]">{stats.passengersToday}</span>
-          </div>
-          <div className="w-px h-3 bg-white/5" />
-          <div className="flex items-center gap-2 whitespace-nowrap">
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_#f59e0b]" />
-            <span className="text-[#5a6a85]">Дохід сьогодні:</span>
-            <span className="text-[#e8edf5] text-amber-400">€{stats.revenueToday.toLocaleString('en-US', {maximumFractionDigits: 0})}</span>
-          </div>
-          <div className="w-px h-3 bg-white/5" />
-          <div className="flex items-center gap-2 whitespace-nowrap">
-             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981]" />
-            <span className="text-[#5a6a85]">Рейтинг:</span>
-            <span className="text-amber-400">⭐ 4.8</span>
-          </div>
-        </div>
-
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-8 relative scrollbar-hide">
-          <Outlet />
-        </main>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto relative z-10 p-6 scrollbar-hide">
+        <Outlet />
       </div>
     </div>
   );

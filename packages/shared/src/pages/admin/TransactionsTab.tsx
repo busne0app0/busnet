@@ -25,7 +25,7 @@ const TransactionsTab: React.FC = () => {
         .from('bookings')
         .select('*')
         .not('totalPrice', 'is', null)
-        .order('createdAt', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(100);
 
       if (error) {

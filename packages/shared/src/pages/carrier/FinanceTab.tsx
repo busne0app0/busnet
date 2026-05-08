@@ -33,8 +33,8 @@ const FinanceTab: React.FC = () => {
       const { data: bookingsData } = await supabase
         .from('bookings')
         .select('*')
-        .eq('carrierId', user.uid)
-        .order('createdAt', { ascending: false })
+        .eq('carrier_id', user.uid)
+        .order('created_at', { ascending: false })
         .limit(10);
       
       if (bookingsData) {
@@ -66,104 +66,104 @@ const FinanceTab: React.FC = () => {
   }, [user]);
 
   return (
-    <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+    <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-2">
         <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-2 h-6 bg-[#00e676] rounded-full shadow-[0_0_10px_rgba(0,230,118,0.5)]" />
-            <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white font-syne">Фінанси</h2>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-1.5 h-6 bg-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+            <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white">ФІНАНСИ</h2>
           </div>
-          <p className="text-[#5a6a85] text-sm font-medium tracking-wide ml-5 uppercase tracking-widest">Баланс, виплати та історія транзакцій</p>
+          <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest ml-4">Баланс, виплати та історія транзакцій</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-4">
           <button 
             onClick={() => toast.success('Звіт успішно згенеровано та підготовлено до завантаження')}
-            className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all flex items-center gap-2"
+            className="px-8 py-3.5 bg-[#0B1221] border border-white/5 rounded-full text-[10px] font-black uppercase tracking-widest text-white hover:bg-[#1A2639] transition-all flex items-center gap-2"
           >
-            <Download size={14} /> Експорт звіту
+            <Download size={14} /> ЕКСПОРТ ЗВІТУ
           </button>
           <button 
             onClick={() => toast.loading('Запит обробляється банком...', { duration: 2000 })}
-            className="px-6 py-3 bg-[#00e676] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all shadow-[0_10px_20px_rgba(0,230,118,0.2)]"
+            className="px-8 py-3.5 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]"
           >
-            Запросити виплату
+            ЗАПРОСИТИ ВИПЛАТУ
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: 'Доступно до виплати', val: `€${balance.toLocaleString('en-US', {minimumFractionDigits: 2})}`, icon: Wallet, color: '#00e676', trend: '+12% vs м.м.' },
-          { label: 'В обробці', val: `€${pendingBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}`, icon: CreditCard, color: '#ff9800', trend: 'Очікується завтра' },
-          { label: 'Всього виплачено', val: `€${totalPayouts.toLocaleString('en-US', {minimumFractionDigits: 2})}`, icon: Landmark, color: '#00c8ff', trend: 'За весь час' },
+          { label: 'ДОСТУПНО ДО ВИПЛАТИ', val: `€${balance.toLocaleString('en-US', {minimumFractionDigits: 2})}`, icon: Wallet, color: '#10B981', trend: '+12% vs м.м.' },
+          { label: 'В ОБРОБЦІ', val: `€${pendingBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}`, icon: CreditCard, color: '#F59E0B', trend: 'Очікується завтра' },
+          { label: 'ВСЬОГО ВИПЛАЧЕНО', val: `€${totalPayouts.toLocaleString('en-US', {minimumFractionDigits: 2})}`, icon: Landmark, color: '#0EA5E9', trend: 'За весь час' },
         ].map((stat, i) => (
           <motion.div
             key={i}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.1 }}
-            className="p-8 rounded-[32px] bg-[#111520] border border-white/5 relative overflow-hidden group shadow-2xl"
+            className="p-8 rounded-[32px] bg-[#1A2639]/30 border border-white/5 relative overflow-hidden group shadow-lg min-h-[160px]"
           >
-            <div className="absolute top-0 right-0 p-8 opacity-5 -rotate-12 group-hover:rotate-0 transition-transform">
-              <stat.icon size={80} style={{ color: stat.color }} />
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 p-8 opacity-[0.03] group-hover:opacity-[0.05] transition-all">
+              <stat.icon size={80} style={{ color: stat.color }} strokeWidth={1} />
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#5a6a85] mb-2">{stat.label}</p>
-            <h3 className="text-4xl font-black text-white italic tracking-tighter mb-4">{stat.val}</h3>
-            <div className="flex items-center gap-2 text-[10px] font-bold" style={{ color: stat.color }}>
+            <p className="text-[9px] font-black uppercase tracking-widest text-[#5A6A85] mb-2 relative z-10">{stat.label}</p>
+            <h3 className="text-4xl font-black text-white italic tracking-tighter mb-4 relative z-10">{stat.val}</h3>
+            <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest relative z-10" style={{ color: stat.color }}>
               <TrendingUp size={12} /> {stat.trend}
             </div>
           </motion.div>
         ))}
       </div>
 
-      <div className="bg-[#111520] border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
-        <div className="p-6 border-b border-white/5 flex flex-col md:flex-row justify-between gap-4">
-           <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white flex items-center gap-3">
-              <History size={18} className="text-cyan-400" /> Остання активність
+      <div className="bg-[#0B1221] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl min-h-[400px]">
+        <div className="p-6 border-b border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
+           <h3 className="text-[12px] font-black uppercase tracking-widest text-white flex items-center gap-3">
+              <History size={16} className="text-[#00E5FF]" /> ОСТАННЯ АКТИВНІСТЬ
            </h3>
            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#3d5670]" size={14} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5A6A85]" size={14} />
               <input 
                 placeholder="Пошук транзакції..." 
-                className="bg-[#070912] border border-white/5 rounded-lg pl-9 pr-4 py-2 text-[10px] text-white focus:border-cyan-500 outline-none w-full md:w-64"
+                className="bg-[#1A2639]/50 border border-transparent rounded-[16px] pl-10 pr-4 py-3 text-[11px] text-white focus:border-[#00E5FF]/30 outline-none w-full md:w-64 transition-all placeholder-[#5A6A85] font-medium"
               />
            </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto h-full">
           <table className="min-w-[800px] w-full text-left">
             <thead>
-              <tr className="bg-white/[0.02]">
-                <th className="py-4 px-6 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Дата / Тип</th>
-                <th className="py-4 px-6 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Опис</th>
-                <th className="py-4 px-6 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em]">Статус</th>
-                <th className="py-4 px-6 text-[9px] font-black text-[#5a6a85] uppercase tracking-[0.2em] text-right">Сума</th>
+              <tr className="bg-transparent border-b border-white/5">
+                <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">ДАТА / ТИП</th>
+                <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">ОПИС</th>
+                <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">СТАТУС</th>
+                <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest text-right">СУМА</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {transactions.map((trx, idx) => (
-                <tr key={idx} className="group hover:bg-white/[0.01] transition-all">
+                <tr key={idx} className="group hover:bg-[#1A2639]/30 transition-all">
                   <td className="py-5 px-6">
                     <div className="flex items-center gap-4">
-                      <div className={`p-2 rounded-lg ${trx.type === 'income' ? 'bg-[#00e676]/10 text-[#00e676]' : trx.type === 'payout' ? 'bg-[#00c8ff]/10 text-[#00c8ff]' : 'bg-rose-500/10 text-rose-500'}`}>
+                      <div className={`p-2 rounded-[10px] ${trx.type === 'income' ? 'bg-[#10B981]/10 text-[#10B981]' : trx.type === 'payout' ? 'bg-[#0EA5E9]/10 text-[#0EA5E9]' : 'bg-rose-500/10 text-rose-500'}`}>
                         {trx.type === 'income' ? <ArrowDownRight size={16} /> : trx.type === 'payout' ? <Landmark size={16} /> : <ArrowUpRight size={16} />}
                       </div>
                       <div>
                         <p className="text-xs font-black text-white italic uppercase tracking-widest">{trx.type === 'income' ? 'Дохід' : trx.type === 'payout' ? 'Виплата' : 'Повернення'}</p>
-                        <p className="text-[9px] text-[#5a6a85] font-bold uppercase mt-0.5">{trx.date}</p>
+                        <p className="text-[9px] text-[#5A6A85] font-bold uppercase mt-0.5">{trx.date}</p>
                       </div>
                     </div>
                   </td>
                   <td className="py-5 px-6">
-                    <p className="text-[11px] font-bold text-[#8899b5]">{trx.desc}</p>
-                    <p className="text-[9px] text-[#3d5670] mt-0.5 font-bold italic line-clamp-1">{trx.id}</p>
+                    <p className="text-[11px] font-bold text-[#8899B5]">{trx.desc}</p>
+                    <p className="text-[9px] text-[#5A6A85] mt-0.5 font-bold italic line-clamp-1">{trx.id}</p>
                   </td>
                   <td className="py-5 px-6">
-                    <span className={`px-2.5 py-1 rounded-md text-[8px] font-black uppercase tracking-widest border ${trx.status === 'completed' ? 'bg-[#00e676]/10 text-[#00e676] border-[#00e676]/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
-                      {trx.status === 'completed' ? 'Завершено' : 'В обробці'}
+                    <span className={`px-3 py-1.5 rounded-[10px] text-[8px] font-black uppercase tracking-widest border ${trx.status === 'completed' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                      {trx.status === 'completed' ? 'ЗАВЕРШЕНО' : 'В ОБРОБЦІ'}
                     </span>
                   </td>
                   <td className="py-5 px-6 text-right">
-                    <span className={`text-sm font-black italic tracking-tighter ${trx.amount > 0 ? 'text-[#00e676]' : 'text-rose-500'}`}>
+                    <span className={`text-sm font-black italic tracking-tighter ${trx.amount > 0 ? 'text-[#10B981]' : 'text-rose-500'}`}>
                       {trx.amount > 0 ? '+' : ''}€{trx.amount.toLocaleString()}
                     </span>
                   </td>

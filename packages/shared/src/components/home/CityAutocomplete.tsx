@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Star, History, Search } from 'lucide-react';
-import { cities, City } from '@busnet/shared/data/cities';
+import { MapPin, Star, Search, Loader2 } from 'lucide-react';
+import { City } from '@busnet/shared/data/cities';
 import { useLanguage } from '@busnet/shared/context/LanguageContext';
+import { ExtendedCity } from '@busnet/shared/hooks/useCities';
 
 interface CityAutocompleteProps {
   label: string;
@@ -11,6 +12,8 @@ interface CityAutocompleteProps {
   placeholder: string;
   icon: React.ReactNode;
   animationControl?: any;
+  availableCities?: ExtendedCity[];
+  isLoading?: boolean;
 }
 
 export default function CityAutocomplete({ 
@@ -19,7 +22,9 @@ export default function CityAutocomplete({
   onChange, 
   placeholder, 
   icon,
-  animationControl 
+  animationControl,
+  availableCities = [],
+  isLoading = false
 }: CityAutocompleteProps) {
   const { language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
@@ -27,7 +32,6 @@ export default function CityAutocomplete({
   const [suggestions, setSuggestions] = useState<City[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Synchronize internal query state with external value (e.g., when clicking reverse or suggestion)
   useEffect(() => {
     setQuery(value);
   }, [value]);
@@ -43,7 +47,6 @@ export default function CityAutocomplete({
   }, []);
 
   const getCityName = (city: City) => {
-    // Return name in current UI language if available
     const lang = (language?.toLowerCase() || 'uk') as keyof typeof city.names;
     return city.names[lang] || city.names.uk;
   };
@@ -61,7 +64,7 @@ export default function CityAutocomplete({
 
     setIsOpen(true);
 
-    const filtered = cities.filter(city => {
+    const filtered = availableCities.filter(city => {
       const searchStr = val.toLowerCase();
       return (
         city.names.uk.toLowerCase().includes(searchStr) ||
@@ -69,15 +72,20 @@ export default function CityAutocomplete({
         city.names.it.toLowerCase().includes(searchStr)
       );
     }).sort((a, b) => {
-      // Prioritize exact starts
+      // 1. Prioritize exact starts
       const aStarts = Object.values(a.names).some(n => n.toLowerCase().startsWith(val.toLowerCase()));
       const bStarts = Object.values(b.names).some(n => n.toLowerCase().startsWith(val.toLowerCase()));
       if (aStarts && !bStarts) return -1;
       if (!aStarts && bStarts) return 1;
+      
+      // 2. Prioritize popular cities
+      if (a.popular && !b.popular) return -1;
+      if (!a.popular && b.popular) return 1;
+
       return 0;
     });
 
-    setSuggestions(filtered.slice(0, 4));
+    setSuggestions(filtered.slice(0, 6));
   };
 
   const handleSelect = (city: City) => {
@@ -85,12 +93,6 @@ export default function CityAutocomplete({
     setQuery(cityName);
     onChange(cityName);
     setIsOpen(false);
-  };
-
-  const handleFocus = () => {
-    if (query.trim().length > 0) {
-      setIsOpen(true);
-    }
   };
 
   return (
@@ -101,11 +103,12 @@ export default function CityAutocomplete({
       >
         <label className="text-[10px] text-slate-500 font-black uppercase block mb-1.5 tracking-widest flex items-center gap-1.5 group-hover:text-neon-cyan transition-colors">
           {icon} {label}
+          {isLoading && <Loader2 size={10} className="animate-spin text-neon-cyan" />}
         </label>
         <input 
           type="text" 
           value={query}
-          onFocus={handleFocus}
+          onFocus={() => query.length > 0 && setIsOpen(true)}
           onChange={handleInputChange}
           placeholder={placeholder} 
           className="w-full bg-transparent border-none text-white text-lg font-black outline-none placeholder:text-slate-700 italic tracking-tight pr-6"
@@ -120,7 +123,7 @@ export default function CityAutocomplete({
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             className="absolute left-0 right-0 top-full mt-2 bg-[#0a0f1a] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-xl max-w-[300px]"
           >
-            <div className="overflow-y-hidden">
+            <div className="max-h-[300px] overflow-y-auto">
               {suggestions.map((city) => (
                 <button
                   key={city.id}

@@ -22,36 +22,41 @@ const BookingsTab: React.FC = () => {
     let isMounted = true;
     
     const fetchData = async () => {
-      const { data: tripsData } = await supabase
-        .from('trips')
-        .select('id, departure_city, arrival_city, departureCity, arrivalCity');
+      const { data: routesData } = await supabase
+        .from('routes')
+        .select('id, name');
       
-      const tripsMap: Record<string, string> = {};
-      if (tripsData) {
-        tripsData.forEach(t => {
-          const from = t.departure_city || t.departureCity || 'A';
-          const to = t.arrival_city || t.arrivalCity || 'B';
-          tripsMap[t.id] = `${from} → ${to}`;
+      const routesMap: Record<string, string> = {};
+      if (routesData) {
+        routesData.forEach(r => {
+          routesMap[r.id] = r.name || 'Unknown Route';
         });
       }
 
       const { data: bookingsData, error } = await supabase
         .from('bookings')
         .select('*')
-        .order('createdAt', { ascending: false });
+        .order('created_at', { ascending: false });
       
       if (!error && bookingsData && isMounted) {
         const formatted = bookingsData.map((bData) => {
-          const routeStr = tripsMap[bData.tripId] || 'Unknown Vector';
+          // Роут з джоїну або route_from/route_to (снейк-кейс)
+          const routeName = routesMap[bData.trip_id] ||
+            (bData.route_from && bData.route_to
+              ? `${bData.route_from} → ${bData.route_to}`
+              : 'Невідомий маршрут');
           return {
             id: bData.id,
             ...bData,
-            passengerName: bData.passengers?.[0] ? `${bData.passengers[0].firstName} ${bData.passengers[0].lastName}` : 'Unknown Entity',
+            passengerName: bData.passengers?.[0]
+              ? `${bData.passengers[0].firstName} ${bData.passengers[0].lastName}`
+              : 'Unknown Entity',
             passengersCount: bData.passengers?.length || 1,
-            route: routeStr,
-            date: bData.created_at ? new Date(bData.created_at).toLocaleDateString('uk-UA') : 'Pending Sync',
-            seats: bData.passengers?.length || 0,
-            amount: `€${(bData.totalPrice || 0).toFixed(2)}`,
+            route: routeName,
+            date: bData.departure_date ||
+              (bData.created_at ? new Date(bData.created_at).toLocaleDateString('uk-UA') : 'Pending Sync'),
+            seats: bData.seats || bData.passengers?.length || 0,
+            amount: `€${(bData.total_price || 0).toFixed(2)}`,
             status: bData.status || 'confirmed'
           };
         });
@@ -129,7 +134,13 @@ const BookingsTab: React.FC = () => {
               onClick={() => {
                 const tripId = window.prompt('ID рейсу:');
                 if (tripId) {
-                   supabase.from('bookings').insert({ tripId, userId: 'manual', status: 'confirmed', totalPrice: 0, passengers: [{ firstName: 'Manual', lastName: 'Entry' }] }).then(() => {
+                   supabase.from('bookings').insert({
+                     trip_id: tripId,
+                     user_id: 'manual',
+                     status: 'confirmed',
+                     total_price: 0,
+                     passengers: [{ firstName: 'Manual', lastName: 'Entry' }]
+                   }).then(() => {
                       toast.success('Бронювання додано');
                    });
                 }

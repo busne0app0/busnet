@@ -26,7 +26,7 @@ export function useDrivers() {
       const { data, error } = await supabase
         .from('drivers')
         .select('*')
-        .eq('carrierId', carrierId);
+        .eq('carrier_id', carrierId);
       if (error) throw error;
       setDrivers(data || []);
     } catch (error) {

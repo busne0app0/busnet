@@ -22,7 +22,7 @@ const AnalyticsTab: React.FC = () => {
       const { data: tripsData } = await supabase
         .from('trips')
         .select('*')
-        .eq('carrierId', user.uid);
+        .eq('carrier_id', user.uid);
       
       let totalLoad = 0;
       let tripsCount = 0;
@@ -57,7 +57,7 @@ const AnalyticsTab: React.FC = () => {
       const { data: bookingsData } = await supabase
         .from('bookings')
         .select('*')
-        .eq('carrierId', user.uid);
+        .eq('carrier_id', user.uid);
       
       let dayMap: Record<string, { bookings: number, revenue: number }> = {};
       const today = new Date();
@@ -124,59 +124,61 @@ const AnalyticsTab: React.FC = () => {
   const COLORS = ['#00c8ff', '#00e676', '#ff9800', '#9c6fff'];
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-1000">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+    <div className="space-y-6 animate-in fade-in duration-1000">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-2">
         <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-2 h-6 bg-cyan-400 rounded-full shadow-[0_0_10px_#22d3ee]" />
-            <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white font-syne">Аналітика</h2>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-1.5 h-6 bg-[#00E5FF] shadow-[0_0_10px_rgba(0,229,255,0.5)]" />
+            <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white">АНАЛІТИКА</h2>
           </div>
-          <p className="text-[#5a6a85] text-sm font-medium tracking-wide ml-5 uppercase tracking-widest">Продажі, завантаженість та ефективність маршрутів</p>
+          <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest ml-4">Продажі, завантаженість та ефективність маршрутів</p>
         </div>
         <div className="flex gap-4">
            <button 
              onClick={() => toast.success('Дані оновлено')}
-             className="p-3 rounded-2xl bg-white/5 border border-white/5 text-[#5a6a85] hover:text-white transition-all flex items-center gap-2 text-xs font-black uppercase tracking-widest"
+             className="px-6 py-3.5 rounded-full bg-[#0B1221] border border-white/5 text-[#8899B5] hover:text-white transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
            >
-              <RefreshCw size={14} /> Оновити
+              <RefreshCw size={14} /> ОНОВИТИ
            </button>
            <button 
              onClick={() => toast.success('Звіт готується до завантаження...')}
-             className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 transition-all flex items-center gap-2 text-xs font-black uppercase tracking-widest shadow-lg shadow-cyan-500/10"
+             className="px-6 py-3.5 rounded-full bg-transparent border border-[#00E5FF]/30 text-[#00E5FF] hover:bg-[#00E5FF]/10 transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(0,229,255,0.1)] hover:shadow-[0_0_20px_rgba(0,229,255,0.2)]"
            >
-              <Download size={14} /> Експорт PDF
+              <Download size={14} /> ЕКСПОРТ PDF
            </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {[
-          { label: 'Завантаження рейсів', val: `${stats.load}%`, delta: '+5.1%', icon: Zap, color: '#ffd600' },
-          { label: 'Середній чек', val: `€${stats.avgCheck.toLocaleString('en-US', {maximumFractionDigits: 1})}`, delta: '+€3.20', icon: TrendingUp, color: '#00e676' },
-          { label: 'Утримання клієнтів', val: `${stats.retention}%`, delta: '+2%', icon: Users, color: '#00c8ff' },
-          { label: 'К-ть активних маршрутів', val: `${stats.activeRoutes}`, delta: 'В нормі', icon: Bus, color: '#9c6fff' },
+          { label: 'ЗАВАНТАЖЕННЯ РЕЙСІВ', val: `${stats.load}%`, delta: '+5.1%', icon: Zap, color: '#F59E0B' },
+          { label: 'СЕРЕДНІЙ ЧЕК', val: `€${stats.avgCheck.toLocaleString('en-US', {maximumFractionDigits: 1})}`, delta: '+€3.20', icon: TrendingUp, color: '#10B981' },
+          { label: 'УТРИМАННЯ КЛІЄНТІВ', val: `${stats.retention}%`, delta: '+2%', icon: Users, color: '#00E5FF' },
+          { label: 'К-ТЬ АКТИВНИХ МАРШРУТІВ', val: `${stats.activeRoutes}`, delta: 'В НОРМІ', icon: Bus, color: '#A855F7' },
         ].map((stat, i) => (
-          <div key={i} className="bg-[#111520] border border-white/5 p-6 rounded-3xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-               <stat.icon size={50} style={{ color: stat.color }} />
+          <div key={i} className="bg-[#1A2639]/30 border border-white/5 p-6 rounded-[24px] relative overflow-hidden group h-[120px] flex flex-col justify-between shadow-lg">
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 p-4 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+               <stat.icon size={60} style={{ color: stat.color }} strokeWidth={1} />
             </div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-[#5a6a85] mb-2">{stat.label}</p>
-            <div className="text-2xl font-black text-white italic tracking-tighter">{stat.val}</div>
-            <p className="text-[9px] font-black text-[#00e676] mt-2 flex items-center gap-1 uppercase">
-              <ArrowUpRight size={10} /> {stat.delta}
-            </p>
+            <p className="text-[9px] font-black uppercase tracking-widest text-[#5A6A85] z-10">{stat.label}</p>
+            <div className="z-10">
+               <div className="text-2xl font-black text-white italic tracking-tighter">{stat.val}</div>
+               <p className="text-[9px] font-black text-[#10B981] mt-1 flex items-center gap-1 uppercase tracking-widest">
+                 <ArrowUpRight size={10} /> {stat.delta}
+               </p>
+            </div>
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-[#111520] border border-white/5 rounded-[40px] p-8 shadow-2xl">
+        <div className="lg:col-span-2 bg-[#0B1221] border border-white/5 rounded-[32px] p-8 shadow-2xl">
           <div className="flex items-center justify-between mb-10">
             <div>
-               <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white italic flex items-center gap-3">
-                  <Activity size={18} className="text-cyan-400" /> Динаміка продажів
+               <h3 className="text-[12px] font-black uppercase tracking-widest text-white italic flex items-center gap-3">
+                  <Activity size={16} className="text-[#00E5FF]" /> ДИНАМІКА ПРОДАЖІВ
                </h3>
-               <p className="text-[9px] text-[#3d5670] font-black uppercase tracking-widest mt-1">Останні 7 днів · Об'єм квитків</p>
+               <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest mt-1">ОСТАННІ 7 ДНІВ · ОБ'ЄМ КВИТКІВ</p>
             </div>
           </div>
           
@@ -202,9 +204,9 @@ const AnalyticsTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-[#111520] border border-white/5 rounded-[40px] p-8 flex flex-col">
-           <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white italic flex items-center gap-3 mb-10">
-              <Zap size={18} className="text-amber-400" /> Заповнюваність
+        <div className="bg-[#0B1221] border border-white/5 rounded-[32px] p-8 flex flex-col shadow-2xl">
+           <h3 className="text-[12px] font-black uppercase tracking-widest text-white italic flex items-center gap-3 mb-10">
+              <Zap size={16} className="text-[#F59E0B]" /> ЗАПОВНЮВАНІСТЬ
            </h3>
            <div className="flex-1 space-y-8">
               {routePerformance.map((route, i) => (

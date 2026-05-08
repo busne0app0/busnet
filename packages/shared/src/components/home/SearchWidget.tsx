@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, MapPin, Calendar, ChevronDown, ChevronRight } from 'lucide-react';
+import { Search, MapPin, Calendar, ChevronDown } from 'lucide-react';
 import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { useSearch } from '@busnet/shared/context/SearchContext';
 import { useLanguage } from '@busnet/shared/context/LanguageContext';
+import { useCities } from '@busnet/shared/hooks/useCities';
 import CityAutocomplete from './CityAutocomplete';
 import BusnetCalendar from '../common/BusnetCalendar';
 
@@ -14,12 +15,12 @@ interface SearchWidgetProps {
 export default function SearchWidget({ onSearch, isLoading }: SearchWidgetProps) {
   const { searchParams, updateParam, lastUpdatedField, highlightDate } = useSearch();
   const { t } = useLanguage();
+  const { dbCities, loading: citiesLoading } = useCities();
   
   const [showValidation, setShowValidation] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
   
-  // Animation controllers for neon highlight feedback
   const controlsFrom = useAnimation();
   const controlsTo = useAnimation();
   const controlsDate = useAnimation();
@@ -30,7 +31,6 @@ export default function SearchWidget({ onSearch, isLoading }: SearchWidgetProps)
     if (isMissing) {
       setShowValidation(true);
       
-      // Highlight exactly what's missing
       if (!searchParams.from) {
         controlsFrom.start({ 
           boxShadow: ["0 0 0px #F43F5E", "0 0 30px #F43F5E", "0 0 0px #F43F5E"],
@@ -68,13 +68,11 @@ export default function SearchWidget({ onSearch, isLoading }: SearchWidgetProps)
     } else if (lastUpdatedField === 'date') {
       controlsDate.start({ boxShadow: ["0 0 0px #00D4FF", "0 0 20px #00D4FF", "0 0 0px #00D4FF"], transition: { duration: 0.6 } });
     } else if (!lastUpdatedField && searchParams.from && searchParams.to) {
-      // If all fields updated at once (from suggestion)
       controlsFrom.start({ boxShadow: ["0 0 0px #00D4FF", "0 0 20px #00D4FF", "0 0 0px #00D4FF"] });
       controlsTo.start({ boxShadow: ["0 0 0px #00D4FF", "0 0 20px #00D4FF", "0 0 0px #00D4FF"] });
     }
   }, [searchParams, lastUpdatedField]);
 
-  // Handle click outside for calendar
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
@@ -101,7 +99,6 @@ export default function SearchWidget({ onSearch, isLoading }: SearchWidgetProps)
   return (
     <div className="w-full max-w-[1100px] mx-auto mt-2 bg-[#141928]/80 backdrop-blur-3xl border border-white/10 rounded-[32px] p-2.5 shadow-[0_35px_60px_rgba(0,0,0,0.6)] relative z-20 flex flex-col md:flex-row items-center gap-2 md:gap-0 group">
       
-      {/* Validation Interactive Hint */}
       <AnimatePresence>
         {showValidation && (
           <motion.div 
@@ -120,6 +117,7 @@ export default function SearchWidget({ onSearch, isLoading }: SearchWidgetProps)
           </motion.div>
         )}
       </AnimatePresence>
+
       {/* From */}
       <CityAutocomplete 
         label={t.search.from}
@@ -128,6 +126,8 @@ export default function SearchWidget({ onSearch, isLoading }: SearchWidgetProps)
         placeholder={t.search.placeholderFrom}
         icon={<MapPin size={10} />}
         animationControl={controlsFrom}
+        availableCities={dbCities}
+        isLoading={citiesLoading}
       />
 
       <div className="hidden md:block w-[1px] h-12 bg-white/10" />
@@ -140,6 +140,8 @@ export default function SearchWidget({ onSearch, isLoading }: SearchWidgetProps)
         placeholder={t.search.placeholderTo}
         icon={<MapPin size={10} />}
         animationControl={controlsTo}
+        availableCities={dbCities}
+        isLoading={citiesLoading}
       />
 
       <div className="hidden md:block w-[1px] h-12 bg-white/10" />
@@ -164,7 +166,6 @@ export default function SearchWidget({ onSearch, isLoading }: SearchWidgetProps)
           </div>
         </div>
 
-        {/* Calendar Popover */}
         <AnimatePresence>
           {isCalendarOpen && (
             <div ref={calendarRef} className="absolute top-full left-1/2 -translate-x-1/2 md:translate-x-0 md:left-auto md:right-0 mt-4 z-[100] origin-top md:origin-top-right w-[calc(100vw-2rem)] md:w-auto max-w-[340px] md:max-w-none flex justify-center">
