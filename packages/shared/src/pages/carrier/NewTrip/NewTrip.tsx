@@ -89,10 +89,10 @@ const ResetConfirmModal = ({ onConfirm, onCancel }: { onConfirm: () => void; onC
         <AlertCircle size={24} />
         <h3 className="font-bold text-sm uppercase tracking-wider text-white">Скинути чернетку?</h3>
       </div>
-      <p className="text-[#5A6A85] text-xs mb-8 leading-relaxed">Всі незбережені дані поточного маршруту буде безповоротно втрачено.</p>
+      <p className="text-[#5A6A85] text-xs mb-8 leading-relaxed">Всі незбережені дані буде втрачено.</p>
       <div className="flex gap-3">
         <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-white/10 text-[#5A6A85] text-[10px] font-bold uppercase tracking-widest hover:bg-white/5 transition-all">Скасувати</button>
-        <button onClick={onConfirm} className="flex-1 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-[10px] font-bold uppercase tracking-widest hover:bg-red-500 hover:text-white hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] transition-all">Скинути</button>
+        <button onClick={onConfirm} className="flex-1 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-[10px] font-bold uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">Скинути</button>
       </div>
     </motion.div>
   </motion.div>
@@ -108,13 +108,28 @@ const AMENITIES_CONFIG: { id: Amenity; label: string; icon: any }[] = [
 ];
 
 const PRESET_RULES = [
-  "У вартість повного квитка входить безкоштовне перевезення багажу 40x60x80см до 30кг та ручного багажу до 10кг.",
-  "При перевищенні лімітів ваги і розмірів сплачується по 1,5 євро/кг.",
-  "Додатковий багаж перевозиться лише при наявності вільного місця в багажному відділенні.",
+  "У вартість повного (дорослого) квитка входить безкоштовне перевезення багажу розміром до 40x60x80см, загальною вагою до 30кг та ручного багажу вагою до 10кг.",
+  "У вартість пільгового (дитячого) квитка входить безкоштовне перевезення багажу загальною вагою до 20кг.",
+  "При перевищенні даних лімітів щодо ваги і розмірів багажу за нього сплачується по 1,5 євро/кг.",
+  "Додатковий багаж перевозиться лише при наявності вільного місця в багажному відділенні автобуса.",
+  "Додатковий багаж не повинен перевищувати розмірів та ваги основного багажу.",
+  "Не перевозиться багаж негабаритних розмірів (холодильники і т.п.).",
   "Перевізник не відповідає за ручний багаж.",
+  "Перевізник несе відповідальність за знищений або пошкоджений багаж у багажному відділенні автобуса тільки якщо це сталося з вини перевізника, що доведено пасажиром, але не більше ніж на суму 100 Євро на особу за умови подання заяви не пізніше ніж 10 днів з дня виїзду автобуса.",
   "Заборонено перевозити багаж, що загрожує безпеці або здоров'ю інших пасажирів.",
-  "Квиток є іменним документом і не може бути переданий іншій особі.",
-  "При неявці на посадку без попередження втрачається 100% вартості квитка."
+  "Перевізник не відповідає за втрату пасажиром грошей, біжутерії, паспортів, цінних паперів, колекційних речей, речей, які мають наукову цінність та інших цінностей, що не знаходяться у багажному відділенні автобуса.",
+  "Пасажир особисто несе відповідальність за легальність власного багажу.",
+  "При ускладненнях на кордоні фірма-перевізник має право відмовитися від виконання обов'язків по перевезенню багажу і продовжити рейс без вказаного багажу.",
+  "Квиток є іменним документом для проїзду автобусом і не може бути переданий іншій особі, він дійсний до дати та години відправлення, які вказані у квитку.",
+  "При посадці в автобус необхідно пред'явити водію або представнику компанії квиток в електронному або паперовому вигляді та копію документа, що засвідчує вік пасажира для отримання знижки.",
+  "У квитку забороняється робити будь-які виправлення. Всі зміни повинні бути підтверджені печаткою фірми, яка їх внесла.",
+  "Діти та молодь до 16 років можуть їхати лише у супроводі дорослих та при наявності необхідних документів.",
+  "Пасажир, який має квиток з фіксованою датою зворотного виїзду, зобов’язаний підтвердити свій виїзд не пізніше ніж за 48 годин до відправлення автобуса.",
+  "У випадку непідтвердження поїздки перевізник залишає за собою право продати дане место без грошової компенсації пасажиру.",
+  "При неявці на посадку без попередження представників компанії втрачається 100% вартості квитка.",
+  "Квиток з відкритою датою повернення дійсний протягом 6 місяців з моменту купівлі квитка. Перевізник може закрити відкриту дату повернення лише при наявності місць у бажаний день відправлення.",
+  "Пасажир має право два рази безкоштовно змінювати дату виїзду, але не пізніше ніж за 48 год до відправлення автобуса.",
+  "Посадкові місця в автобусі вказуються лише представником компанії при посадці."
 ];
 
 export default function NewTrip() {
@@ -138,10 +153,19 @@ export default function NewTrip() {
   const [trip, setTrip] = useState<TripState>(() => {
     const defaults: TripState = {
       __version: SCHEMA_VERSION,
-      routeName: '', operator: '', seats: 50, amenities: ['wifi', 'ac'],
-      isTransfer: false, transferType: 'direct', currency: 'ГРН',
-      discounts: { child04: false, child412: false }, customDiscounts: [], rules: [], customRules: [],
-      outbound: { stops: [], days: ['ПТ'] }, inbound:  { stops: [], days: ['НД'] }
+      routeName: '',
+      operator: '',
+      seats: 50,
+      amenities: ['wifi', 'ac'],
+      isTransfer: false,
+      transferType: 'direct',
+      currency: 'ГРН',
+      discounts: { child04: false, child412: false },
+      customDiscounts: [],
+      rules: [],
+      customRules: [],
+      outbound: { stops: [], days: ['ПТ'] },
+      inbound:  { stops: [], days: ['НД'] }
     };
     try {
       const raw = localStorage.getItem('busnet_trip_draft');
@@ -152,49 +176,122 @@ export default function NewTrip() {
         return defaults;
       }
       return { ...defaults, ...parsed };
-    } catch { return defaults; }
+    } catch {
+      return defaults;
+    }
   });
 
-  useEffect(() => { localStorage.setItem('busnet_trip_draft', JSON.stringify(trip)); }, [trip]);
-  useEffect(() => { localStorage.setItem('busnet_current_step', currentStep.toString()); }, [currentStep]);
+  useEffect(() => {
+    localStorage.setItem('busnet_trip_draft', JSON.stringify(trip));
+  }, [trip]);
+
+  useEffect(() => {
+    localStorage.setItem('busnet_current_step', currentStep.toString());
+  }, [currentStep]);
 
   const conflicts = useMemo(() => {
     const issues: { step: number; message: string; severity: 'warning' | 'error' }[] = [];
-    if (trip.routeName.length > 0 && trip.routeName.length < 3) issues.push({ step: 1, message: 'Назва маршруту занадто коротка', severity: 'warning' });
+    if (trip.routeName.length > 0 && trip.routeName.length < 3) {
+      issues.push({ step: 1, message: 'Назва маршруту занадто коротка', severity: 'warning' });
+    }
     const checkRoute = (type: 'outbound' | 'inbound', step: number) => {
       const stops = trip[type].stops;
-      if (stops.length > 0 && stops.length < 2) issues.push({ step, message: `Маршрут повиннен мати мінімум 2 зупинки`, severity: 'error' });
+      if (stops.length > 0 && stops.length < 2) {
+        issues.push({ step, message: `Маршрут ${type === 'outbound' ? 'туди' : 'назад'} повинен мати мінімум 2 зупинки`, severity: 'error' });
+      }
       stops.forEach((stop, idx) => {
         if (!stop.city) issues.push({ step, message: `Зупинка ${idx + 1}: не вказано місто`, severity: 'error' });
         if (!stop.time) issues.push({ step, message: `Зупинка ${idx + 1}: не вказано час`, severity: 'error' });
+        if (idx > 0) {
+          const prev = stops[idx - 1];
+          const prevTime = prev.time.split(':').map(Number);
+          const currTime = stop.time.split(':').map(Number);
+          const prevMinutes = (prev.dayOffset * 1440) + (prevTime[0] * 60) + prevTime[1];
+          const currMinutes = (stop.dayOffset * 1440) + (currTime[0] * 60) + currTime[1];
+          if (currMinutes <= prevMinutes) {
+            issues.push({ step, message: `Зупинка ${idx + 1}: час прибуття раніше или дорівнює попередній зупинці. Перевірте зміщення дня.`, severity: 'error' });
+          }
+        }
       });
     };
-    checkRoute('outbound', 2); checkRoute('inbound', 3);
+    checkRoute('outbound', 2);
+    checkRoute('inbound', 3);
+    const allStops = [...trip.outbound.stops, ...trip.inbound.stops];
+    if (allStops.some(s => s.price === 0)) {
+      issues.push({ step: 4, message: 'Є зупинки з нульовою ціною', severity: 'warning' });
+    }
     return issues;
   }, [trip]);
 
-  const toggleRule = (rule: string) => setTrip(prev => ({ ...prev, rules: prev.rules.includes(rule) ? prev.rules.filter(r => r !== rule) : [...prev.rules, rule] }));
-  const addCustomRule = () => setTrip(prev => ({ ...prev, customRules: [...prev.customRules, ''] }));
-  const updateCustomRule = (index: number, val: string) => setTrip(prev => { const newRules = [...prev.customRules]; newRules[index] = val; return { ...prev, customRules: newRules }; });
-  const removeCustomRule = (index: number) => setTrip(prev => ({ ...prev, customRules: prev.customRules.filter((_, i) => i !== index) }));
+  const toggleRule = (rule: string) => {
+    setTrip(prev => ({
+      ...prev,
+      rules: prev.rules.includes(rule) ? prev.rules.filter(r => r !== rule) : [...prev.rules, rule]
+    }));
+  };
+
+  const addCustomRule = () => {
+    setTrip(prev => ({ ...prev, customRules: [...prev.customRules, ''] }));
+  };
+
+  const updateCustomRule = (index: number, val: string) => {
+    setTrip(prev => {
+      const newRules = [...prev.customRules];
+      newRules[index] = val;
+      return { ...prev, customRules: newRules };
+    });
+  };
+
+  const removeCustomRule = (index: number) => {
+    setTrip(prev => ({ ...prev, customRules: prev.customRules.filter((_, i) => i !== index) }));
+  };
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const resetApp = useCallback(() => {
-    localStorage.removeItem('busnet_trip_draft'); localStorage.removeItem('busnet_current_step'); localStorage.removeItem('busnet_editing_route_id');
+    localStorage.removeItem('busnet_trip_draft');
+    localStorage.removeItem('busnet_current_step');
+    localStorage.removeItem('busnet_editing_route_id');
     setTrip({
-      __version: SCHEMA_VERSION, routeName: '', operator: '', seats: 50, amenities: ['wifi','ac'],
-      isTransfer: false, transferType: 'direct', currency: 'ГРН', discounts: { child04: false, child412: false },
-      customDiscounts: [], rules: [], customRules: [], outbound: { stops: [], days: ['ПТ'] }, inbound:  { stops: [], days: ['НД'] }
+      __version: SCHEMA_VERSION,
+      routeName: '', operator: '', seats: 50, amenities: ['wifi','ac'],
+      isTransfer: false, transferType: 'direct', currency: 'ГРН',
+      discounts: { child04: false, child412: false },
+      customDiscounts: [], rules: [], customRules: [],
+      outbound: { stops: [], days: ['ПТ'] },
+      inbound:  { stops: [], days: ['НД'] }
     });
     setCurrentStep(1);
   }, []);
 
+  const [smartInput, setSmartInput] = useState('');
+  const [smartPriceInput, setSmartPriceInput] = useState('');
   const [smartInputStep1, setSmartInputStep1] = useState('');
   const [priceMemory, setPriceMemory] = useState<Record<string, number>>({});
   const [exchangeRate, setExchangeRate] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
-  const editingRouteId = localStorage.getItem('busnet_editing_route_id');
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const [editingRouteId] = useState<string | null>(() => localStorage.getItem('busnet_editing_route_id'));
+  const [expandedPricingCities, setExpandedPricingCities] = useState<Set<string>>(new Set());
+
+  const togglePricingCity = (cityKey: string) => {
+    setExpandedPricingCities(prev => {
+      const next = new Set(prev);
+      if (next.has(cityKey)) next.delete(cityKey);
+      else next.add(cityKey);
+      return next;
+    });
+  };
+
+  const expandAllCities = (expand: boolean) => {
+    if (expand) {
+      const segments = allSegments;
+      const keys = segments.map(s => `${s.currency === 'ГРН' ? 'out' : 'in'}-${s.to}`);
+      setExpandedPricingCities(new Set(keys));
+    } else {
+      setExpandedPricingCities(new Set());
+    }
+  };
 
   const prevTimesRef = useRef({ out: '', in: '' });
   useEffect(() => {
@@ -232,33 +329,54 @@ export default function NewTrip() {
   const syncToSupabase = async () => {
     setIsSaving(true);
     try {
-      let finalOperator = ''; let targetCarrierId = null;
-      if (activeRole === 'carrier' && user) { finalOperator = user.companyName || user.email || 'Carrier'; targetCarrierId = user.uid; } 
-      else if (activeRole === 'admin') {
-        if (!trip.operator) { toast.error('Призначте перевізника!'); setIsSaving(false); return; }
-        const sep = trip.operator.indexOf('::');
-        if (sep === -1) { targetCarrierId = trip.operator; finalOperator = trip.operator; } 
-        else { targetCarrierId = trip.operator.substring(0, sep); finalOperator = trip.operator.substring(sep + 2); }
+      let finalOperator = '';
+      let targetCarrierId = null;
+      if (activeRole === 'carrier' && user) {
+        finalOperator = user.companyName || user.email || 'Carrier';
+        targetCarrierId = user.uid;
+      } else if (activeRole === 'admin') {
+        if (!trip.operator) {
+          toast.error('Будь ласка, призначте перевізника!');
+          setIsSaving(false); return;
+        }
+        const separatorIndex = trip.operator.indexOf('::');
+        if (separatorIndex === -1) {
+          targetCarrierId = trip.operator; finalOperator = trip.operator;
+        } else {
+          targetCarrierId = trip.operator.substring(0, separatorIndex);
+          finalOperator = trip.operator.substring(separatorIndex + 2);
+        }
       }
       if (!finalOperator) { toast.error('Не вказано перевізника!'); setIsSaving(false); return; }
       const routeData = {
-        name: trip.routeName, operator: finalOperator, carrier_id: targetCarrierId, seats: trip.seats, amenities: trip.amenities,
-        is_transfer: trip.isTransfer, transfer_type: trip.transferType, transfer_city: trip.transferCity, currency: trip.currency,
-        discounts: trip.discounts, custom_discounts: trip.customDiscounts, rules: trip.rules, custom_rules: trip.customRules,
-        outbound: trip.outbound, inbound: trip.inbound, status: 'pending'
+        name: trip.routeName, operator: finalOperator, carrier_id: targetCarrierId,
+        seats: trip.seats, amenities: trip.amenities, is_transfer: trip.isTransfer,
+        transfer_type: trip.transferType, transfer_city: trip.transferCity,
+        currency: trip.currency, discounts: trip.discounts, custom_discounts: trip.customDiscounts,
+        rules: trip.rules, custom_rules: trip.customRules, outbound: trip.outbound, inbound: trip.inbound, status: 'pending'
       };
       let dbError;
-      if (editingRouteId) { const { error } = await supabase.from('routes').update({ ...routeData, status: 'pending' }).eq('id', editingRouteId); dbError = error; } 
-      else { const { error } = await supabase.from('routes').insert(routeData); dbError = error; }
+      if (editingRouteId) {
+        const { error } = await supabase.from('routes').update({ ...routeData, status: 'pending' }).eq('id', editingRouteId);
+        dbError = error;
+      } else {
+        const { error } = await supabase.from('routes').insert(routeData);
+        dbError = error;
+      }
       if (dbError) throw dbError;
-      toast.success(editingRouteId ? 'Маршрут оновлено!' : 'Відправлено на модерацію!');
-      localStorage.removeItem('busnet_trip_draft'); localStorage.removeItem('busnet_current_step'); localStorage.removeItem('busnet_editing_route_id');
+      toast.success(editingRouteId ? 'Маршрут оновлено!' : 'Маршрут надіслано на перевірку!');
+      localStorage.removeItem('busnet_trip_draft');
+      localStorage.removeItem('busnet_current_step');
+      localStorage.removeItem('busnet_editing_route_id');
       setTimeout(() => navigate('/'), 1500);
-    } catch (err) { console.error(err); toast.error('Помилка збереження'); } finally { setIsSaving(false); }
+    } catch (err) {
+      console.error(err); toast.error('Помилка збереження');
+    } finally { setIsSaving(false); }
   };
 
   const downloadPDF = async () => {
-    const element = document.getElementById('full-preview-area'); if (!element) return;
+    const element = document.getElementById('full-preview-area');
+    if (!element) return;
     setIsSaving(true);
     try {
       const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#050B14' });
@@ -268,23 +386,91 @@ export default function NewTrip() {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`route-${trip.routeName || 'draft'}.pdf`);
+      pdf.save(`trip-${trip.routeName || 'preview'}.pdf`);
     } catch (error) { console.error(error); }
     setIsSaving(false);
   };
 
-  const addCustomDiscount = () => setTrip(prev => ({ ...prev, customDiscounts: [...prev.customDiscounts, { id: generateId(), label: '', value: 0 }] }));
-  const updateCustomDiscount = (id: string, updates: Partial<{ label: string; value: number }>) => setTrip(prev => ({ ...prev, customDiscounts: prev.customDiscounts.map(d => d.id === id ? { ...d, ...updates } : d) }));
-  const removeCustomDiscount = (id: string) => setTrip(prev => ({ ...prev, customDiscounts: prev.customDiscounts.filter(d => d.id !== id) }));
+  const handleSmartPriceParse = () => {
+    if (!smartPriceInput) return;
+    const text = smartPriceInput.toLowerCase();
+    const priceMatch = text.match(/\d+/);
+    if (!priceMatch) return;
+    const priceValue = parseInt(priceMatch[0]);
+    const foundCity = Array.from(new Set([...trip.outbound.stops, ...trip.inbound.stops].map(s => s.city.toLowerCase()))).find(c => text.includes(c));
+    if (foundCity) {
+      setPriceMemory(prev => ({ ...prev, [foundCity]: priceValue }));
+    }
+    setSmartPriceInput('');
+  };
 
-  const addStop = (type: 'outbound' | 'inbound') => setTrip(prev => {
-    const last = prev[type].stops[prev[type].stops.length - 1];
-    const newStop: Stop = { id: generateId(), city: '', address: '', time: '12:00', dayOffset: last?.dayOffset ?? 0, price: last?.price ?? 0, priceManuallySet: false, cityStatus: 'pending' };
-    return { ...prev, [type]: { ...prev[type], stops: [...prev[type].stops, newStop] } };
-  });
-  const removeStop = (type: 'outbound' | 'inbound', id: string) => setTrip(prev => ({ ...prev, [type]: { ...prev[type], stops: prev[type].stops.filter(s => s.id !== id) } }));
-  const updateStop = (type: 'outbound' | 'inbound', id: string, updates: Partial<Stop>) => setTrip(prev => ({ ...prev, [type]: { ...prev[type], stops: prev[type].stops.map(s => s.id === id ? { ...s, ...updates } : s) } }));
-  const toggleDay = (type: 'outbound' | 'inbound', day: string) => setTrip(prev => ({ ...prev, [type]: { ...prev[type], days: prev[type].days.includes(day) ? prev[type].days.filter(d => d !== day) : [...prev[type].days, day] } }));
+  const autoCalculateDayOffsets = useCallback((type: 'outbound' | 'inbound') => {
+    setTrip(prev => {
+      const stops = prev[type].stops;
+      if (stops.length === 0) return prev;
+      let offset = 0;
+      const updated = stops.map((stop, idx) => {
+        if (idx === 0) return { ...stop, dayOffset: 0 };
+        const p = stops[idx - 1];
+        if (p.time && stop.time) {
+          const [ph, pm] = p.time.split(':').map(Number);
+          const [ch, cm] = stop.time.split(':').map(Number);
+          if (ch * 60 + cm < ph * 60 + pm) offset += 1;
+        }
+        return { ...stop, dayOffset: offset };
+      });
+      return { ...prev, [type]: { ...prev[type], stops: updated } };
+    });
+  }, []);
+
+  const addCustomDiscount = () => {
+    setTrip(prev => ({ ...prev, customDiscounts: [...prev.customDiscounts, { id: generateId(), label: '', value: 0 }] }));
+  };
+
+  const updateCustomDiscount = (id: string, updates: Partial<{ label: string; value: number }>) => {
+    setTrip(prev => ({ ...prev, customDiscounts: prev.customDiscounts.map(d => d.id === id ? { ...d, ...updates } : d) }));
+  };
+
+  const removeCustomDiscount = (id: string) => {
+    setTrip(prev => ({ ...prev, customDiscounts: prev.customDiscounts.filter(d => d.id !== id) }));
+  };
+
+  const DAY_MAP: Record<string, string> = { 'понеділок': 'ПН', 'вівторок': 'ВТ', 'середа': 'СР', 'четвер': 'ЧТ', 'п\'ятниця': 'ПТ', 'субота': 'СБ', 'неділя': 'НД' };
+
+  const handleSmartParse = () => {
+    if (!smartInput) return;
+    const lines = smartInput.split('\n').filter(l => l.trim());
+    const newStops: Stop[] = lines.map(line => ({
+      id: generateId(), city: line.split(' ')[0] || 'Місто', address: '', time: '12:00', price: 0, dayOffset: 0, cityStatus: 'pending'
+    }));
+    setTrip(prev => ({ ...prev, outbound: { ...prev.outbound, stops: newStops } }));
+    setSmartInput('');
+  };
+
+  const addStop = (type: 'outbound' | 'inbound') => {
+    setTrip(prev => {
+      const last = prev[type].stops[prev[type].stops.length - 1];
+      const newStop: Stop = { id: generateId(), city: '', address: '', time: '12:00', dayOffset: last?.dayOffset ?? 0, price: last?.price ?? 0, priceManuallySet: false, cityStatus: 'pending' };
+      return { ...prev, [type]: { ...prev[type], stops: [...prev[type].stops, newStop] } };
+    });
+  };
+
+  const removeStop = (type: 'outbound' | 'inbound', id: string) => {
+    setTrip(prev => ({ ...prev, [type]: { ...prev[type], stops: prev[type].stops.filter(s => s.id !== id) } }));
+  };
+
+  const handleReorder = (type: 'outbound' | 'inbound', newStops: Stop[]) => {
+    setTrip(prev => ({ ...prev, [type]: { ...prev[type], stops: newStops } }));
+  };
+
+  const updateStop = (type: 'outbound' | 'inbound', id: string, updates: Partial<Stop>) => {
+    setTrip(prev => ({ ...prev, [type]: { ...prev[type], stops: prev[type].stops.map(s => s.id === id ? { ...s, ...updates } : s) } }));
+  };
+
+  const toggleDay = (type: 'outbound' | 'inbound', day: string) => {
+    setTrip(prev => ({ ...prev, [type]: { ...prev[type], days: prev[type].days.includes(day) ? prev[type].days.filter(d => d !== day) : [...prev[type].days, day] } }));
+  };
+
   const generateReturnStops = () => {
     const reversed = [...trip.outbound.stops].reverse().map(s => ({ ...s, id: generateId(), time: '', dayOffset: 0 }));
     setTrip(prev => ({ ...prev, inbound: { ...prev.inbound, stops: reversed } }));
@@ -295,16 +481,34 @@ export default function NewTrip() {
     const segments: any[] = [];
     for (let i = 0; i < trip.outbound.stops.length; i++) {
       for (let j = i + 1; j < trip.outbound.stops.length; j++) {
-        const from = trip.outbound.stops[i].city; const to = trip.outbound.stops[j].city;
+        const from = trip.outbound.stops[i].city;
+        const to = trip.outbound.stops[j].city;
         if (from && to) segments.push({ from, to, price: priceMemory[to.toLowerCase()] || 0, currency: 'ГРН', key: to.toLowerCase() });
       }
     }
     return segments;
   }, [trip.outbound.stops, priceMemory]);
 
-  const handleSmartParseStep1 = () => { if (smartInputStep1) { setTrip(prev => ({ ...prev, routeName: smartInputStep1.trim() })); setSmartInputStep1(''); } };
+  const handleSmartParseStep1 = () => {
+    if (!smartInputStep1) return;
+    setTrip(prev => ({ ...prev, routeName: smartInputStep1.trim() }));
+    setSmartInputStep1('');
+  };
 
-  const nextStep = () => { if (currentStep === 7) { syncToSupabase(); return; } setCurrentStep(prev => Math.min(prev + 1, 7)); };
+  const getTotalDuration = (stops: Stop[]) => {
+    if (stops.length < 2) return null;
+    return "24г 00хв";
+  };
+
+  const getDayName = (type: 'outbound' | 'inbound', offset: number) => {
+    const days = trip[type].days;
+    return days[0] || '';
+  };
+
+  const nextStep = () => {
+    if (currentStep === 7) { syncToSupabase(); return; }
+    setCurrentStep(prev => Math.min(prev + 1, 7));
+  };
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
   const STEPS = [
@@ -320,9 +524,14 @@ export default function NewTrip() {
   return (
     <div className="flex flex-col font-sans h-full bg-[#030712] overflow-hidden text-slate-300 selection:bg-[#00E5FF]/30">
       <AnimatePresence>
-        {showResetConfirm && <ResetConfirmModal onConfirm={() => { setShowResetConfirm(false); resetApp(); }} onCancel={() => setShowResetConfirm(false)} />}
+        {showResetConfirm && (
+          <ResetConfirmModal
+            onConfirm={() => { setShowResetConfirm(false); resetApp(); }}
+            onCancel={() => setShowResetConfirm(false)}
+          />
+        )}
       </AnimatePresence>
-
+      
       {/* HEADER TOP BAR */}
       <header className="h-16 flex items-center justify-between px-6 bg-[#050B14] border-b border-white/5 shrink-0 z-20">
         <div className="flex items-center gap-4">
@@ -368,11 +577,11 @@ export default function NewTrip() {
         </div>
       </header>
 
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent relative">
+      <main id="scroll-area" className="flex-1 p-4 md:p-8 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent relative">
         <div className="max-w-5xl mx-auto pb-24 md:pb-24">
-          
           <AnimatePresence mode="wait">
-            {/* STEP 1: CONFIGURATION */}
+            
+            {/* STEP 1 */}
             {currentStep === 1 && (
               <motion.div key="step1" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
                 <div>
@@ -383,7 +592,6 @@ export default function NewTrip() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                  {/* Smart Parser Card */}
                   <div className="lg:col-span-4 bg-[#0B1221] rounded-2xl p-5 border border-white/10 shadow-lg flex flex-col h-[320px]">
                     <h3 className="text-[10px] font-black text-[#00E5FF] uppercase tracking-widest mb-3 flex items-center gap-2">
                       <Zap size={14} /> Smart Parser
@@ -391,7 +599,7 @@ export default function NewTrip() {
                     <textarea 
                       value={smartInputStep1} onChange={(e) => setSmartInputStep1(e.target.value)}
                       className="w-full flex-1 bg-[#050B14] border border-white/10 focus:border-[#00E5FF]/50 focus:shadow-[0_0_10px_rgba(0,229,255,0.1)] rounded-xl p-4 text-white text-xs outline-none resize-none transition-all placeholder:text-[#5A6A85]"
-                      placeholder="Вставте текст маршруту (наприклад: Київ - Варшава)..."
+                      placeholder="Наприклад: Одеса-Краків..."
                     />
                     <button onClick={handleSmartParseStep1} className="w-full mt-4 bg-[#00E5FF] text-[#050B14] hover:bg-[#00E5FF]/90 hover:shadow-[0_0_15px_rgba(0,229,255,0.4)] py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
                       Аналізувати текст
@@ -400,14 +608,12 @@ export default function NewTrip() {
 
                   <div className="lg:col-span-8 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Form Inputs */}
                       <div className="space-y-5 bg-[#0B1221] rounded-2xl p-5 border border-white/10">
                         <div>
                           <label className="text-[9px] text-[#5A6A85] font-bold uppercase tracking-widest block mb-2">Назва маршруту</label>
                           <input 
                             value={trip.routeName} onChange={(e) => setTrip({...trip, routeName: e.target.value})} 
                             className="w-full bg-[#050B14] border border-white/10 focus:border-[#00E5FF]/50 focus:shadow-[0_0_10px_rgba(0,229,255,0.1)] rounded-xl px-4 py-3 text-sm text-white font-bold outline-none transition-all" 
-                            placeholder="Наприклад: 001 Київ-Львів"
                           />
                         </div>
                         <div className="flex gap-4">
@@ -428,7 +634,6 @@ export default function NewTrip() {
                         </div>
                       </div>
 
-                      {/* Amenities */}
                       <div className="bg-[#0B1221] rounded-2xl p-5 border border-white/10">
                         <label className="text-[9px] text-[#5A6A85] font-bold uppercase tracking-widest block mb-3">Зручності в автобусі</label>
                         <div className="grid grid-cols-2 gap-2">
@@ -449,7 +654,6 @@ export default function NewTrip() {
                         </div>
                       </div>
 
-                      {/* Discounts */}
                       <div className="md:col-span-2 bg-[#0B1221] p-5 rounded-2xl border border-white/10">
                         <div className="flex items-center justify-between mb-4">
                           <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Тарифи та знижки</h4>
@@ -471,7 +675,7 @@ export default function NewTrip() {
                           ))}
                           {trip.customDiscounts.map((discount) => (
                             <div key={discount.id} className="flex items-center gap-2 bg-[#050B14] p-2 rounded-xl border border-white/10">
-                              <input value={discount.label} onChange={(e) => updateCustomDiscount(discount.id, { label: e.target.value })} className="flex-1 bg-transparent border-none px-2 text-[11px] text-white font-bold outline-none placeholder:text-[#5A6A85]" placeholder="Назва знижки..." />
+                              <input value={discount.label} onChange={(e) => updateCustomDiscount(discount.id, { label: e.target.value })} className="flex-1 bg-transparent border-none px-2 text-[11px] text-white font-bold outline-none placeholder:text-[#5A6A85]" placeholder="Назва..." />
                               <div className="flex items-center bg-[#0B1221] px-2 py-1 rounded-lg border border-white/5">
                                 <input type="number" value={discount.value} onChange={(e) => updateCustomDiscount(discount.id, { value: parseInt(e.target.value) || 0 })} className="w-8 bg-transparent border-none text-[11px] text-[#00E5FF] font-black text-center outline-none" />
                                 <span className="text-[9px] text-[#5A6A85] font-black">%</span>
@@ -481,14 +685,13 @@ export default function NewTrip() {
                           ))}
                         </div>
                       </div>
-
                     </div>
                   </div>
                 </div>
               </motion.div>
             )}
 
-            {/* STEP 2: ROUTING / SCHEDULE */}
+            {/* STEP 2 */}
             {currentStep === 2 && (
               <motion.div key="step2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
                 <div className="flex justify-between items-end border-b border-white/10 pb-4">
@@ -504,11 +707,9 @@ export default function NewTrip() {
                 </div>
                 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                  {/* OUTBOUND (CYAN ACCENT) */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between bg-[#00E5FF]/10 border border-[#00E5FF]/20 px-4 py-2 rounded-xl">
                       <h3 className="text-[11px] font-black text-[#00E5FF] uppercase tracking-widest flex items-center gap-2"><ArrowRight size={14} /> Туди</h3>
-                      <span className="text-[9px] text-[#00E5FF]/70 uppercase font-bold tracking-widest">{trip.outbound.stops.length} зупинок</span>
                     </div>
                     <div className="space-y-3">
                       {trip.outbound.stops.map((stop, idx) => (
@@ -520,16 +721,14 @@ export default function NewTrip() {
                         </div>
                       ))}
                       <button onClick={() => addStop('outbound')} className="w-full py-3 bg-[#0B1221] border border-dashed border-white/10 hover:border-[#00E5FF]/50 hover:bg-[#00E5FF]/5 rounded-xl text-[10px] font-bold text-[#5A6A85] hover:text-[#00E5FF] uppercase tracking-widest transition-all">
-                        + Додати зупинку
+                        + Додати
                       </button>
                     </div>
                   </div>
 
-                  {/* INBOUND (MAGENTA ACCENT) */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between bg-[#D946EF]/10 border border-[#D946EF]/20 px-4 py-2 rounded-xl">
                       <h3 className="text-[11px] font-black text-[#D946EF] uppercase tracking-widest flex items-center gap-2"><ArrowLeft size={14} /> Назад</h3>
-                      <span className="text-[9px] text-[#D946EF]/70 uppercase font-bold tracking-widest">{trip.inbound.stops.length} зупинок</span>
                     </div>
                     <div className="space-y-3">
                       {trip.inbound.stops.map((stop, idx) => (
@@ -541,7 +740,7 @@ export default function NewTrip() {
                         </div>
                       ))}
                       <button onClick={() => addStop('inbound')} className="w-full py-3 bg-[#0B1221] border border-dashed border-white/10 hover:border-[#D946EF]/50 hover:bg-[#D946EF]/5 rounded-xl text-[10px] font-bold text-[#5A6A85] hover:text-[#D946EF] uppercase tracking-widest transition-all">
-                        + Додати зупинку
+                        + Додати
                       </button>
                     </div>
                   </div>
@@ -549,20 +748,19 @@ export default function NewTrip() {
               </motion.div>
             )}
 
-            {/* STEP 3: SCHEDULE / REGULARITY */}
+            {/* STEP 3 */}
             {currentStep === 3 && (
               <motion.div key="step3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
                 <div>
                   <h2 className="text-xl font-black text-white uppercase tracking-widest flex items-center gap-3">
-                    <Calendar className="text-[#00E5FF]" size={20} /> Регулярність
+                    <Calendar className="text-[#00E5FF]" size={20} /> Дні відправлення
                   </h2>
-                  <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.2em] mt-1 font-bold">Дні відправлення маршрутів</p>
+                  <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.2em] mt-1 font-bold">Графік регулярності</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* OUTBOUND DAYS */}
                   <div className="bg-[#0B1221] p-6 rounded-2xl border border-white/10">
-                    <h3 className="text-[10px] font-black text-[#00E5FF] uppercase tracking-widest mb-6 text-center">Виїзди ТУДИ</h3>
+                    <h3 className="text-[10px] font-black text-[#00E5FF] uppercase tracking-widest mb-6 text-center">ТУДИ (ВІДПРАВЛЕННЯ)</h3>
                     <div className="flex justify-center gap-2">
                       {DAYS_OF_WEEK.map(day => (
                         <button 
@@ -579,9 +777,8 @@ export default function NewTrip() {
                     </div>
                   </div>
 
-                  {/* INBOUND DAYS */}
                   <div className="bg-[#0B1221] p-6 rounded-2xl border border-white/10">
-                    <h3 className="text-[10px] font-black text-[#D946EF] uppercase tracking-widest mb-6 text-center">Виїзди НАЗАД</h3>
+                    <h3 className="text-[10px] font-black text-[#D946EF] uppercase tracking-widest mb-6 text-center">НАЗАД (ВІДПРАВЛЕННЯ)</h3>
                     <div className="flex justify-center gap-2">
                       {DAYS_OF_WEEK.map(day => (
                         <button 
@@ -601,7 +798,7 @@ export default function NewTrip() {
               </motion.div>
             )}
 
-            {/* STEP 4: PRICING */}
+            {/* STEP 4 */}
             {currentStep === 4 && (
               <motion.div key="step4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
                 <div>
@@ -622,9 +819,10 @@ export default function NewTrip() {
                            </div>
                            <div className="flex items-center gap-3">
                               <input 
-                                type="number" value={segment.price} onChange={(e) => setPriceMemory(prev => ({ ...prev, [segment.key]: parseInt(e.target.value) || 0 }))}
+                                type="number" 
+                                value={segment.price} 
+                                onChange={(e) => setPriceMemory(prev => ({ ...prev, [segment.key]: parseInt(e.target.value) || 0 }))}
                                 className="w-24 bg-[#0B1221] border border-white/10 focus:border-[#00E5FF]/50 rounded-lg px-3 py-2 text-white font-bold text-right outline-none transition-all"
-                                placeholder="0"
                               />
                               <span className="text-[10px] text-[#00E5FF] font-black uppercase tracking-widest">{trip.currency}</span>
                            </div>
@@ -633,7 +831,7 @@ export default function NewTrip() {
                       {allSegments.length === 0 && (
                         <div className="py-16 text-center">
                            <Info size={32} className="mx-auto mb-3 text-[#5A6A85]" />
-                           <p className="text-[10px] text-[#5A6A85] font-bold uppercase tracking-[0.2em]">Додайте мінімум 2 зупинки на графіку</p>
+                           <p className="text-[10px] text-[#5A6A85] font-bold uppercase tracking-[0.2em]">Спочатку додайте зупинки у графік</p>
                         </div>
                       )}
                    </div>
@@ -641,21 +839,22 @@ export default function NewTrip() {
               </motion.div>
             )}
 
-            {/* STEP 5: RULES */}
+            {/* STEP 5 */}
             {currentStep === 5 && (
               <motion.div key="step5" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
                 <div>
                   <h2 className="text-xl font-black text-white uppercase tracking-widest flex items-center gap-3">
                     <FileText className="text-[#00E5FF]" size={20} /> Умови перевезення
                   </h2>
-                  <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.2em] mt-1 font-bold">Правила для пасажирів</p>
+                  <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.2em] mt-1 font-bold">Правила та обмеження</p>
                 </div>
 
                 <div className="bg-[#0B1221] p-6 rounded-2xl border border-white/10">
                   <div className="grid grid-cols-1 gap-3">
                     {PRESET_RULES.map((rule, idx) => (
                       <button 
-                        key={idx} onClick={() => toggleRule(rule)}
+                        key={idx} 
+                        onClick={() => toggleRule(rule)}
                         className={`text-left px-5 py-4 rounded-xl border transition-all flex items-start gap-4 ${
                           trip.rules.includes(rule) 
                             ? 'bg-[#00E5FF]/5 border-[#00E5FF]/30' 
@@ -668,15 +867,13 @@ export default function NewTrip() {
                         <span className={`text-[11px] leading-relaxed font-medium ${trip.rules.includes(rule) ? 'text-white' : 'text-[#5A6A85]'}`}>{rule}</span>
                       </button>
                     ))}
-                    <button onClick={addCustomRule} className="w-full py-4 mt-2 border border-dashed border-white/10 hover:border-[#00E5FF]/50 hover:bg-[#00E5FF]/5 rounded-xl text-[10px] font-bold text-[#5A6A85] hover:text-[#00E5FF] uppercase tracking-widest transition-all">
-                      + Додати власне правило
-                    </button>
+                    <button onClick={addCustomRule} className="w-full py-4 mt-2 border border-dashed border-white/10 hover:border-[#00E5FF]/50 hover:bg-[#00E5FF]/5 rounded-xl text-[10px] font-bold text-[#5A6A85] hover:text-[#00E5FF] uppercase tracking-widest transition-all">+ Свої правила</button>
                   </div>
                 </div>
               </motion.div>
             )}
 
-            {/* STEP 6: PREVIEW */}
+            {/* STEP 6 */}
             {currentStep === 6 && (
               <motion.div key="step6" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
                  <div className="flex justify-between items-end pb-4 border-b border-white/10">
@@ -684,22 +881,20 @@ export default function NewTrip() {
                       <h2 className="text-xl font-black text-white uppercase tracking-widest flex items-center gap-3">
                         <Eye className="text-[#00E5FF]" size={20} /> Попередній перегляд
                       </h2>
-                      <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.2em] mt-1 font-bold">Перевірка даних перед публікацією</p>
+                      <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.2em] mt-1 font-bold">Візуалізація маршруту</p>
                     </div>
-                    <button onClick={downloadPDF} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all">
-                      <Download size={14} /> Завантажити PDF
-                    </button>
+                    <button onClick={downloadPDF} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Download size={14} /> Скачати PDF</button>
                  </div>
 
                  <div id="full-preview-area" className="bg-[#0B1221] p-8 rounded-2xl border border-white/10 space-y-10">
                     <div className="flex justify-between items-start pb-6 border-b border-white/5">
                        <div>
                           <p className="text-[9px] text-[#00E5FF] font-black uppercase tracking-[0.3em] mb-2">Маршрутний лист</p>
-                          <h3 className="text-2xl font-black text-white tracking-widest uppercase">{trip.routeName || 'БЕЗ НАЗВИ'}</h3>
+                          <h3 className="text-2xl font-black text-white tracking-widest uppercase">{trip.routeName || 'Без назви'}</h3>
                        </div>
                        <div className="text-right">
                           <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-[0.3em] mb-1">Оператор</p>
-                          <p className="text-sm font-black text-white uppercase">{user?.companyName || 'SYSTEM CARRIER'}</p>
+                          <p className="text-sm font-black text-white uppercase">{user?.companyName || 'Carrier'}</p>
                        </div>
                     </div>
 
@@ -731,23 +926,25 @@ export default function NewTrip() {
               </motion.div>
             )}
 
-            {/* STEP 7: FINISH */}
+            {/* STEP 7 */}
             {currentStep === 7 && (
               <motion.div key="step7" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="py-24 text-center space-y-8">
                  <div className="w-20 h-20 bg-[#00E5FF]/10 rounded-2xl border border-[#00E5FF]/30 flex items-center justify-center text-[#00E5FF] mx-auto shadow-[0_0_30px_rgba(0,229,255,0.2)]">
                     <CheckCircle2 size={40} strokeWidth={2} />
                  </div>
                  <div>
-                    <h2 className="text-2xl font-black text-white uppercase tracking-widest mb-2">Маршрут сформовано</h2>
-                    <p className="text-[#5A6A85] text-xs max-w-md mx-auto leading-relaxed">Система готова до збереження. Перевірте всі дані ще раз та надішліть маршрут у базу для активації.</p>
+                    <h2 className="text-2xl font-black text-white uppercase tracking-widest mb-2">Все готово!</h2>
+                    <p className="text-[#5A6A85] text-xs max-w-md mx-auto leading-relaxed">Натисніть кнопку нижче, щоб відправити маршрут на модерацію. Після схвалення він з'явиться в системі.</p>
                  </div>
-                 <div className="pt-8">
+                 <div className="pt-8 flex flex-col items-center gap-4">
                     <button 
-                      onClick={syncToSupabase} disabled={isSaving}
+                      onClick={syncToSupabase} 
+                      disabled={isSaving}
                       className="px-12 py-4 bg-[#00E5FF] text-[#050B14] rounded-xl font-black uppercase tracking-widest hover:bg-[#00E5FF]/90 hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all disabled:opacity-50"
                     >
-                       {isSaving ? 'Збереження...' : 'Підтвердити та відправити'}
+                       {isSaving ? 'Збереження...' : 'Відправити на перевірку'}
                     </button>
+                    <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest">Це займе менше 2 секунд</p>
                  </div>
               </motion.div>
             )}
@@ -779,7 +976,7 @@ export default function NewTrip() {
                 : 'bg-white/10 text-white hover:bg-white/20'
             }`}
           >
-            {currentStep === 7 ? 'Фініш' : 'Далі'} <ChevronRight size={14} />
+            {currentStep === 7 ? 'Зберегти' : 'Далі'} <ChevronRight size={14} />
           </button>
         </div>
       </footer>
