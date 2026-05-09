@@ -13,7 +13,7 @@ import {
   GripVertical, HelpCircle, PlusCircle, QrCode, Navigation, CreditCard,
   Activity, TrendingUp, Tag
 } from 'lucide-react';
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -209,7 +209,7 @@ export default function NewTrip() {
           const prevMinutes = (prev.dayOffset * 1440) + (prevTime[0] * 60) + prevTime[1];
           const currMinutes = (stop.dayOffset * 1440) + (currTime[0] * 60) + currTime[1];
           if (currMinutes <= prevMinutes) {
-            issues.push({ step, message: `Зупинка ${idx + 1}: час прибуття раніше или дорівнює попередній зупинці. Перевірте зміщення дня.`, severity: 'error' });
+            issues.push({ step, message: `Зупинка ${idx + 1}: час прибуття раніше або дорівнює попередній зупинці. Перевірте зміщення дня.`, severity: 'error' });
           }
         }
       });
@@ -217,7 +217,7 @@ export default function NewTrip() {
     checkRoute('outbound', 2);
     checkRoute('inbound', 3);
     const allStops = [...trip.outbound.stops, ...trip.inbound.stops];
-    if (allStops.some(s => s.price === 0)) {
+    if (allStops.length > 0 && allStops.some(s => s.price === 0)) {
       issues.push({ step: 4, message: 'Є зупинки з нульовою ціною', severity: 'warning' });
     }
     return issues;
@@ -232,18 +232,6 @@ export default function NewTrip() {
 
   const addCustomRule = () => {
     setTrip(prev => ({ ...prev, customRules: [...prev.customRules, ''] }));
-  };
-
-  const updateCustomRule = (index: number, val: string) => {
-    setTrip(prev => {
-      const newRules = [...prev.customRules];
-      newRules[index] = val;
-      return { ...prev, customRules: newRules };
-    });
-  };
-
-  const removeCustomRule = (index: number) => {
-    setTrip(prev => ({ ...prev, customRules: prev.customRules.filter((_, i) => i !== index) }));
   };
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -264,34 +252,11 @@ export default function NewTrip() {
     setCurrentStep(1);
   }, []);
 
-  const [smartInput, setSmartInput] = useState('');
-  const [smartPriceInput, setSmartPriceInput] = useState('');
   const [smartInputStep1, setSmartInputStep1] = useState('');
   const [priceMemory, setPriceMemory] = useState<Record<string, number>>({});
   const [exchangeRate, setExchangeRate] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
-  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [editingRouteId] = useState<string | null>(() => localStorage.getItem('busnet_editing_route_id'));
-  const [expandedPricingCities, setExpandedPricingCities] = useState<Set<string>>(new Set());
-
-  const togglePricingCity = (cityKey: string) => {
-    setExpandedPricingCities(prev => {
-      const next = new Set(prev);
-      if (next.has(cityKey)) next.delete(cityKey);
-      else next.add(cityKey);
-      return next;
-    });
-  };
-
-  const expandAllCities = (expand: boolean) => {
-    if (expand) {
-      const segments = allSegments;
-      const keys = segments.map(s => `${s.currency === 'ГРН' ? 'out' : 'in'}-${s.to}`);
-      setExpandedPricingCities(new Set(keys));
-    } else {
-      setExpandedPricingCities(new Set());
-    }
-  };
 
   const prevTimesRef = useRef({ out: '', in: '' });
   useEffect(() => {
@@ -391,38 +356,6 @@ export default function NewTrip() {
     setIsSaving(false);
   };
 
-  const handleSmartPriceParse = () => {
-    if (!smartPriceInput) return;
-    const text = smartPriceInput.toLowerCase();
-    const priceMatch = text.match(/\d+/);
-    if (!priceMatch) return;
-    const priceValue = parseInt(priceMatch[0]);
-    const foundCity = Array.from(new Set([...trip.outbound.stops, ...trip.inbound.stops].map(s => s.city.toLowerCase()))).find(c => text.includes(c));
-    if (foundCity) {
-      setPriceMemory(prev => ({ ...prev, [foundCity]: priceValue }));
-    }
-    setSmartPriceInput('');
-  };
-
-  const autoCalculateDayOffsets = useCallback((type: 'outbound' | 'inbound') => {
-    setTrip(prev => {
-      const stops = prev[type].stops;
-      if (stops.length === 0) return prev;
-      let offset = 0;
-      const updated = stops.map((stop, idx) => {
-        if (idx === 0) return { ...stop, dayOffset: 0 };
-        const p = stops[idx - 1];
-        if (p.time && stop.time) {
-          const [ph, pm] = p.time.split(':').map(Number);
-          const [ch, cm] = stop.time.split(':').map(Number);
-          if (ch * 60 + cm < ph * 60 + pm) offset += 1;
-        }
-        return { ...stop, dayOffset: offset };
-      });
-      return { ...prev, [type]: { ...prev[type], stops: updated } };
-    });
-  }, []);
-
   const addCustomDiscount = () => {
     setTrip(prev => ({ ...prev, customDiscounts: [...prev.customDiscounts, { id: generateId(), label: '', value: 0 }] }));
   };
@@ -435,18 +368,6 @@ export default function NewTrip() {
     setTrip(prev => ({ ...prev, customDiscounts: prev.customDiscounts.filter(d => d.id !== id) }));
   };
 
-  const DAY_MAP: Record<string, string> = { 'понеділок': 'ПН', 'вівторок': 'ВТ', 'середа': 'СР', 'четвер': 'ЧТ', 'п\'ятниця': 'ПТ', 'субота': 'СБ', 'неділя': 'НД' };
-
-  const handleSmartParse = () => {
-    if (!smartInput) return;
-    const lines = smartInput.split('\n').filter(l => l.trim());
-    const newStops: Stop[] = lines.map(line => ({
-      id: generateId(), city: line.split(' ')[0] || 'Місто', address: '', time: '12:00', price: 0, dayOffset: 0, cityStatus: 'pending'
-    }));
-    setTrip(prev => ({ ...prev, outbound: { ...prev.outbound, stops: newStops } }));
-    setSmartInput('');
-  };
-
   const addStop = (type: 'outbound' | 'inbound') => {
     setTrip(prev => {
       const last = prev[type].stops[prev[type].stops.length - 1];
@@ -457,10 +378,6 @@ export default function NewTrip() {
 
   const removeStop = (type: 'outbound' | 'inbound', id: string) => {
     setTrip(prev => ({ ...prev, [type]: { ...prev[type], stops: prev[type].stops.filter(s => s.id !== id) } }));
-  };
-
-  const handleReorder = (type: 'outbound' | 'inbound', newStops: Stop[]) => {
-    setTrip(prev => ({ ...prev, [type]: { ...prev[type], stops: newStops } }));
   };
 
   const updateStop = (type: 'outbound' | 'inbound', id: string, updates: Partial<Stop>) => {
@@ -493,16 +410,6 @@ export default function NewTrip() {
     if (!smartInputStep1) return;
     setTrip(prev => ({ ...prev, routeName: smartInputStep1.trim() }));
     setSmartInputStep1('');
-  };
-
-  const getTotalDuration = (stops: Stop[]) => {
-    if (stops.length < 2) return null;
-    return "24г 00хв";
-  };
-
-  const getDayName = (type: 'outbound' | 'inbound', offset: number) => {
-    const days = trip[type].days;
-    return days[0] || '';
   };
 
   const nextStep = () => {
@@ -632,6 +539,29 @@ export default function NewTrip() {
                             </div>
                           </div>
                         </div>
+
+                        {activeRole === 'admin' && (
+                          <div className="mt-4 pt-4 border-t border-white/5">
+                            <label className="text-[9px] text-[#5A6A85] font-bold uppercase tracking-widest block mb-2">Призначити перевізника (Тільки для Адміна)</label>
+                            <div className="relative">
+                              <select 
+                                value={trip.operator} 
+                                onChange={(e) => setTrip({...trip, operator: e.target.value})}
+                                className="w-full bg-[#050B14] border border-white/10 focus:border-[#00E5FF]/50 rounded-xl px-4 py-3 text-sm text-white font-bold outline-none appearance-none cursor-pointer"
+                              >
+                                <option value="">Оберіть компанію...</option>
+                                {carriers.map(c => (
+                                  <option key={c.uid} value={`${c.uid}::${c.companyName || c.email}`}>
+                                    {c.companyName || c.email}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#5A6A85]">
+                                <ChevronDown size={16} />
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="bg-[#0B1221] rounded-2xl p-5 border border-white/10">
@@ -886,6 +816,17 @@ export default function NewTrip() {
                     <button onClick={downloadPDF} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Download size={14} /> Скачати PDF</button>
                  </div>
 
+                 {conflicts.length > 0 && (
+                  <div className="space-y-2">
+                    {conflicts.map((c, i) => (
+                      <div key={i} className={`flex items-center gap-3 p-3 rounded-xl border ${c.severity === 'error' ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
+                        <AlertCircle size={14} />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">{c.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                 )}
+
                  <div id="full-preview-area" className="bg-[#0B1221] p-8 rounded-2xl border border-white/10 space-y-10">
                     <div className="flex justify-between items-start pb-6 border-b border-white/5">
                        <div>
@@ -894,7 +835,7 @@ export default function NewTrip() {
                        </div>
                        <div className="text-right">
                           <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-[0.3em] mb-1">Оператор</p>
-                          <p className="text-sm font-black text-white uppercase">{user?.companyName || 'Carrier'}</p>
+                          <p className="text-sm font-black text-white uppercase">{trip.operator?.split('::')[1] || user?.companyName || 'Carrier'}</p>
                        </div>
                     </div>
 
