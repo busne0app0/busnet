@@ -312,10 +312,10 @@ export default function Dashboard() {
           const state = useAuthStore.getState();
           if (!state.loading && state.user) {
             const roleRoutes: Record<string, string> = {
-              admin: '/admin/',
-              carrier: '/carrier/',
-              agent: '/agent/',
-              driver: '/driver/',
+              admin: '/',
+              carrier: '/',
+              agent: '/',
+              driver: '/',
               passenger: '/dashboard',
             };
             const target = roleRoutes[state.user.role];

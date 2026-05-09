@@ -21,8 +21,8 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
   React.useEffect(() => {
     if (!authLoading && isAuthenticated && user) {
       console.log('[PortalLogin] Redirecting authenticated user:', user.email, 'to:', user.role);
-      const targetUrl = getAbsoluteRoleRoute(user.role);
-      if (window.location.href !== targetUrl) {
+      const targetUrl = role === 'admin' || role === 'carrier' || role === 'agent' || role === 'driver' ? '/' : '/dashboard';
+      if (window.location.pathname !== targetUrl) {
         window.location.href = targetUrl;
       }
     }

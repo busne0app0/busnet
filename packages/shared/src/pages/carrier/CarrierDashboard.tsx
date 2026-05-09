@@ -238,7 +238,7 @@ export default function CarrierDashboard() {
           </p>
         </div>
         <button 
-          onClick={() => navigate('/carrier/newtrip')}
+          onClick={() => navigate('/newtrip')}
           className="px-6 py-2.5 bg-gradient-to-r from-[#00E5FF]/20 to-[#00E5FF]/10 border border-[#00E5FF]/50 text-[#00E5FF] hover:bg-[#00E5FF]/30 rounded-full text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(0,229,255,0.2)] hover:shadow-[0_0_25px_rgba(0,229,255,0.4)]"
         >
           <Plus size={16} /> Створити маршрут

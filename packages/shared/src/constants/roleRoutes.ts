@@ -1,8 +1,8 @@
 export const ROLE_ROUTES: Record<string, string> = {
-  admin: '/admin/',
-  carrier: '/carrier/',
-  agent: '/agent/',
-  driver: '/driver/',
+  admin: '/',
+  carrier: '/',
+  agent: '/',
+  driver: '/',
   passenger: '/dashboard',
   user: '/dashboard',
 };

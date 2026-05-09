@@ -226,7 +226,7 @@ export default function Schedule() {
       localStorage.setItem('busnet_editing_route_id', raw.id);
     }
     setViewRoute(null);
-    navigate('/carrier/newtrip');
+    navigate('/newtrip');
     toast.success('Маршрут завантажено для редагування');
   };
 
@@ -254,7 +254,7 @@ export default function Schedule() {
           <button
             onClick={() => {
               localStorage.removeItem('busnet_editing_route_id');
-              navigate('/carrier/newtrip');
+              navigate('/newtrip');
             }}
             className="px-6 py-2.5 bg-[#ff6b35] hover:bg-[#ff6b35]/90 text-white rounded-full text-[11px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(255,107,53,0.3)] transition-all flex items-center gap-2"
           >
@@ -456,7 +456,7 @@ export default function Schedule() {
 
                           {/* 🗺 Live (Book icon in screenshot?) */}
                           <button
-                            onClick={() => navigate('/carrier/livetrips')}
+                            onClick={() => navigate('/livetrips')}
                             title="Live трекінг"
                             className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-all shadow-[0_0_10px_rgba(16,185,129,0)] hover:shadow-[0_0_10px_rgba(16,185,129,0.3)]"
                           >

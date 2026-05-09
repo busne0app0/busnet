@@ -50,10 +50,10 @@ export default function Header() {
     }
     // Redirect to correct cabinet based on role
     const roleRoutes: Record<string, string> = {
-      admin: '/admin/',
-      carrier: '/carrier/',
-      agent: '/agent/',
-      driver: '/driver/',
+      admin: '/',
+      carrier: '/',
+      agent: '/',
+      driver: '/',
       passenger: '/dashboard',
       user: '/dashboard',
     };
