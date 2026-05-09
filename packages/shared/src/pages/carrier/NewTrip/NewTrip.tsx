@@ -729,14 +729,183 @@ export default function NewTrip() {
               </motion.div>
             )}
 
-            {currentStep > 2 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-20 text-center">
-                <h2 className="text-4xl font-black text-white uppercase mb-8">Крок {currentStep}</h2>
-                <p className="text-slate-500 uppercase tracking-[0.2em] mb-12">Цей розділ спрощений для відновлення системи</p>
-                <div className="flex justify-center gap-4">
-                   <button onClick={() => setCurrentStep(prev => prev - 1)} className="px-8 py-4 bg-white/5 text-white rounded-2xl font-black uppercase text-[10px]">Назад</button>
-                   <button onClick={() => setCurrentStep(prev => prev + 1)} className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px]">Продовжити</button>
+            {currentStep === 3 && (
+              <motion.div key="step3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-10">
+                <div className="flex items-center gap-5 pt-6">
+                  <div className="w-16 h-16 rounded-[24px] bg-emerald-600/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
+                    <Calendar size={32} />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Дні відправлення</h2>
+                    <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.3em] font-bold">Графік регулярності</p>
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <div className="bg-[#0B1221] p-8 rounded-[40px] border-2 border-white/5 shadow-2xl">
+                    <h3 className="text-[11px] font-black text-blue-500 uppercase tracking-widest mb-6">ТУДИ (ВІДПРАВЛЕННЯ)</h3>
+                    <div className="grid grid-cols-4 gap-3">
+                      {DAYS_OF_WEEK.map(day => (
+                        <button key={day} onClick={() => toggleDay('outbound', day)} className={`py-4 rounded-2xl text-[10px] font-black uppercase transition-all ${trip.outbound.days.includes(day) ? 'bg-blue-600 text-white shadow-lg' : 'bg-black/20 text-[#5A6A85] hover:bg-black/40'}`}>{day}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-[#0B1221] p-8 rounded-[40px] border-2 border-white/5 shadow-2xl">
+                    <h3 className="text-[11px] font-black text-emerald-500 uppercase tracking-widest mb-6">НАЗАД (ВІДПРАВЛЕННЯ)</h3>
+                    <div className="grid grid-cols-4 gap-3">
+                      {DAYS_OF_WEEK.map(day => (
+                        <button key={day} onClick={() => toggleDay('inbound', day)} className={`py-4 rounded-2xl text-[10px] font-black uppercase transition-all ${trip.inbound.days.includes(day) ? 'bg-emerald-600 text-white shadow-lg' : 'bg-black/20 text-[#5A6A85] hover:bg-black/40'}`}>{day}</button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {currentStep === 4 && (
+              <motion.div key="step4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-10">
+                <div className="flex items-center gap-5 pt-6">
+                  <div className="w-16 h-16 rounded-[24px] bg-amber-600/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
+                    <CreditCard size={32} />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Ціноутворення</h2>
+                    <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.3em] font-bold">Вартість проїзду між сегментами</p>
+                  </div>
+                </div>
+
+                <div className="bg-[#0B1221] rounded-[40px] p-8 border-2 border-white/5 shadow-2xl">
+                   <div className="space-y-6">
+                      {allSegments.map((segment, idx) => (
+                        <div key={idx} className="flex items-center gap-6 bg-black/20 p-5 rounded-3xl border border-white/5 group hover:border-blue-500/30 transition-all">
+                           <div className="flex-1">
+                              <p className="text-[10px] text-[#5A6A85] font-black uppercase tracking-widest mb-1">{segment.from} →</p>
+                              <p className="text-lg font-black text-white uppercase">{segment.to}</p>
+                           </div>
+                           <div className="w-px h-10 bg-white/5" />
+                           <div className="flex items-center gap-3 bg-[#050B14] px-6 py-4 rounded-2xl border border-white/10">
+                              <input 
+                                type="number" 
+                                value={segment.price} 
+                                onChange={(e) => setPriceMemory(prev => ({ ...prev, [segment.key]: parseInt(e.target.value) || 0 }))}
+                                className="w-20 bg-transparent border-none outline-none text-white font-black text-right"
+                              />
+                              <span className="text-[10px] text-blue-500 font-black uppercase">{trip.currency}</span>
+                           </div>
+                        </div>
+                      ))}
+                      {allSegments.length === 0 && (
+                        <div className="py-20 text-center opacity-30">
+                           <Info size={40} className="mx-auto mb-4" />
+                           <p className="text-[10px] font-black uppercase tracking-[0.3em]">Спочатку додайте зупинки у графік</p>
+                        </div>
+                      )}
+                   </div>
+                </div>
+              </motion.div>
+            )}
+
+            {currentStep === 5 && (
+              <motion.div key="step5" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-10">
+                <div className="flex items-center gap-5 pt-6">
+                  <div className="w-16 h-16 rounded-[24px] bg-blue-600/10 flex items-center justify-center text-blue-500 border border-blue-500/20">
+                    <FileText size={32} />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Умови перевезення</h2>
+                    <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.3em] font-bold">Правила та обмеження</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  {PRESET_RULES.map((rule, idx) => (
+                    <button 
+                      key={idx} 
+                      onClick={() => toggleRule(rule)}
+                      className={`text-left p-6 rounded-3xl border-2 transition-all flex gap-4 ${trip.rules.includes(rule) ? 'bg-blue-600/10 border-blue-600' : 'bg-[#0B1221] border-white/5 text-slate-400 hover:border-white/10'}`}
+                    >
+                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${trip.rules.includes(rule) ? 'bg-blue-600 text-white' : 'bg-black/40 text-slate-700'}`}>
+                        <CheckCircle size={14} />
+                      </div>
+                      <span className="text-[11px] font-bold leading-relaxed">{rule}</span>
+                    </button>
+                  ))}
+                  <button onClick={addCustomRule} className="w-full py-6 border-2 border-dashed border-white/10 rounded-3xl text-[10px] font-black text-[#5A6A85] uppercase hover:bg-white/5 transition-all">+ Свої правила</button>
+                </div>
+              </motion.div>
+            )}
+
+            {currentStep === 6 && (
+              <motion.div key="step6" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="space-y-10">
+                 <div className="flex justify-between items-center pt-6">
+                    <div>
+                      <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Попередній перегляд</h2>
+                      <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.3em] font-bold">Візуалізація маршруту</p>
+                    </div>
+                    <button onClick={downloadPDF} className="flex items-center gap-3 px-8 py-4 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase shadow-lg shadow-emerald-600/20"><Download size={18} /> Скачати PDF</button>
+                 </div>
+
+                 <div id="full-preview-area" className="bg-[#0B1221] p-10 rounded-[48px] border-2 border-white/5 shadow-2xl space-y-12">
+                    <div className="flex justify-between items-start border-b border-white/5 pb-10">
+                       <div>
+                          <p className="text-[10px] text-blue-500 font-black uppercase tracking-[0.4em] mb-4">Маршрутний лист</p>
+                          <h3 className="text-5xl font-black text-white italic tracking-tighter uppercase">{trip.routeName || 'Без назви'}</h3>
+                       </div>
+                       <div className="text-right">
+                          <p className="text-[10px] text-[#5A6A85] font-black uppercase tracking-widest mb-2">Оператор</p>
+                          <p className="text-xl font-black text-white uppercase">{user?.companyName || 'Carrier'}</p>
+                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-12">
+                       <div className="space-y-8">
+                          <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest border-l-4 border-blue-500 pl-4">ТУДИ</h4>
+                          <div className="space-y-6">
+                             {trip.outbound.stops.map((s, i) => (
+                               <div key={i} className="flex gap-4">
+                                  <div className="text-xl font-black text-white/20 w-12">{s.time}</div>
+                                  <div className="text-xl font-black text-white uppercase">{s.city}</div>
+                               </div>
+                             ))}
+                          </div>
+                       </div>
+                       <div className="space-y-8">
+                          <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest border-l-4 border-emerald-500 pl-4">НАЗАД</h4>
+                          <div className="space-y-6">
+                             {trip.inbound.stops.map((s, i) => (
+                               <div key={i} className="flex gap-4">
+                                  <div className="text-xl font-black text-white/20 w-12">{s.time}</div>
+                                  <div className="text-xl font-black text-white uppercase">{s.city}</div>
+                               </div>
+                             ))}
+                          </div>
+                       </div>
+                    </div>
+                 </div>
+              </motion.div>
+            )}
+
+            {currentStep === 7 && (
+              <motion.div key="step7" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -30 }} className="py-20 text-center space-y-12">
+                 <div className="w-24 h-24 bg-blue-600 rounded-[40px] flex items-center justify-center text-white mx-auto shadow-2xl shadow-blue-600/40">
+                    <CheckCircle2 size={48} strokeWidth={3} />
+                 </div>
+                 <div>
+                    <h2 className="text-5xl font-black text-white uppercase tracking-tighter mb-4 italic">Все готово!</h2>
+                    <p className="text-slate-400 max-w-md mx-auto text-sm leading-relaxed">Натисніть кнопку нижче, щоб відправити маршрут на модерацію. Після схвалення він з'явиться в системі.</p>
+                 </div>
+                 <div className="pt-8 flex flex-col items-center gap-6">
+                    <button 
+                      onClick={syncToSupabase} 
+                      disabled={isSaving}
+                      className="group relative px-20 py-8 bg-blue-600 rounded-[32px] overflow-hidden shadow-2xl shadow-blue-600/20 disabled:opacity-50"
+                    >
+                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                       <span className="text-white font-black uppercase tracking-[0.2em] relative z-10">{isSaving ? 'Зберігаємо...' : 'Відправити на перевірку'}</span>
+                    </button>
+                    <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest">Це займе менше 2 секунд</p>
+                 </div>
               </motion.div>
             )}
           </AnimatePresence>
