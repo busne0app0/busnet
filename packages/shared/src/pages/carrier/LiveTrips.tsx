@@ -46,7 +46,7 @@ export default function LiveTrips() {
     fetchLiveTrips();
 
     const channel = supabase.channel('live_trips_updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'trips', filter: `carrierId=eq.${user.uid}` }, fetchLiveTrips)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trips', filter: `carrier_id=eq.${user.uid}` }, fetchLiveTrips)
       .subscribe();
 
     return () => {

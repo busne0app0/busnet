@@ -10,8 +10,12 @@ const SettingsTab: React.FC = () => {
   const [settings, setSettings] = useState({
     notificationsBookings: true,
     notificationsFinance: true,
-    notificationsReviews: false
+    notificationsReviews: false,
+    language: 'УКРАЇНСЬКА',
+    currency: 'EUR (€)',
+    twoFactorEnabled: false
   });
+  const [passwords, setPasswords] = useState({ current: '', new: '' });
 
   useEffect(() => {
     if (!user) return;
@@ -37,6 +41,33 @@ const SettingsTab: React.FC = () => {
     await supabase.from('settings').upsert({ id: user.uid, carrierSettings: next });
   };
 
+  const handleSave = async () => {
+    if (!user) return;
+    const toastId = toast.loading('Збереження налаштувань...');
+    try {
+      if (passwords.new) {
+        const { error: pwdError } = await supabase.auth.updateUser({ password: passwords.new });
+        if (pwdError) throw pwdError;
+      }
+      
+      const { error: settingsError } = await supabase.from('settings').upsert({ id: user.uid, carrierSettings: settings });
+      if (settingsError) throw settingsError;
+
+      setPasswords({ current: '', new: '' });
+      toast.success('Налаштування успішно збережено', { id: toastId });
+    } catch (error) {
+      toast.error('Помилка при збереженні', { id: toastId });
+    }
+  };
+
+  const handle2FA = async () => {
+    if (!user) return;
+    const next = { ...settings, twoFactorEnabled: true };
+    setSettings(next);
+    toast.success('2FA активовано (демо)');
+    await supabase.from('settings').upsert({ id: user.uid, carrierSettings: next });
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in zoom-in-95 duration-500 pb-20">
       <div className="flex items-center gap-3 mb-12">
@@ -56,11 +87,11 @@ const SettingsTab: React.FC = () => {
            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-2">
                  <label className="text-[9px] font-black text-[#5A6A85] uppercase tracking-widest px-1">ПОТОЧНИЙ ПАРОЛЬ</label>
-                 <input type="password" placeholder="••••••••" className="w-full bg-[#1A2639]/30 border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#10B981] outline-none transition-all placeholder:text-[#5A6A85] text-sm tracking-[0.2em]" />
+                 <input type="password" value={passwords.current} onChange={e => setPasswords({...passwords, current: e.target.value})} placeholder="••••••••" className="w-full bg-[#1A2639]/30 border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#10B981] outline-none transition-all placeholder:text-[#5A6A85] text-sm tracking-[0.2em]" />
               </div>
               <div className="space-y-2">
                  <label className="text-[9px] font-black text-[#5A6A85] uppercase tracking-widest px-1">НОВИЙ ПАРОЛЬ</label>
-                 <input type="password" placeholder="••••••••" className="w-full bg-[#1A2639]/30 border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#10B981] outline-none transition-all placeholder:text-[#5A6A85] text-sm tracking-[0.2em]" />
+                 <input type="password" value={passwords.new} onChange={e => setPasswords({...passwords, new: e.target.value})} placeholder="••••••••" className="w-full bg-[#1A2639]/30 border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#10B981] outline-none transition-all placeholder:text-[#5A6A85] text-sm tracking-[0.2em]" />
               </div>
               <div className="md:col-span-2 p-6 rounded-[32px] bg-[#1A2639]/50 border border-[#10B981]/20 flex items-center justify-between shadow-[0_0_20px_rgba(16,185,129,0.05)]">
                  <div className="flex items-center gap-4">
@@ -73,10 +104,11 @@ const SettingsTab: React.FC = () => {
                     </div>
                  </div>
                  <button 
-                    onClick={() => toast.success('Запит на активацію 2FA надіслано')}
-                    className="px-8 py-3 bg-white/5 border border-white/10 text-[#8899B5] text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-white/10 hover:text-white transition-all shadow-lg"
+                    onClick={handle2FA}
+                    disabled={settings.twoFactorEnabled}
+                    className={`px-8 py-3 bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-white/10 transition-all shadow-lg ${settings.twoFactorEnabled ? 'text-[#10B981] border-[#10B981]/50 bg-[#10B981]/10' : 'text-[#8899B5] hover:text-white'}`}
                  >
-                    АКТИВУВАТИ
+                    {settings.twoFactorEnabled ? 'АКТИВОВАНО' : 'АКТИВУВАТИ'}
                  </button>
               </div>
            </div>
@@ -119,7 +151,7 @@ const SettingsTab: React.FC = () => {
            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-2">
                  <label className="text-[9px] font-black text-[#5A6A85] uppercase tracking-widest px-1">МОВА ІНТЕРФЕЙСУ</label>
-                 <select className="w-full bg-[#1A2639]/30 border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#0EA5E9] outline-none appearance-none cursor-pointer font-bold text-sm tracking-widest uppercase">
+                 <select value={settings.language} onChange={e => setSettings({...settings, language: e.target.value})} className="w-full bg-[#1A2639]/30 border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#0EA5E9] outline-none appearance-none cursor-pointer font-bold text-sm tracking-widest uppercase">
                     <option>УКРАЇНСЬКА</option>
                     <option>ENGLISH</option>
                     <option>POLSKI</option>
@@ -127,7 +159,7 @@ const SettingsTab: React.FC = () => {
               </div>
               <div className="space-y-2">
                  <label className="text-[9px] font-black text-[#5A6A85] uppercase tracking-widest px-1">ОСНОВНА ВАЛЮТА</label>
-                 <select className="w-full bg-[#1A2639]/30 border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#0EA5E9] outline-none appearance-none cursor-pointer font-bold text-sm tracking-widest uppercase">
+                 <select value={settings.currency} onChange={e => setSettings({...settings, currency: e.target.value})} className="w-full bg-[#1A2639]/30 border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#0EA5E9] outline-none appearance-none cursor-pointer font-bold text-sm tracking-widest uppercase">
                     <option>EUR (€)</option>
                     <option>UAH (₴)</option>
                     <option>USD ($)</option>
@@ -137,10 +169,13 @@ const SettingsTab: React.FC = () => {
         </section>
 
         <div className="pt-10 border-t border-white/5 flex justify-end gap-4">
-           <button className="px-10 py-4 bg-transparent border border-white/5 text-[#5A6A85] text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-white/5 hover:text-white transition-all shadow-lg">
+           <button 
+             onClick={() => { if (confirm('Скинути налаштування до початкових?')) window.location.reload(); }}
+             className="px-10 py-4 bg-transparent border border-white/5 text-[#5A6A85] text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-white/5 hover:text-white transition-all shadow-lg"
+           >
               СКИНУТИ
            </button>
-           <button className="px-10 py-4 bg-[#10B981] text-white text-[10px] font-black uppercase tracking-widest rounded-full hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all flex items-center justify-center gap-2">
+           <button onClick={handleSave} className="px-10 py-4 bg-[#10B981] text-white text-[10px] font-black uppercase tracking-widest rounded-full hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all flex items-center justify-center gap-2">
               <Save size={16} /> ЗБЕРЕГТИ ЗМІНИ
            </button>
         </div>

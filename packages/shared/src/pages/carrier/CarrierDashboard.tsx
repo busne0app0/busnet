@@ -37,10 +37,11 @@ export default function CarrierDashboard() {
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
+    const currency = user?.currency || '€';
     return (
       <div className="bg-[#050B14] border border-[#00E5FF]/20 rounded-lg p-2 text-[10px]">
         <p className="text-[#8899B5] font-bold mb-1">{label}</p>
-        <p className="text-[#00E5FF] font-black">€{payload[0]?.value?.toLocaleString()}</p>
+        <p className="text-[#00E5FF] font-black">{currency}{payload[0]?.value?.toLocaleString()}</p>
       </div>
     );
   };
@@ -227,7 +228,7 @@ export default function CarrierDashboard() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold uppercase tracking-tight text-white mb-1">
+          <h2 className="text-3xl font-syne font-black italic uppercase tracking-tighter text-white mb-1">
             Дашборд перевізника
           </h2>
           <p className="text-[11px] text-[#8899B5] uppercase tracking-widest font-medium flex items-center gap-2">
@@ -241,7 +242,7 @@ export default function CarrierDashboard() {
           onClick={() => navigate('/newtrip')}
           className="px-6 py-2.5 bg-gradient-to-r from-[#00E5FF]/20 to-[#00E5FF]/10 border border-[#00E5FF]/50 text-[#00E5FF] hover:bg-[#00E5FF]/30 rounded-full text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(0,229,255,0.2)] hover:shadow-[0_0_25px_rgba(0,229,255,0.4)]"
         >
-          <Plus size={16} /> Створити маршрут
+          <Plus size={16} /> <span className="hidden md:inline-block">Створити маршрут</span>
         </button>
       </div>
 
@@ -272,7 +273,7 @@ export default function CarrierDashboard() {
             </p>
           </div>
         </div>
-        <div className="h-16 w-full md:w-[300px] z-10 opacity-70">
+        <div className="h-24 md:h-16 w-full md:w-[300px] z-10 opacity-70">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={aiChartData}>
               <defs>
@@ -288,17 +289,21 @@ export default function CarrierDashboard() {
       </div>
 
       {/* 4 Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Card 1: Revenue */}
-        <div className="bg-[#0B1221] border border-[#1A2639] rounded-2xl p-5 hover:border-[#00E5FF]/30 transition-all flex flex-col justify-between h-[150px] relative overflow-hidden group">
+        <motion.div 
+          whileHover={{ y: -5, borderColor: 'rgba(0, 229, 255, 0.3)' }}
+          whileTap={{ scale: 0.98 }}
+          className="bg-[#0B1221] border border-[#1A2639] rounded-2xl p-5 transition-all flex flex-col justify-between h-[150px] relative overflow-hidden group cursor-pointer shadow-xl"
+        >
           <div className="flex justify-between items-start">
             <span className="text-[#8899B5] text-[11px] uppercase font-bold tracking-widest">Дохід</span>
             <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
               <TrendingUp size={10} /> +18%
             </span>
           </div>
-          <div className="text-4xl font-black text-white group-hover:text-[#00E5FF] transition-colors">€{liveStats.revenueTotal.toLocaleString()}</div>
+          <div className="text-2xl md:text-4xl font-black text-white group-hover:text-[#00E5FF] transition-colors">{user?.currency || '€'}{liveStats.revenueTotal.toLocaleString()}</div>
           <div className="h-12 w-full mt-2">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={liveStats.chart.slice(-7)}>
@@ -314,10 +319,14 @@ export default function CarrierDashboard() {
         </div>
 
         {/* Card 2: Active Trips */}
-        <div className="bg-[#0B1221] border border-[#1A2639] rounded-2xl p-5 hover:border-[#00E5FF]/30 transition-all flex flex-col justify-between h-[150px] relative">
+        <motion.div 
+          whileHover={{ y: -5, borderColor: 'rgba(0, 229, 255, 0.3)' }}
+          whileTap={{ scale: 0.98 }}
+          className="bg-[#0B1221] border border-[#1A2639] rounded-2xl p-5 transition-all flex flex-col justify-between h-[150px] relative group cursor-pointer shadow-xl"
+        >
           <span className="text-[#8899B5] text-[11px] uppercase font-bold tracking-widest">Активні Рейси ({liveStats.tripsCount})</span>
           <div className="flex items-center justify-between mt-1">
-            <div className="text-5xl font-black text-[#00E5FF]">{liveStats.tripsCount}</div>
+            <div className="text-3xl md:text-5xl font-black text-[#00E5FF]">{liveStats.tripsCount}</div>
             <div className="relative w-16 h-16 flex items-center justify-center text-[#00E5FF]">
               <svg className="w-full h-full transform -rotate-90 absolute" viewBox="0 0 36 36">
                 <path className="text-[#1A2639]" strokeDasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
@@ -330,7 +339,11 @@ export default function CarrierDashboard() {
         </div>
 
         {/* Card 3: Passengers */}
-        <div className="bg-[#0B1221] border border-[#1A2639] rounded-2xl p-5 hover:border-[#00E5FF]/30 transition-all flex flex-col justify-between h-[150px]">
+        <motion.div 
+          whileHover={{ y: -5, borderColor: 'rgba(0, 229, 255, 0.3)' }}
+          whileTap={{ scale: 0.98 }}
+          className="bg-[#0B1221] border border-[#1A2639] rounded-2xl p-5 transition-all flex flex-col justify-between h-[150px] relative group cursor-pointer shadow-xl"
+        >
           <div className="flex justify-between items-start">
             <span className="text-[#8899B5] text-[11px] uppercase font-bold tracking-widest">Пасажирів ({liveStats.passengers})</span>
           </div>
@@ -350,7 +363,11 @@ export default function CarrierDashboard() {
         </div>
 
         {/* Card 4: Rating */}
-        <div className="bg-[#0B1221] border border-[#1A2639] rounded-2xl p-5 hover:border-[#00E5FF]/30 transition-all flex flex-col justify-between h-[150px]">
+        <motion.div 
+          whileHover={{ y: -5, borderColor: 'rgba(0, 229, 255, 0.3)' }}
+          whileTap={{ scale: 0.98 }}
+          className="bg-[#0B1221] border border-[#1A2639] rounded-2xl p-5 transition-all flex flex-col justify-between h-[150px] relative group cursor-pointer shadow-xl"
+        >
           <div className="flex justify-between items-start">
             <span className="text-[#8899B5] text-[11px] uppercase font-bold tracking-widest">Рейтинг ({liveStats.rating.toFixed(1)})</span>
             <span className="bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/30 text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(0,229,255,0.2)]">СУПЕР-НАДІЙНИЙ</span>

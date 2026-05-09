@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Building2, Mail, Phone, MapPin, CreditCard, ShieldCheck, Edit, Camera, Activity, FileText, Check, X, Loader2, Upload } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { supabase } from '@busnet/shared/supabase/config';
 
 const ProfileTab: React.FC = () => {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({
     companyName: '',
@@ -246,7 +248,7 @@ const ProfileTab: React.FC = () => {
               </div>
             </div>
             <button
-              onClick={() => toast.success('Перехід до розділу Документи...')}
+              onClick={() => navigate('/docs')}
               className="w-full py-3 bg-white/5 border border-white/5 rounded-full text-[9px] font-black uppercase tracking-widest text-[#8899B5] hover:bg-white/10 hover:text-white transition-all shadow-lg"
             >
               ПЕРЕГЛЯНУТИ ДОКУМЕНТИ

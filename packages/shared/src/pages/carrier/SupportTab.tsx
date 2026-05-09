@@ -90,7 +90,7 @@ const SupportTab: React.FC = () => {
     fetchTickets();
 
     const channel = supabase.channel('support_updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'support', filter: `userId=eq.${user.uid}` }, fetchTickets)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'support', filter: `user_id=eq.${user.uid}` }, fetchTickets)
       .subscribe();
 
     return () => {
@@ -117,7 +117,7 @@ const SupportTab: React.FC = () => {
         .from('support')
         .insert({
           id: crypto.randomUUID(),
-          userId: user.uid,
+          user_id: user.uid,
           subject: newTicket.subject.trim(),
           category: newTicket.category,
           priority: newTicket.priority,

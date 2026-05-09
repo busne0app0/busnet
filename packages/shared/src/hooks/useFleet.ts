@@ -14,6 +14,7 @@ export interface Bus {
   status: 'active' | 'maintenance' | 'inactive';
   amenities: string[];
   lastMaintenance?: string;
+  carrier_id?: string; // Add this for DB mapping
 }
 
 export function useFleet() {
@@ -28,7 +29,10 @@ export function useFleet() {
         .select('*')
         .eq('carrier_id', carrierId);
       if (error) throw error;
-      setBuses(data || []);
+      setBuses((data || []).map((d: any) => ({
+        ...d,
+        carrierId: d.carrier_id
+      })));
     } catch (error) {
       console.error('Error fetching fleet:', error);
     } finally {
@@ -38,9 +42,10 @@ export function useFleet() {
 
   const addBus = async (busData: Omit<Bus, 'id'>) => {
     try {
+      const { carrierId, ...rest } = busData as any;
       const { error } = await supabase
         .from('buses')
-        .insert(busData);
+        .insert({ ...rest, carrier_id: carrierId });
       if (error) throw error;
       await fetchFleet(busData.carrierId);
     } catch (error) {

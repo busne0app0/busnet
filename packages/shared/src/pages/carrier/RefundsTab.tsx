@@ -10,6 +10,27 @@ const RefundsTab: React.FC = () => {
   const [refunds, setRefunds] = useState<any[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
 
+  const handleProcessRefund = async (id: string, originalId: string) => {
+    const toastId = toast.loading('Обробка запиту...');
+    try {
+      // In a real scenario we'd update the booking record
+      // The id in state is prefixed with REF-. We need the original ID.
+      const { error } = await supabase
+        .from('bookings')
+        .update({ refundStatus: 'completed' })
+        .eq('id', originalId);
+
+      if (error) throw error;
+      toast.success(`Запит ${id} успішно оброблено`, { id: toastId });
+      
+      // Update local state
+      setRefunds(prev => prev.map(r => r.id === id ? { ...r, status: 'completed' } : r));
+      setPendingCount(prev => Math.max(0, prev - 1));
+    } catch (e) {
+      toast.error('Помилка обробки', { id: toastId });
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
     
@@ -26,6 +47,7 @@ const RefundsTab: React.FC = () => {
           if (d.refundStatus !== 'completed') pc++;
           return {
             id: `REF-${d.id.slice(0, 6).toUpperCase()}`,
+            originalId: d.id,
             passenger: d.passengers?.[0] ? `${d.passengers[0].firstName} ${d.passengers[0].lastName}` : 'Пасажир',
             amount: (d.totalPrice || 0) / 42,
             method: 'Original Payment',
@@ -42,7 +64,7 @@ const RefundsTab: React.FC = () => {
     fetchRefunds();
 
     const channel = supabase.channel('carrier_refunds')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `carrierId=eq.${user.uid}` }, fetchRefunds)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `carrier_id=eq.${user.uid}` }, fetchRefunds)
       .subscribe();
 
     return () => {
@@ -116,7 +138,7 @@ const RefundsTab: React.FC = () => {
                      <td className="py-5 px-6 text-right rounded-r-[16px]">
                         {ref.status === 'pending' ? (
                            <button 
-                             onClick={() => toast.success(`Запит ${ref.id} взято в роботу`)}
+                             onClick={() => handleProcessRefund(ref.id, ref.originalId)}
                              className="px-6 py-2.5 rounded-[10px] bg-[#F59E0B] text-black text-[9px] font-black uppercase tracking-widest hover:bg-white transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)]"
                            >
                               ОБРОБИТИ

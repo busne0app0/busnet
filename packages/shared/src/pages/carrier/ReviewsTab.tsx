@@ -5,9 +5,16 @@ import { toast } from 'react-hot-toast';
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 
+import { supabase } from '@busnet/shared/supabase/config';
+import { useAuthStore } from '@busnet/shared/store/useAuthStore';
+import { toast } from 'react-hot-toast';
+
 const ReviewsTab: React.FC = () => {
   const { user } = useAuthStore();
   const [reviews, setReviews] = useState<any[]>([]);
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const [avgRating, setAvgRating] = useState(0);
 
   useEffect(() => {
@@ -41,7 +48,7 @@ const ReviewsTab: React.FC = () => {
     fetchReviews();
 
     const channel = supabase.channel('carrier_reviews')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews', filter: `carrierId=eq.${user.uid}` }, fetchReviews)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews', filter: `carrier_id=eq.${user.uid}` }, fetchReviews)
       .subscribe();
 
     return () => {
@@ -49,10 +56,22 @@ const ReviewsTab: React.FC = () => {
     };
   }, [user]);
 
-  const handleReply = (user: string) => {
+  const handleReply = async (revId: string, user: string) => {
      const text = prompt(`Відповідь пасажиру ${user}:`);
      if (text) {
-        toast.success(`Ваша відповідь для ${user} опублікована`);
+        const toastId = toast.loading('Збереження відповіді...');
+        try {
+          // Attempt to save to 'carrier_reply' column, or append to comment if it fails
+          const { error } = await supabase
+            .from('reviews')
+            .update({ carrier_reply: text })
+            .eq('id', revId);
+          
+          if (error) throw error;
+          toast.success(`Ваша відповідь для ${user} опублікована`, { id: toastId });
+        } catch (e) {
+          toast.error('Не вдалося зберегти відповідь', { id: toastId });
+        }
      }
   };
 
@@ -111,7 +130,7 @@ const ReviewsTab: React.FC = () => {
                       <Clock size={10} /> {rev.date}
                    </span>
                    <button 
-                     onClick={() => toast.success(`Ваша відповідь для ${rev.user} опублікована`)}
+                     onClick={() => handleReply(rev.id, rev.user)}
                      className="px-5 py-2.5 rounded-full bg-[#1A2639]/50 border border-transparent hover:border-[#00E5FF]/30 text-[#00E5FF] text-[9px] font-black uppercase tracking-widest transition-all hover:bg-[#00E5FF]/10"
                    >
                       ВІДПОВІСТИ

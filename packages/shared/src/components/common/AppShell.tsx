@@ -27,7 +27,7 @@ export function AppShell({ basename, children }: AppShellProps) {
       <LanguageProvider>
         <SearchProvider>
           <BrowserRouter basename={basename}>
-            <Toaster position="top-right" toastOptions={{ style: { background: '#111520', color: '#fff' } }} />
+            <Toaster position="top-center" toastOptions={{ style: { background: '#111520', color: '#fff' } }} />
             <Routes>
               <Route path="/forum" element={<ForumPage />} />
               {children}

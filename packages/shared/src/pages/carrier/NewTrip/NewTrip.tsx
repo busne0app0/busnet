@@ -43,7 +43,9 @@ import {
   FileText,
   GripVertical,
   HelpCircle,
-  PlusCircle
+  PlusCircle,
+  QrCode,
+  Navigation
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { jsPDF } from 'jspdf';
@@ -1155,54 +1157,88 @@ export default function NewTrip() {
           </div>
         </div>
         
-        <div className="hidden md:flex items-center gap-3">
-          {[1, 2, 3, 4, 5, 6, 7].map(step => {
-            const hasConflict = conflicts.some(c => c.step === step);
-            const severity = hasConflict && conflicts.find(c => c.step === step)?.severity === 'error' ? 'error' : 'warning';
+        {/* Visual Stepper - High Fidelity Architecture */}
+        <div className="hidden lg:flex items-center gap-1 bg-[#0B1221]/80 backdrop-blur-xl px-6 py-2.5 rounded-[24px] border border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
+          {[
+            { id: 1, icon: Settings2, label: 'Старт' },
+            { id: 2, icon: MapPin, label: 'Туди' },
+            { id: 3, icon: MapPin, label: 'Назад' },
+            { id: 4, icon: CreditCard, label: 'Ціни' },
+            { id: 5, icon: Zap, label: 'Умови' },
+            { id: 6, icon: FileText, label: 'Експорт' },
+            { id: 7, icon: Save, label: 'Фініш' }
+          ].map((step, idx, arr) => {
+            const isActive = currentStep === step.id;
+            const isCompleted = currentStep > step.id;
+            const hasConflict = conflicts.some(c => c.step === step.id);
+            const StepIcon = step.icon;
 
             return (
-              <button 
-                key={step} 
-                onClick={() => setCurrentStep(step)}
-                className="flex items-center group cursor-pointer relative"
-              >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black transition-all ${currentStep === step ? 'bg-[#00E5FF] text-black shadow-[0_0_15px_rgba(0,229,255,0.4)]' : 'bg-[#1A2639] text-[#8899B5] hover:bg-[#1A2639]/80'}`}>
-                  {step}
-                </div>
-
-                {hasConflict && (
-                  <div className={`absolute -top-1 -right-px w-3 h-3 rounded-full flex items-center justify-center shadow-lg z-10 ${severity === 'error' ? 'bg-red-500' : 'bg-amber-500'}`}>
-                    <AlertCircle size={8} className="text-white" />
+              <React.Fragment key={step.id}>
+                <button 
+                  onClick={() => setCurrentStep(step.id)}
+                  className={`flex items-center gap-3 px-4 py-2 rounded-2xl transition-all relative group ${isActive ? 'bg-blue-600/10 text-blue-500' : isCompleted ? 'text-emerald-400' : 'text-[#5A6A85] hover:text-white'}`}
+                >
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-500 ${isActive ? 'bg-blue-600 text-white shadow-[0_10px_20px_rgba(59,130,246,0.4)] rotate-3' : isCompleted ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-white/5 border border-white/5'}`}>
+                    <StepIcon size={16} strokeWidth={isActive ? 3 : 2} />
+                  </div>
+                  <div className="flex flex-col items-start xl:flex hidden">
+                    <span className={`text-[8px] font-black uppercase tracking-[0.2em] transition-all ${isActive ? 'text-blue-500 opacity-100' : 'text-slate-600 opacity-60'}`}>КРОК 0{step.id}</span>
+                    <span className={`text-[10px] font-black uppercase tracking-tight transition-all ${isActive ? 'text-white' : 'text-[#5A6A85] group-hover:text-white'}`}>
+                      {step.label}
+                    </span>
+                  </div>
+                  {hasConflict && (
+                    <motion.div 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full border-2 border-[#0B1221] shadow-[0_0_10px_rgba(220,38,38,0.5)] z-20"
+                    />
+                  )}
+                  {isActive && (
+                    <motion.div 
+                      layoutId="active-step-glow"
+                      className="absolute inset-0 bg-blue-500/5 rounded-2xl blur-lg -z-10"
+                    />
+                  )}
+                </button>
+                {idx < arr.length - 1 && (
+                  <div className="px-1 flex items-center">
+                    <div className={`w-3 h-0.5 rounded-full ${isCompleted ? 'bg-emerald-500/20' : 'bg-white/5'}`} />
                   </div>
                 )}
-              </button>
+              </React.Fragment>
             );
           })}
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-[#0B1221] px-5 py-2 rounded-full border border-white/5">
-            <span className="text-[10px] text-[#8899B5] font-black uppercase">EUR:</span>
-            <input 
-              type="text"
-              inputMode="decimal"
-              value={exchangeRate}
-              onChange={(e) => {
-                const val = e.target.value.replace(',', '.');
-                if (!isNaN(parseFloat(val)) || val === '') {
-                  setExchangeRate(parseFloat(val) || 0);
-                }
-              }}
-              className="bg-transparent border-none outline-none text-xs text-[#00E5FF] font-black w-12 text-center"
-            />
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 bg-[#0B1221] px-6 py-2.5 rounded-[20px] border border-white/5 shadow-inner group hover:border-blue-500/30 transition-all">
+            <span className="text-[10px] text-slate-600 font-black uppercase tracking-widest">Rate</span>
+            <div className="flex items-center gap-1.5">
+               <span className="text-blue-500 font-black text-xs">€</span>
+               <input 
+                type="text"
+                inputMode="decimal"
+                value={exchangeRate}
+                onChange={(e) => {
+                  const val = e.target.value.replace(',', '.');
+                  if (!isNaN(parseFloat(val)) || val === '') {
+                    setExchangeRate(parseFloat(val) || 0);
+                  }
+                }}
+                className="bg-transparent border-none outline-none text-sm text-white font-black w-10 text-center placeholder-slate-700 focus:text-blue-500 transition-colors"
+              />
+            </div>
           </div>
           
-          {/* FIX #8: modal instead of window.confirm */}
           <button 
             onClick={() => setShowResetConfirm(true)}
-            className="flex items-center gap-2 text-[#8899B5] hover:text-white transition-all text-[10px] font-black uppercase tracking-widest active:scale-95"
+            className="w-11 h-11 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-600 hover:text-white hover:bg-red-500/10 hover:border-red-500/20 transition-all active:scale-90 group"
+            title="Скинути прогрес"
           >
-            <RefreshCcw size={14} /> СКИНУТИ
+            <RefreshCcw size={18} className="group-hover:rotate-180 transition-transform duration-700" />
           </button>
         </div>
       </header>
@@ -1235,187 +1271,263 @@ export default function NewTrip() {
           </AnimatePresence>
 
           <AnimatePresence mode="wait">
-            {/* STEP 1: GENERAL INFO */}
+            {/* STEP 1: GENERAL INFO - Mission Control Hub */}
             {currentStep === 1 && (
               <motion.div 
                 key="step1"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-6"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -30 }}
+                className="space-y-10"
               >
-                <div className="space-y-6 pt-12">
-                  <h2 className="text-[12px] font-black text-[#00E5FF] uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <Settings2 size={16} /> ОСНОВНА ІНФОРМАЦІЯ
-                  </h2>
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    {/* Left side: Smart Input */}
-                    <div className="lg:col-span-4 h-full">
-                      <div className="bg-[#0B1221] p-6 rounded-[24px] border border-white/5 flex flex-col h-full min-h-[300px]">
-                        <h3 className="text-[10px] font-black text-[#00E5FF] uppercase tracking-widest mb-4 flex items-center gap-2">
-                          <Zap size={14} className="fill-[#00E5FF]" /> ШВИДКЕ ЗАПОВНЕННЯ
+                <div className="flex items-center justify-between gap-6 pt-6">
+                  <div className="flex items-center gap-5">
+                    <div className="w-16 h-16 rounded-[24px] bg-blue-600/10 flex items-center justify-center text-blue-500 border border-blue-500/20 shadow-[0_0_40px_rgba(59,130,246,0.1)] relative overflow-hidden group">
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent" />
+                      <Settings2 size={32} className="relative z-10 group-hover:rotate-90 transition-transform duration-700" />
+                    </div>
+                    <div>
+                      <h2 className="text-3xl font-black text-white uppercase tracking-tighter leading-none">Конфігурація рейсу</h2>
+                      <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.3em] font-bold mt-2 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" /> Базові параметри маршруту
+                      </p>
+                    </div>
+                  </div>
+                  <div className="hidden md:block">
+                     <div className="bg-[#0B1221] px-6 py-3 rounded-2xl border border-white/5 flex items-center gap-4">
+                        <div className="text-right">
+                           <p className="text-[8px] text-[#5A6A85] font-black uppercase tracking-widest">Статус заповнення</p>
+                           <p className="text-[12px] text-white font-black uppercase tracking-tight">Готовий до аналізу</p>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
+                           <Zap size={20} />
+                        </div>
+                     </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                  {/* Left side: Smart AI Input */}
+                  <div className="lg:col-span-4 space-y-6">
+                    <div className="bg-[#0B1221] rounded-[40px] p-8 border-2 border-white/5 flex flex-col h-full shadow-2xl relative overflow-hidden group min-h-[450px]">
+                      <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:opacity-[0.07] transition-all duration-700 group-hover:scale-110">
+                        <Zap size={180} className="text-blue-500 fill-blue-500" />
+                      </div>
+                      
+                      <div className="relative z-10 flex flex-col h-full">
+                        <h3 className="text-[11px] font-black text-blue-500 uppercase tracking-[0.2em] mb-2 flex items-center gap-3">
+                          <Zap size={16} className="fill-blue-500" /> SMART ANALYZER
                         </h3>
-                        <p className="text-[10px] text-[#5A6A85] mb-4">Вставте текст для назви та перевізника...</p>
-                        <textarea 
-                          value={smartInputStep1}
-                          onChange={(e) => setSmartInputStep1(e.target.value)}
-                          className="flex-1 w-full bg-transparent border-none focus:ring-0 text-[#8899B5] resize-none font-medium text-[11px] leading-relaxed outline-none"
-                        />
-                        <button 
+                        <p className="text-[10px] text-[#5A6A85] mb-6 font-bold uppercase tracking-widest leading-relaxed">Вставте опис рейсу для миттєвого автозаповнення параметрів</p>
+                        
+                        <div className="flex-1 relative group/text">
+                          <textarea 
+                            value={smartInputStep1}
+                            onChange={(e) => setSmartInputStep1(e.target.value)}
+                            className="w-full h-full bg-black/40 border-2 border-white/5 rounded-[32px] p-6 text-white font-medium text-[12px] leading-relaxed outline-none focus:border-blue-500/30 focus:bg-black/60 transition-all placeholder-slate-700 resize-none shadow-inner"
+                            placeholder="Наприклад: Одеса-Краків, Пн-Ср-Пт, Neoplan, 45 місць, Wi-Fi, Туалет..."
+                          />
+                          <div className="absolute bottom-4 right-6 text-[9px] font-black text-slate-800 uppercase tracking-widest">Buffer ready</div>
+                        </div>
+
+                        <motion.button 
+                          whileHover={{ scale: 1.02, y: -2 }}
+                          whileTap={{ scale: 0.98 }}
                           onClick={handleSmartParseStep1}
-                          className="w-full mt-4 bg-[#0A1A26] border border-white/5 text-[#00E5FF] hover:bg-[#00E5FF] hover:text-black py-4 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(0,229,255,0.1)] hover:shadow-[0_0_20px_rgba(0,229,255,0.4)]"
+                          className="w-full mt-6 bg-blue-600 text-white hover:bg-blue-500 py-6 rounded-[28px] text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-[0_20px_40px_-10px_rgba(59,130,246,0.4)] flex items-center justify-center gap-3"
                         >
-                          ВИТЯГНУТИ ДАНІ
-                        </button>
+                          <RefreshCcw size={18} className={smartInputStep1 ? 'animate-spin-slow' : ''} />
+                          АНАЛІЗУВАТИ ДАНІ
+                        </motion.button>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Right side: Form */}
-                    <div className="lg:col-span-8 space-y-8">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Route Name & Operator */}
-                        <div className="space-y-6">
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <label className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest block">НАЗВА РЕЙСУ</label>
-                              <HelpCircle size={12} className="text-[#5A6A85] cursor-help" />
-                            </div>
+                  {/* Right side: Manual Tuning */}
+                  <div className="lg:col-span-8 space-y-10">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      {/* Column 1: Core Specs */}
+                      <div className="space-y-8">
+                        <div className="group">
+                          <label className="text-[10px] text-[#5A6A85] font-black uppercase tracking-[0.2em] block mb-3 ml-2">Назва маршруту</label>
+                          <div className="relative">
                             <input 
                               value={trip.routeName}
                               onChange={(e) => setTrip({...trip, routeName: e.target.value})}
-                              placeholder="Місто - Місто"
-                              className="w-full bg-[#1A2639] border border-transparent rounded-[16px] px-5 py-4 text-[13px] text-white font-bold outline-none focus:border-[#00E5FF]/30 transition-colors placeholder-[#4A5A75]"
+                              placeholder="Наприклад: Одеса — Салерно"
+                              className="w-full bg-[#0B1221] border-2 border-white/5 rounded-[24px] px-8 py-5 text-[14px] text-white font-bold outline-none focus:border-blue-500/50 focus:bg-[#0F172A] transition-all shadow-xl placeholder-slate-800"
                             />
+                            <div className="absolute right-6 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-blue-500/30 group-focus-within:bg-blue-500 transition-colors" />
                           </div>
+                        </div>
 
-                          {activeRole !== 'carrier' && (
-                            <div>
-                              <label className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest block mb-2">ПРИЗНАЧИТИ ПЕРЕВІЗНИКА</label>
+                        {activeRole !== 'carrier' && (
+                          <div className="group">
+                            <label className="text-[10px] text-[#5A6A85] font-black uppercase tracking-[0.2em] block mb-3 ml-2">Вибір перевізника</label>
+                            <div className="relative">
                               <select 
                                 value={trip.operator}
                                 onChange={(e) => setTrip({...trip, operator: e.target.value})}
-                                className="w-full bg-[#1A2639] border border-transparent rounded-[16px] px-5 py-4 text-[13px] text-white font-bold outline-none focus:border-[#00E5FF]/30 transition-colors appearance-none"
+                                className="w-full bg-[#0B1221] border-2 border-white/5 rounded-[24px] px-8 py-5 text-[14px] text-white font-bold outline-none focus:border-blue-500/50 appearance-none cursor-pointer transition-all"
                               >
-                                <option value="" className="bg-[#0B1221]">Оберіть перевізника</option>
+                                <option value="" className="bg-[#0B1221]">Оберіть зі списку</option>
                                 {carriers.map(c => (
                                   <option key={c.uid} value={`${c.uid}::${c.companyName || c.email}`} className="bg-[#0B1221] text-white">
                                     {c.companyName || c.email}
                                   </option>
                                 ))}
                               </select>
+                              <ChevronDown className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none group-hover:text-blue-500 transition-colors" size={20} />
                             </div>
-                          )}
+                          </div>
+                        )}
 
-                          <div>
-                            <label className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest block mb-2">КІЛЬКІСТЬ МІСЦЬ</label>
+                        <div className="group">
+                          <label className="text-[10px] text-[#5A6A85] font-black uppercase tracking-[0.2em] block mb-3 ml-2">Кількість місць</label>
+                          <div className="relative flex items-center">
+                            <div className="absolute left-8 text-blue-500">
+                              <Users size={20} />
+                            </div>
                             <input 
                               type="text"
                               inputMode="numeric"
                               value={trip.seats || ''}
                               onChange={(e) => setTrip({...trip, seats: parseInt(e.target.value.replace(/\D/g, '')) || 0})}
-                              className="w-full bg-[#1A2639] border border-transparent rounded-[16px] px-5 py-4 text-[13px] text-white font-bold outline-none focus:border-[#00E5FF]/30 transition-colors"
+                              className="w-full bg-[#0B1221] border-2 border-white/5 rounded-[24px] pl-16 pr-8 py-5 text-[14px] text-white font-bold outline-none focus:border-blue-500/50 transition-all"
+                              placeholder="0"
                             />
+                            <div className="absolute right-8 text-[10px] font-black text-slate-700 uppercase">МIСЦЬ</div>
                           </div>
                         </div>
 
-                        {/* Amenities & Type & Discounts */}
-                        <div className="space-y-6">
-                          <div>
-                            <label className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest block mb-2">ПЕРЕВАГИ</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              {AMENITIES_CONFIG.map(amenity => (
-                                <button
+                        <div>
+                          <label className="text-[10px] text-[#5A6A85] font-black uppercase tracking-[0.2em] block mb-3 ml-2">Тип рейсу</label>
+                          <div className="flex p-2 bg-[#0B1221] rounded-[24px] border-2 border-white/5 gap-2">
+                            <button
+                              onClick={() => setTrip({...trip, isTransfer: false, transferType: 'direct'})}
+                              className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${!trip.isTransfer ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-[#5A6A85] hover:text-slate-300'}`}
+                            >
+                              Прямий
+                            </button>
+                            <button
+                              onClick={() => setTrip({...trip, isTransfer: true, transferType: 'transfer'})}
+                              className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${trip.isTransfer ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-[#5A6A85] hover:text-slate-300'}`}
+                            >
+                              Пересадка
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Column 2: Amenities & Logic */}
+                      <div className="space-y-8">
+                        <div>
+                          <label className="text-[10px] text-[#5A6A85] font-black uppercase tracking-[0.2em] block mb-3 ml-2">Комфорт на борту</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            {AMENITIES_CONFIG.map(amenity => {
+                              const isSelected = trip.amenities.includes(amenity.id);
+                              return (
+                                <motion.button
                                   key={amenity.id}
+                                  whileHover={{ y: -2 }}
+                                  whileTap={{ scale: 0.98 }}
                                   onClick={() => {
                                     setTrip(prev => ({
                                       ...prev,
-                                      amenities: prev.amenities.includes(amenity.id) 
+                                      amenities: isSelected 
                                         ? prev.amenities.filter(a => a !== amenity.id)
                                         : [...prev.amenities, amenity.id]
                                     }));
                                   }}
-                                  className={`flex items-center gap-2 px-4 py-3 rounded-full border text-[9px] font-bold transition-all ${trip.amenities.includes(amenity.id) ? 'bg-[#00E5FF]/10 border-[#00E5FF]/50 text-[#00E5FF]' : 'bg-transparent border-white/5 text-[#8899B5] hover:border-white/10'}`}
+                                  className={`flex items-center gap-3 px-5 py-4 rounded-[20px] border-2 text-[10px] font-black uppercase tracking-tight transition-all relative overflow-hidden group ${isSelected ? 'bg-blue-600 text-white border-blue-600 shadow-xl' : 'bg-[#0B1221] border-white/5 text-slate-500 hover:border-white/20'}`}
                                 >
-                                  <amenity.icon size={14} /> {amenity.label}
+                                  {isSelected && <div className="absolute top-0 right-0 p-1"><div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /></div>}
+                                  <amenity.icon size={18} strokeWidth={isSelected ? 3 : 2} className={isSelected ? 'text-white' : 'text-slate-700 group-hover:text-blue-500 transition-colors'} /> 
+                                  <span className="truncate">{amenity.label}</span>
+                                </motion.button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="bg-[#0B1221]/60 p-8 rounded-[40px] border-2 border-white/5 shadow-2xl relative overflow-hidden">
+                           <div className="absolute top-0 right-0 p-6 opacity-[0.02]">
+                             <TrendingUp size={80} />
+                           </div>
+                           <div className="relative z-10">
+                              <div className="flex items-center justify-between mb-8">
+                                <h4 className="text-[10px] font-black text-white uppercase tracking-[0.2em] flex items-center gap-3">
+                                   <Zap size={14} className="text-blue-500 fill-blue-500" /> Тарифи та знижки
+                                </h4>
+                                <button 
+                                  onClick={addCustomDiscount}
+                                  className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20"
+                                  title="Додати свій тариф"
+                                >
+                                  <Plus size={20} />
                                 </button>
-                              ))}
+                              </div>
+                              
+                              <div className="grid grid-cols-1 gap-3">
+                                {[
+                                  { id: 'child04', label: 'Діти до 4 років', desc: 'Знижка 50%', state: trip.discounts.child04 },
+                                  { id: 'child412', label: 'Діти 4-12 років', desc: 'Знижка 30%', state: trip.discounts.child412 }
+                                ].map((d) => (
+                                  <button
+                                    key={d.id}
+                                    onClick={() => setTrip(prev => ({ ...prev, discounts: { ...prev.discounts, [d.id]: !prev.discounts[d.id] } }))}
+                                    className={`p-5 rounded-[24px] border-2 transition-all flex items-center justify-between group ${d.state ? 'bg-blue-600/10 border-blue-600' : 'bg-black/20 border-white/5 hover:border-white/10'}`}
+                                  >
+                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${trip.discounts.child04 ? 'bg-[#00E5FF] border-[#00E5FF]' : 'border-[#1A2639]'}`}>
+                              {trip.discounts.child04 && <CheckCircle size={14} className="text-black" strokeWidth={4} />}
                             </div>
-                          </div>
+                          </button>
+                          
+                          <button
+                            onClick={() => setTrip(prev => ({ ...prev, discounts: { ...prev.discounts, child412: !prev.discounts.child412 } }))}
+                            className={`p-5 rounded-[24px] border transition-all flex items-center justify-between group active:scale-95 ${trip.discounts.child412 ? 'bg-[#00E5FF]/10 border-[#00E5FF]/50 shadow-[0_0_20px_rgba(0,229,255,0.05)]' : 'bg-black/20 border-white/5 hover:border-white/20'}`}
+                          >
+                            <div className="text-left">
+                              <p className={`text-[12px] font-black tracking-tight ${trip.discounts.child412 ? 'text-[#00E5FF]' : 'text-white'}`}>Діти 4-12 років</p>
+                              <p className="text-[9px] text-[#5A6A85] uppercase font-black tracking-widest mt-0.5">Знижка 30%</p>
+                            </div>
+                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${trip.discounts.child412 ? 'bg-[#00E5FF] border-[#00E5FF]' : 'border-[#1A2639]'}`}>
+                              {trip.discounts.child412 && <CheckCircle size={14} className="text-black" strokeWidth={4} />}
+                            </div>
+                          </button>
+                        </div>
 
-                          <div>
-                            <label className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest block mb-2">ТИП РЕЙСУ</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <button
-                                onClick={() => setTrip({...trip, isTransfer: false, transferType: 'direct'})}
-                                className={`py-3 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${!trip.isTransfer ? 'bg-[#00E5FF] text-black border-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.4)]' : 'bg-transparent border-white/5 text-[#8899B5] hover:border-white/10'}`}
-                              >
-                                ПРЯМИЙ РЕЙС
-                              </button>
-                              <button
-                                onClick={() => setTrip({...trip, isTransfer: true, transferType: 'transfer'})}
-                                className={`py-3 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${trip.isTransfer ? 'bg-[#00E5FF] text-black border-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.4)]' : 'bg-transparent border-white/5 text-[#8899B5] hover:border-white/10'}`}
-                              >
-                                ПЕРЕСАДКА
-                              </button>
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <label className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest block">СИСТЕМА ЗНИЖОК</label>
-                              <button 
-                                onClick={addCustomDiscount}
-                                className="text-[8px] font-black text-[#00E5FF] uppercase tracking-widest flex items-center gap-1 hover:text-white transition-all"
-                              >
-                                + ДОДАТИ ВЛАСНУ ЗНИЖКУ
-                              </button>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <button
-                                onClick={() => setTrip(prev => ({ ...prev, discounts: { ...prev.discounts, child04: !prev.discounts.child04 } }))}
-                                className={`p-3 rounded-full border text-[9px] font-bold transition-all flex flex-col items-center gap-0.5 ${trip.discounts.child04 ? 'bg-[#1A2639] border-white/5 text-[#00E5FF]' : 'bg-transparent border-white/5 text-[#5A6A85]'}`}
-                              >
-                                <span>Дітям до 4 р.</span>
-                                <span className="text-[8px] opacity-60">-50% ЗНИЖКА</span>
-                              </button>
-                              <button
-                                onClick={() => setTrip(prev => ({ ...prev, discounts: { ...prev.discounts, child412: !prev.discounts.child412 } }))}
-                                className={`p-3 rounded-full border text-[9px] font-bold transition-all flex flex-col items-center gap-0.5 ${trip.discounts.child412 ? 'bg-[#1A2639] border-white/5 text-[#00E5FF]' : 'bg-transparent border-white/5 text-[#5A6A85]'}`}
-                              >
-                                <span>Дітям 4-12 р.</span>
-                                <span className="text-[8px] opacity-60">-30% ЗНИЖКА</span>
-                              </button>
-                            </div>
-                            
-                            <div className="mt-3 space-y-2">
-                              {trip.customDiscounts.map((discount) => (
-                                <div key={discount.id} className="flex items-center gap-2 bg-[#1A2639]/50 p-2 rounded-full border border-white/5">
+                        {trip.customDiscounts.length > 0 && (
+                          <div className="mt-6 pt-6 border-t border-white/5 space-y-3">
+                             {trip.customDiscounts.map((discount) => (
+                               <div key={discount.id} className="flex items-center gap-4 bg-black/40 p-3 rounded-2xl border border-white/5 group hover:border-[#00E5FF]/20 transition-all">
+                                  <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[#5A6A85] shrink-0">
+                                     <Tag size={14} />
+                                  </div>
                                   <input 
-                                    placeholder="Назва..."
                                     value={discount.label}
                                     onChange={(e) => updateCustomDiscount(discount.id, { label: e.target.value })}
-                                    className="flex-1 bg-transparent px-3 text-[10px] text-white outline-none font-bold placeholder-[#5A6A85]"
+                                    placeholder="Назва тарифу (н-р: Пенсійний)"
+                                    className="flex-1 bg-transparent border-none text-[12px] text-white font-bold outline-none placeholder-[#3A4A65]"
                                   />
-                                  <div className="flex items-center gap-1 bg-[#0B1221] rounded-full px-3 py-1.5">
+                                  <div className="flex items-center gap-2 bg-[#0B1221] px-4 py-2 rounded-xl border border-white/5">
                                     <input 
                                       type="text"
-                                      inputMode="numeric"
                                       value={discount.value === 0 ? '' : discount.value}
                                       onChange={(e) => updateCustomDiscount(discount.id, { value: parseInt(e.target.value.replace(/\D/g, '')) || 0 })}
-                                      className="bg-transparent text-[#00E5FF] text-[10px] font-black outline-none w-8 text-center"
+                                      className="w-8 bg-transparent border-none text-[12px] text-[#00E5FF] font-black text-center outline-none"
+                                      placeholder="0"
                                     />
-                                    <span className="text-[10px] text-[#00E5FF] font-black">%</span>
+                                    <span className="text-[10px] text-[#5A6A85] font-black">%</span>
                                   </div>
-                                  <button 
-                                    onClick={() => removeCustomDiscount(discount.id)}
-                                    className="text-[#5A6A85] hover:text-red-500 transition-colors p-2 pr-3"
-                                  >
-                                    <Trash2 size={12} />
+                                  <button onClick={() => removeCustomDiscount(discount.id)} className="text-[#5A6A85] hover:text-red-500 transition-colors p-2">
+                                    <Trash2 size={16} />
                                   </button>
-                                </div>
-                              ))}
-                            </div>
+                               </div>
+                             ))}
                           </div>
+                        )}
+                      </div>
                         </div>
                       </div>
                     </div>
@@ -1424,242 +1536,235 @@ export default function NewTrip() {
               </motion.div>
             )}
 
-            {/* STEP 2: SCHEDULE (ТУДИ ТА НАЗАД) - SIDE-BY-SIDE */}
+            {/* STEP 2: SCHEDULE (ТУДИ ТА НАЗАД) - Redesigned Timeline */}
             {currentStep === 2 && (
               <motion.div 
                 key="step2"
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                className="space-y-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-10"
               >
-                <div className="flex items-center justify-between gap-4 mb-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pt-6">
                   <div>
-                    <h2 className="text-xl font-black text-white uppercase tracking-tighter">Налаштування графіку</h2>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Налаштуйте зупинки та дні виїзду для обох напрямків</p>
+                    <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Графік маршруту</h2>
+                    <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.2em] font-bold">Налаштуйте зупинки та дні виїзду для обох напрямків</p>
                   </div>
                   <button 
                     onClick={generateReturnStops}
-                    className="bg-[#00e5ff]/10 text-[#00e5ff] border border-[#00e5ff]/30 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-[#00e5ff] hover:text-black transition-all active:scale-95"
+                    className="group bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/30 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#00E5FF] hover:text-black transition-all active:scale-95 flex items-center gap-2 shadow-lg"
                   >
+                    <RefreshCcw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
                     Авто-реверс (Туди → Назад)
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
                   {/* Outbound Column */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between px-1">
-                      <h3 className="text-[12px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
-                        <ArrowRight size={14} /> Україна → Європа
+                  <div className="space-y-8">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
+                        <ArrowRight size={18} /> Україна → Європа
                       </h3>
+                      <div className="flex items-center gap-1 bg-[#0B1221] p-1 rounded-xl border border-white/5">
+                        {DAYS_OF_WEEK.map(day => {
+                          const isSelected = trip.outbound.days.includes(day);
+                          return (
+                            <button
+                              key={day}
+                              onClick={() => toggleDay('outbound', day)}
+                              className={`w-8 h-8 rounded-lg text-[9px] font-black transition-all ${isSelected ? 'bg-blue-500 text-white shadow-lg' : 'text-[#5A6A85] hover:bg-white/5'}`}
+                            >
+                              {day}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                     
-                    <div className="immersive-card p-4 space-y-4">
-                      <div className="flex flex-wrap gap-1.5 p-3 bg-black/20 rounded-xl border border-white/5">
-                        {DAYS_OF_WEEK.map(day => (
-                          <button
-                            key={day}
-                            onClick={() => toggleDay('outbound', day)}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all border ${trip.outbound.days.includes(day) ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-white/5 border-white/5 text-slate-600'}`}
-                          >
-                            {day}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="bg-black/20 p-4 rounded-xl border border-white/5">
-                        <h4 className="text-[9px] font-black text-slate-500 uppercase mb-3 tracking-widest flex items-center gap-2">
-                          <Sparkles size={10} /> Розумний ввід тексту
+                    <div className="bg-[#0B1221]/50 backdrop-blur-xl p-6 rounded-[32px] border border-white/5 space-y-6 shadow-2xl">
+                      <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
+                        <h4 className="text-[9px] font-black text-[#5A6A85] uppercase mb-3 tracking-widest flex items-center gap-2">
+                          <Sparkles size={12} className="text-blue-400" /> РОЗУМНИЙ ІМПОРТ
                         </h4>
                         <textarea 
                           value={smartInput}
                           onChange={(e) => setSmartInput(e.target.value)}
-                          placeholder="Вставте текст розкладу..."
-                          className="w-full h-24 bg-transparent border-none text-[10px] text-white outline-none resize-none font-mono placeholder:text-slate-700"
+                          placeholder="Вставте розклад одним текстом..."
+                          className="w-full h-24 bg-transparent border-none text-[10px] text-[#8899B5] outline-none resize-none font-mono placeholder-[#2A3A55] leading-relaxed"
                         />
                         <button 
                           onClick={handleSmartParse}
-                          className="w-full mt-2 bg-blue-500/10 text-blue-400 py-2 rounded-lg text-[9px] font-black uppercase hover:bg-blue-500 hover:text-white transition-all"
+                          className="w-full mt-2 bg-blue-500/10 text-blue-400 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all active:scale-95"
                         >
-                          Парсити дані
+                          ОБРОБИТИ ТЕКСТ
                         </button>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Зупинки ({trip.outbound.stops.length})</span>
-                          <button onClick={() => addStop('outbound')} className="text-[#00e5ff] text-[9px] font-black uppercase hover:underline">+ Додати</button>
-                        </div>
-                        
+                      <div className="space-y-6 relative">
+                         {trip.outbound.stops.length > 0 && (
+                            <div className="absolute left-[19px] top-8 bottom-8 w-[2px] bg-gradient-to-b from-blue-500/50 via-blue-500/10 to-blue-500/50" />
+                         )}
+                         
                         <Reorder.Group 
                           axis="y" 
                           values={trip.outbound.stops} 
                           onReorder={(newStops) => handleReorder('outbound', newStops)}
-                          className="space-y-3"
+                          className="space-y-4"
                         >
                           {trip.outbound.stops.map((stop, idx) => (
-                            <Reorder.Item key={stop.id} value={stop} className="relative group">
-                              <div className="flex gap-2 items-center bg-white/5 p-2 rounded-xl border border-white/5 hover:border-blue-500/20 transition-all">
-                                <div className="cursor-grab active:cursor-grabbing text-slate-700 hover:text-blue-500 p-1">
-                                  <GripVertical size={14} />
+                            <Reorder.Item key={stop.id} value={stop} className="relative z-10">
+                              <div className="flex gap-4 items-start group">
+                                <div className="flex flex-col items-center mt-5">
+                                   <div className="w-10 h-10 rounded-full bg-[#0B1221] border-2 border-blue-500/30 flex items-center justify-center text-blue-400 shadow-xl group-hover:border-blue-500 transition-all">
+                                      <MapPin size={14} />
+                                   </div>
                                 </div>
-                                <div className="flex-1 space-y-2">
-                                  <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-black/30 border border-white/5 p-4 rounded-2xl group-hover:border-blue-500/30 transition-all">
+                                  <div className="flex items-center gap-3 mb-3">
                                     <input 
-                                      value={stop.city || ''} 
+                                      value={stop.city} 
                                       onChange={(e) => updateStop('outbound', stop.id, { city: e.target.value })}
-                                      className="flex-1 bg-transparent text-xs font-bold text-white outline-none border-b border-white/5 focus:border-blue-500 py-0.5"
+                                      className="flex-1 bg-transparent text-sm font-black text-white outline-none placeholder-[#2A3A55]"
                                       placeholder="Місто"
                                     />
-                                    <div className="flex items-center gap-1 bg-black/40 rounded px-1.5 py-0.5 border border-white/5">
-                                      <Clock size={10} className="text-slate-500" />
+                                    <div className="flex items-center gap-2 bg-[#0B1221] rounded-lg px-3 py-1.5 border border-white/5">
+                                      <Clock size={12} className="text-blue-400" />
                                       <input 
                                         type="time" 
-                                        value={stop.time || '12:00'} 
+                                        value={stop.time} 
                                         onChange={(e) => updateStop('outbound', stop.id, { time: e.target.value })}
-                                        className="text-[10px] text-white bg-transparent outline-none w-[55px] font-bold"
+                                        className="text-[10px] text-white bg-transparent outline-none w-[55px] font-black"
                                       />
                                     </div>
-                                    <button onClick={() => removeStop('outbound', stop.id)} className="text-slate-700 hover:text-red-500 transition-colors p-1"><Trash2 size={12}/></button>
+                                    <button onClick={() => removeStop('outbound', stop.id)} className="text-[#5A6A85] hover:text-red-500 transition-all p-1"><Trash2 size={14}/></button>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex-1 flex items-center gap-1.5 bg-black/20 rounded-lg px-2 py-0.5 border border-white/5">
-                                      <MapPin size={10} className="text-slate-600" />
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex-1 flex items-center gap-2 bg-white/5 rounded-lg px-3 py-1.5 border border-white/5">
+                                      <Navigation size={10} className="text-[#5A6A85]" />
                                       <input 
-                                        value={stop.address || ''}
+                                        value={stop.address}
                                         onChange={(e) => updateStop('outbound', stop.id, { address: e.target.value })}
-                                        className="w-full bg-transparent text-[9px] text-slate-500 outline-none placeholder:text-slate-700"
-                                        placeholder="Адреса..."
+                                        className="w-full bg-transparent text-[10px] text-[#8899B5] outline-none font-bold"
+                                        placeholder="Адреса зупинки..."
                                       />
                                     </div>
-                                    <div className="flex items-center gap-1 bg-black/20 rounded px-1.5 py-0.5 border border-white/5">
-                                      <span className="text-[8px] text-slate-600 font-bold">ДН</span>
+                                    <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-1.5 border border-white/5">
+                                      <span className="text-[8px] text-[#5A6A85] font-black uppercase">День</span>
                                       <input 
                                         type="text"
-                                        inputMode="numeric"
                                         value={stop.dayOffset || 0}
-                                        onChange={(e) => updateStop('outbound', stop.id, { dayOffset: parseInt(e.target.value.replace(/\D/g, '')) || 0 })}
+                                        onChange={(e) => updateStop('outbound', stop.id, { dayOffset: parseInt(e.target.value) || 0 })}
                                         className="text-[10px] text-blue-400 bg-transparent outline-none w-4 font-black text-center"
                                       />
                                     </div>
                                   </div>
                                 </div>
                               </div>
-                              <div className="flex justify-center -my-1.5 opacity-0 group-hover:opacity-100 transition-opacity relative z-10">
-                                <button 
-                                  onClick={() => insertStop('outbound', idx + 1)}
-                                  className="bg-blue-500 text-white rounded-full p-1 hover:scale-125 transition-all"
-                                >
-                                  <Plus size={8} strokeWidth={3} />
-                                </button>
-                              </div>
                             </Reorder.Item>
                           ))}
                         </Reorder.Group>
+                        <button onClick={() => addStop('outbound')} className="w-full py-4 border-2 border-dashed border-white/5 rounded-2xl text-[10px] font-black text-[#5A6A85] uppercase tracking-widest hover:border-blue-500/30 hover:text-blue-400 transition-all">+ Додати нову зупинку</button>
                       </div>
                     </div>
                   </div>
 
                   {/* Inbound Column */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between px-1">
-                      <h3 className="text-[12px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
-                        <ArrowLeft size={14} /> Європа → Україна
+                  <div className="space-y-8">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                        <ArrowLeft size={18} /> Європа → Україна
                       </h3>
+                      <div className="flex items-center gap-1 bg-[#0B1221] p-1 rounded-xl border border-white/5">
+                        {DAYS_OF_WEEK.map(day => {
+                          const isSelected = trip.inbound.days.includes(day);
+                          return (
+                            <button
+                              key={day}
+                              onClick={() => toggleDay('inbound', day)}
+                              className={`w-8 h-8 rounded-lg text-[9px] font-black transition-all ${isSelected ? 'bg-emerald-500 text-white shadow-lg' : 'text-[#5A6A85] hover:bg-white/5'}`}
+                            >
+                              {day}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
-                    <div className="immersive-card p-4 space-y-4">
-                      <div className="flex flex-wrap gap-1.5 p-3 bg-black/20 rounded-xl border border-white/5">
-                        {DAYS_OF_WEEK.map(day => (
-                          <button
-                            key={day}
-                            onClick={() => toggleDay('inbound', day)}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all border ${trip.inbound.days.includes(day) ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-white/5 border-white/5 text-slate-600'}`}
-                          >
-                            {day}
-                          </button>
-                        ))}
-                      </div>
+                    <div className="bg-[#0B1221]/50 backdrop-blur-xl p-6 rounded-[32px] border border-white/5 space-y-6 shadow-2xl">
+                       {/* Reverse Helper */}
+                       <div className="bg-emerald-500/5 border border-emerald-500/20 p-6 rounded-[24px] flex flex-col items-center justify-center text-center group cursor-pointer" onClick={generateReturnStops}>
+                          <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 mb-3 group-hover:scale-110 transition-transform">
+                             <RefreshCcw size={20} />
+                          </div>
+                          <p className="text-[10px] font-black text-emerald-300 uppercase tracking-widest">Використати авто-реверс</p>
+                          <p className="text-[9px] text-[#5A6A85] font-bold mt-1 max-w-[200px]">Система автоматично створить зворотний маршрут з ваших зупинок</p>
+                       </div>
 
-                      <div className="grid grid-cols-1 gap-4">
-                        <div className="bg-black/20 p-4 rounded-xl border border-white/5 text-center flex flex-col items-center justify-center min-h-[80px]">
-                           <RefreshCcw size={20} className="text-slate-700 mb-2" />
-                           <p className="text-[9px] text-slate-600 uppercase font-black">Спробуйте авто-реверс для економії часу</p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Зупинки ({trip.inbound.stops.length})</span>
-                          <button onClick={() => addStop('inbound')} className="text-[#00e5ff] text-[9px] font-black uppercase hover:underline">+ Додати</button>
-                        </div>
-                        
+                      <div className="space-y-6 relative">
+                         {trip.inbound.stops.length > 0 && (
+                            <div className="absolute left-[19px] top-8 bottom-8 w-[2px] bg-gradient-to-b from-emerald-500/50 via-emerald-500/10 to-emerald-500/50" />
+                         )}
+                         
                         <Reorder.Group 
                           axis="y" 
                           values={trip.inbound.stops} 
                           onReorder={(newStops) => handleReorder('inbound', newStops)}
-                          className="space-y-3"
+                          className="space-y-4"
                         >
                           {trip.inbound.stops.map((stop, idx) => (
-                            <Reorder.Item key={stop.id} value={stop} className="relative group">
-                              <div className="flex gap-2 items-center bg-white/5 p-2 rounded-xl border border-white/5 hover:border-emerald-500/20 transition-all">
-                                <div className="cursor-grab active:cursor-grabbing text-slate-700 hover:text-emerald-500 p-1">
-                                  <GripVertical size={14} />
+                            <Reorder.Item key={stop.id} value={stop} className="relative z-10">
+                              <div className="flex gap-4 items-start group">
+                                <div className="flex flex-col items-center mt-5">
+                                   <div className="w-10 h-10 rounded-full bg-[#0B1221] border-2 border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-xl group-hover:border-emerald-500 transition-all">
+                                      <MapPin size={14} />
+                                   </div>
                                 </div>
-                                <div className="flex-1 space-y-2">
-                                  <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-black/30 border border-white/5 p-4 rounded-2xl group-hover:border-emerald-500/30 transition-all">
+                                  <div className="flex items-center gap-3 mb-3">
                                     <input 
-                                      value={stop.city || ''} 
+                                      value={stop.city} 
                                       onChange={(e) => updateStop('inbound', stop.id, { city: e.target.value })}
-                                      className="flex-1 bg-transparent text-xs font-bold text-white outline-none border-b border-white/5 focus:border-emerald-500 py-0.5"
+                                      className="flex-1 bg-transparent text-sm font-black text-white outline-none placeholder-[#2A3A55]"
                                       placeholder="Місто"
                                     />
-                                    <div className="flex items-center gap-1 bg-black/40 rounded px-1.5 py-0.5 border border-white/5">
-                                      <Clock size={10} className="text-slate-500" />
+                                    <div className="flex items-center gap-2 bg-[#0B1221] rounded-lg px-3 py-1.5 border border-white/5">
+                                      <Clock size={12} className="text-emerald-400" />
                                       <input 
                                         type="time" 
-                                        value={stop.time || '12:00'} 
+                                        value={stop.time} 
                                         onChange={(e) => updateStop('inbound', stop.id, { time: e.target.value })}
-                                        className="text-[10px] text-white bg-transparent outline-none w-[55px] font-bold"
+                                        className="text-[10px] text-white bg-transparent outline-none w-[55px] font-black"
                                       />
                                     </div>
-                                    <button onClick={() => removeStop('inbound', stop.id)} className="text-slate-700 hover:text-red-500 transition-colors p-1"><Trash2 size={12}/></button>
+                                    <button onClick={() => removeStop('inbound', stop.id)} className="text-[#5A6A85] hover:text-red-500 transition-all p-1"><Trash2 size={14}/></button>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex-1 flex items-center gap-1.5 bg-black/20 rounded-lg px-2 py-0.5 border border-white/5">
-                                      <MapPin size={10} className="text-slate-600" />
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex-1 flex items-center gap-2 bg-white/5 rounded-lg px-3 py-1.5 border border-white/5">
+                                      <Navigation size={10} className="text-[#5A6A85]" />
                                       <input 
-                                        value={stop.address || ''}
+                                        value={stop.address}
                                         onChange={(e) => updateStop('inbound', stop.id, { address: e.target.value })}
-                                        className="w-full bg-transparent text-[9px] text-slate-500 outline-none placeholder:text-slate-700"
-                                        placeholder="Адреса..."
+                                        className="w-full bg-transparent text-[10px] text-[#8899B5] outline-none font-bold"
+                                        placeholder="Адреса зупинки..."
                                       />
                                     </div>
-                                    <div className="flex items-center gap-1 bg-black/20 rounded px-1.5 py-0.5 border border-white/5">
-                                      <span className="text-[8px] text-slate-600 font-bold">ДН</span>
+                                    <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-1.5 border border-white/5">
+                                      <span className="text-[8px] text-[#5A6A85] font-black uppercase">День</span>
                                       <input 
                                         type="text"
-                                        inputMode="numeric"
                                         value={stop.dayOffset || 0}
-                                        onChange={(e) => updateStop('inbound', stop.id, { dayOffset: parseInt(e.target.value.replace(/\D/g, '')) || 0 })}
+                                        onChange={(e) => updateStop('inbound', stop.id, { dayOffset: parseInt(e.target.value) || 0 })}
                                         className="text-[10px] text-emerald-400 bg-transparent outline-none w-4 font-black text-center"
                                       />
                                     </div>
                                   </div>
                                 </div>
                               </div>
-                              <div className="flex justify-center -my-1.5 opacity-0 group-hover:opacity-100 transition-opacity relative z-10">
-                                <button 
-                                  onClick={() => insertStop('inbound', idx + 1)}
-                                  className="bg-emerald-500 text-white rounded-full p-1 hover:scale-125 transition-all"
-                                >
-                                  <Plus size={8} strokeWidth={3} />
-                                </button>
-                              </div>
                             </Reorder.Item>
                           ))}
                         </Reorder.Group>
+                        <button onClick={() => addStop('inbound')} className="w-full py-4 border-2 border-dashed border-white/5 rounded-2xl text-[10px] font-black text-[#5A6A85] uppercase tracking-widest hover:border-emerald-500/30 hover:text-emerald-400 transition-all">+ Додати нову зупинку</button>
                       </div>
                     </div>
                   </div>
@@ -1667,187 +1772,215 @@ export default function NewTrip() {
               </motion.div>
             )}
 
-            {/* STEP 3: SEGMENTS & PRICING (ВАРІАЦІЇ) */}
+            {/* STEP 3: SEGMENTS & PRICING - Redesigned */}
             {currentStep === 3 && (
               <motion.div 
                 key="step3"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="space-y-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-10"
               >
-                <div className="immersive-card p-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
-                    <div className="lg:col-span-4">
-                      <div className="bg-black/20 p-4 md:p-5 rounded-2xl border border-white/5 lg:sticky lg:top-24">
-                        <h3 className="text-[10px] font-bold text-[#00e5ff] uppercase tracking-widest mb-3 flex items-center gap-2">
-                          <Zap size={14} className="fill-[#00e5ff]" /> Розумна ціна
-                        </h3>
-                        <p className="text-[9px] text-slate-500 mb-4 leading-relaxed">
-                          Вставте блок тексту з ціною (напр. "Кассіно ... 8160грн"). Система сама визначить місто та напрямок.
-                        </p>
-                        <textarea 
-                          value={smartPriceInput}
-                          onChange={(e) => setSmartPriceInput(e.target.value)}
-                          placeholder="Місто... ціна..."
-                          className="w-full h-32 md:h-40 bg-transparent border-none focus:ring-0 text-slate-300 placeholder-slate-600 resize-none font-mono text-[11px] leading-relaxed outline-none"
-                        />
-                        <button 
-                          onClick={handleSmartPriceParse}
-                          className="w-full mt-2 bg-[#00e5ff]/10 text-[#00e5ff] py-3 rounded-xl text-[10px] font-black uppercase hover:bg-[#00e5ff] hover:text-black transition-all active:scale-95"
-                        >
-                          Оновити ціну
-                        </button>
-                      </div>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-[#00E5FF]/10 flex items-center justify-center text-[#00E5FF] border border-[#00E5FF]/20 shadow-[0_0_20px_rgba(0,229,255,0.1)]">
+                      <Coins size={24} />
                     </div>
+                    <div>
+                      <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Налаштування цін</h2>
+                      <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.2em] font-bold">Тарифікація маршруту та керування курсом валют</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-4 bg-[#0B1221] p-1.5 rounded-2xl border border-white/5 shadow-xl">
+                    <div className="px-4 py-2 bg-white/5 rounded-xl border border-white/5">
+                      <p className="text-[8px] text-[#5A6A85] uppercase font-black tracking-widest mb-0.5">Поточний курс</p>
+                      <p className="text-sm font-black text-[#00E5FF]">1 EUR = {exchangeRate} UAH</p>
+                    </div>
+                    <button 
+                      onClick={() => expandAllCities(!Array.from(expandedPricingCities).length)}
+                      className="px-6 py-2 bg-[#00E5FF] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-[0_0_20px_rgba(0,229,255,0.3)] transition-all active:scale-95"
+                    >
+                      {Array.from(expandedPricingCities).length > 0 ? 'Згорнути все' : 'Розгорнути все'}
+                    </button>
+                  </div>
+                </div>
 
-                    <div className="lg:col-span-8">
-                      <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
-                        <div>
-                          <h2 className="text-sm font-black text-[#00e5ff] uppercase tracking-widest flex items-center gap-2">
-                              <Coins size={16} /> Тарифікація (UA ↔ EU)
-                          </h2>
-                          <p className="text-[10px] text-slate-500 mt-1 uppercase">Редагування за містами призначення</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <button 
-                            onClick={() => expandAllCities(!Array.from(expandedPricingCities).length)}
-                            className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-lg border border-white/5 hover:bg-white/10 transition-all"
-                          >
-                            {Array.from(expandedPricingCities).length > 0 ? 'Згорнути все' : 'Розгорнути все'}
-                          </button>
-                          <div className="text-[10px] font-black text-slate-600 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5 uppercase tracking-widest">
-                            Курс: {exchangeRate}
-                          </div>
-                        </div>
-                      </div>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                  {/* Left: Smart Pricing Import */}
+                  <div className="lg:col-span-4">
+                    <div className="bg-[#0B1221]/80 backdrop-blur-xl p-6 rounded-[32px] border border-white/5 shadow-2xl relative overflow-hidden group">
+                      <h3 className="text-[10px] font-black text-[#00E5FF] uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <Sparkles size={14} className="text-[#00E5FF]" /> РОЗУМНА ЦІНА
+                      </h3>
+                      <p className="text-[10px] text-[#5A6A85] mb-4 font-bold leading-relaxed">Вставте список міст та цін (наприклад: "Львів 1500, Краків 50"), і система оновить все автоматично.</p>
+                      <textarea 
+                        value={smartPriceInput}
+                        onChange={(e) => setSmartPriceInput(e.target.value)}
+                        placeholder="Львів 2000&#10;Берлін 100..."
+                        className="w-full h-40 bg-white/5 border border-white/5 rounded-2xl p-4 text-[#8899B5] resize-none font-mono text-[10px] leading-relaxed outline-none focus:border-[#00E5FF]/30 transition-all"
+                      />
+                      <button 
+                        onClick={handleSmartPriceParse}
+                        className="w-full mt-4 bg-white/5 text-[#00E5FF] border border-[#00E5FF]/20 hover:bg-[#00E5FF] hover:text-black py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                      >
+                        ОНОВИТИ ПРАЙС
+                      </button>
+                    </div>
+                  </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Outbound Column */}
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2 mb-2 px-1">
-                            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                            <h3 className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Виїзд (ГРН)</h3>
-                          </div>
+                  {/* Right: Detailed Pricing Grid */}
+                  <div className="lg:col-span-8 space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Outbound Column (UAH) */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 px-2">
+                          <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+                          <h3 className="text-[11px] font-black text-white uppercase tracking-widest">Виїзд (ГРИВНЯ)</h3>
+                        </div>
+                        
+                        <div className="space-y-3">
                           {Object.entries(
                             allSegments.filter(s => s.currency === 'ГРН').reduce((acc, s) => {
                               if (!acc[s.to]) acc[s.to] = [];
                               acc[s.to].push(s);
                               return acc;
                             }, {} as Record<string, any[]>)
-                          ).map(([city, citySegments]) => (
-                            <div key={`out-${city}`} className={`rounded-2xl border transition-all ${expandedPricingCities.has(`out-${city}`) ? 'bg-white/[0.03] border-blue-500/20 shadow-lg shadow-blue-500/5' : 'bg-white/5 border-white/5'}`}>
-                              <button 
-                                onClick={() => togglePricingCity(`out-${city}`)}
-                                className="w-full flex items-center justify-between p-3 hover:bg-white/[0.02] transition-colors text-left"
-                              >
-                                <span className="text-[11px] font-black text-white uppercase tracking-tight flex items-center gap-2">
-                                  <MapPin size={10} className={expandedPricingCities.has(`out-${city}`) ? "text-blue-400" : "text-blue-500"} /> {city}
-                                  <span className="text-[9px] text-slate-600 font-medium">({citySegments.length})</span>
-                                </span>
-                                <motion.div animate={{ rotate: expandedPricingCities.has(`out-${city}`) ? 0 : -90 }}>
-                                  <ChevronDown size={14} className="text-slate-600" />
-                                </motion.div>
-                              </button>
-                              
-                              {expandedPricingCities.has(`out-${city}`) && (
-                                <motion.div 
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: 'auto', opacity: 1 }}
-                                  className="px-3 pb-3 space-y-1.5 border-t border-white/5 pt-3"
+                          ).map(([city, citySegments]) => {
+                            const isExpanded = expandedPricingCities.has(`out-${city}`);
+                            return (
+                              <div key={`out-${city}`} className={`rounded-[24px] border transition-all duration-300 ${isExpanded ? 'bg-white/[0.03] border-blue-500/30 shadow-2xl' : 'bg-[#0B1221] border-white/5 hover:border-white/10'}`}>
+                                <button 
+                                  onClick={() => togglePricingCity(`out-${city}`)}
+                                  className="w-full flex items-center justify-between p-4"
                                 >
-                                  {citySegments.map((seg, idx) => (
-                                    <div key={`${seg.from}-${idx}`} className="flex items-center justify-between bg-black/40 px-3 py-2 rounded-xl border border-white/5 hover:border-blue-500/30 transition-all group/item">
-                                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-tight group-hover/item:text-white">{seg.from}</span>
-                                      <div className="flex items-center gap-2 bg-black/20 rounded-lg px-2 py-1 border border-white/5">
-                                        <input 
-                                          type="number"
-                                          value={seg.price || ''}
-                                          onFocus={(e) => e.target.select()}
-                                          onChange={(e) => {
-                                            const newVal = parseInt(e.target.value) || 0;
-                                            const mirrVal = Math.round(newVal / exchangeRate);
-                                            const mirrorKey = `${seg.to.toLowerCase()}_${seg.from.toLowerCase()}`;
-                                            setPriceMemory(prev => ({ ...prev, [seg.key]: newVal, [mirrorKey]: mirrVal }));
-                                            setTrip(prev => ({
-                                              ...prev,
-                                              outbound: { ...prev.outbound, stops: prev.outbound.stops.map(s => (s.city === seg.to ? { ...s, price: newVal } : s)) },
-                                              inbound: { ...prev.inbound, stops: prev.inbound.stops.map(s => (s.city === seg.to ? { ...s, price: mirrVal } : s)) }
-                                            }));
-                                          }}
-                                          className="bg-transparent w-16 text-[11px] font-black text-[#00e5ff] outline-none text-right"
-                                        />
-                                        <span className="text-[8px] font-bold text-[#00e5ff]/40">₴</span>
-                                      </div>
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${isExpanded ? 'bg-blue-500 text-white' : 'bg-white/5 text-[#5A6A85]'}`}>
+                                      <MapPin size={14} />
                                     </div>
-                                  ))}
-                                </motion.div>
-                              )}
-                            </div>
-                          ))}
+                                    <span className="text-[12px] font-black text-white uppercase tracking-tight">{city}</span>
+                                    <span className="text-[10px] text-[#5A6A85] font-bold">({citySegments.length})</span>
+                                  </div>
+                                  <ChevronDown size={16} className={`text-[#5A6A85] transition-transform duration-300 ${isExpanded ? 'rotate-180 text-blue-400' : ''}`} />
+                                </button>
+                                
+                                <AnimatePresence>
+                                  {isExpanded && (
+                                    <motion.div 
+                                      initial={{ height: 0, opacity: 0 }}
+                                      animate={{ height: 'auto', opacity: 1 }}
+                                      exit={{ height: 0, opacity: 0 }}
+                                      className="overflow-hidden"
+                                    >
+                                      <div className="px-4 pb-4 space-y-2 border-t border-white/5 pt-4">
+                                        {citySegments.map((seg, idx) => (
+                                          <div key={`${seg.from}-${idx}`} className="flex items-center justify-between bg-black/40 px-4 py-3 rounded-xl border border-white/5 group hover:border-blue-500/20 transition-all">
+                                            <span className="text-[10px] font-black text-[#5A6A85] uppercase tracking-widest group-hover:text-white transition-all">{seg.from}</span>
+                                            <div className="flex items-center gap-2 bg-[#0B1221] rounded-lg px-3 py-1.5 border border-white/5">
+                                              <input 
+                                                type="number"
+                                                value={seg.price || ''}
+                                                onFocus={(e) => e.target.select()}
+                                                onChange={(e) => {
+                                                  const newVal = parseInt(e.target.value) || 0;
+                                                  const mirrVal = Math.round(newVal / exchangeRate);
+                                                  const mirrorKey = `${seg.to.toLowerCase()}_${seg.from.toLowerCase()}`;
+                                                  setPriceMemory(prev => ({ ...prev, [seg.key]: newVal, [mirrorKey]: mirrVal }));
+                                                  setTrip(prev => ({
+                                                    ...prev,
+                                                    outbound: { ...prev.outbound, stops: prev.outbound.stops.map(s => (s.city === seg.to ? { ...s, price: newVal } : s)) },
+                                                    inbound: { ...prev.inbound, stops: prev.inbound.stops.map(s => (s.city === seg.to ? { ...s, price: mirrVal } : s)) }
+                                                  }));
+                                                }}
+                                                className="bg-transparent w-20 text-xs font-black text-[#00E5FF] outline-none text-right"
+                                              />
+                                              <span className="text-[10px] font-black text-[#00E5FF]/40 uppercase">грн</span>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </div>
+                            );
+                          })}
                         </div>
+                      </div>
 
-                        {/* Inbound Column */}
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2 mb-2 px-1">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                            <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Назад (EUR)</h3>
-                          </div>
+                      {/* Inbound Column (EUR) */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 px-2">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                          <h3 className="text-[11px] font-black text-white uppercase tracking-widest">Назад (ЄВРО)</h3>
+                        </div>
+                        
+                        <div className="space-y-3">
                           {Object.entries(
                             allSegments.filter(s => s.currency === 'EUR').reduce((acc, s) => {
                               if (!acc[s.to]) acc[s.to] = [];
                               acc[s.to].push(s);
                               return acc;
                             }, {} as Record<string, any[]>)
-                          ).map(([city, citySegments]) => (
-                            <div key={`in-${city}`} className={`rounded-2xl border transition-all ${expandedPricingCities.has(`in-${city}`) ? 'bg-white/[0.03] border-emerald-500/20 shadow-lg shadow-emerald-500/5' : 'bg-white/5 border-white/5'}`}>
-                              <button 
-                                onClick={() => togglePricingCity(`in-${city}`)}
-                                className="w-full flex items-center justify-between p-3 hover:bg-white/[0.02] transition-colors text-left"
-                              >
-                                <span className="text-[11px] font-black text-white uppercase tracking-tight flex items-center gap-2">
-                                  <MapPin size={10} className={expandedPricingCities.has(`in-${city}`) ? "text-emerald-400" : "text-emerald-500"} /> {city}
-                                  <span className="text-[9px] text-slate-600 font-medium">({citySegments.length})</span>
-                                </span>
-                                <motion.div animate={{ rotate: expandedPricingCities.has(`in-${city}`) ? 0 : -90 }}>
-                                  <ChevronDown size={14} className="text-slate-600" />
-                                </motion.div>
-                              </button>
-                              
-                              {expandedPricingCities.has(`in-${city}`) && (
-                                <motion.div 
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: 'auto', opacity: 1 }}
-                                  className="px-3 pb-3 space-y-1.5 border-t border-white/5 pt-3"
+                          ).map(([city, citySegments]) => {
+                            const isExpanded = expandedPricingCities.has(`in-${city}`);
+                            return (
+                              <div key={`in-${city}`} className={`rounded-[24px] border transition-all duration-300 ${isExpanded ? 'bg-white/[0.03] border-emerald-500/30 shadow-2xl' : 'bg-[#0B1221] border-white/5 hover:border-white/10'}`}>
+                                <button 
+                                  onClick={() => togglePricingCity(`in-${city}`)}
+                                  className="w-full flex items-center justify-between p-4"
                                 >
-                                  {citySegments.map((seg, idx) => (
-                                    <div key={`${seg.from}-${idx}`} className="flex items-center justify-between bg-black/40 px-3 py-2 rounded-xl border border-white/5 hover:border-emerald-500/30 transition-all group/item">
-                                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-tight group-hover/item:text-white">{seg.from}</span>
-                                      <div className="flex items-center gap-2 bg-black/20 rounded-lg px-2 py-1 border border-white/5">
-                                        <input 
-                                          type="number"
-                                          value={seg.price || ''}
-                                          onFocus={(e) => e.target.select()}
-                                          onChange={(e) => {
-                                            const newVal = parseInt(e.target.value) || 0;
-                                            const mirrVal = Math.round(newVal * exchangeRate);
-                                            const mirrorKey = `${seg.to.toLowerCase()}_${seg.from.toLowerCase()}`;
-                                            setPriceMemory(prev => ({ ...prev, [seg.key]: newVal, [mirrorKey]: mirrVal }));
-                                            setTrip(prev => ({
-                                              ...prev,
-                                              inbound: { ...prev.inbound, stops: prev.inbound.stops.map(s => (s.city === seg.to ? { ...s, price: newVal } : s)) },
-                                              outbound: { ...prev.outbound, stops: prev.outbound.stops.map(s => (s.city === seg.to ? { ...s, price: mirrVal } : s)) }
-                                            }));
-                                          }}
-                                          className="bg-transparent w-12 text-[11px] font-black text-[#00e5ff] outline-none text-right"
-                                        />
-                                        <span className="text-[8px] font-bold text-[#00e5ff]/40">€</span>
-                                      </div>
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${isExpanded ? 'bg-emerald-500 text-white' : 'bg-white/5 text-[#5A6A85]'}`}>
+                                      <MapPin size={14} />
                                     </div>
-                                  ))}
-                                </motion.div>
-                              )}
-                            </div>
-                          ))}
+                                    <span className="text-[12px] font-black text-white uppercase tracking-tight">{city}</span>
+                                    <span className="text-[10px] text-[#5A6A85] font-bold">({citySegments.length})</span>
+                                  </div>
+                                  <ChevronDown size={16} className={`text-[#5A6A85] transition-transform duration-300 ${isExpanded ? 'rotate-180 text-emerald-400' : ''}`} />
+                                </button>
+                                
+                                <AnimatePresence>
+                                  {isExpanded && (
+                                    <motion.div 
+                                      initial={{ height: 0, opacity: 0 }}
+                                      animate={{ height: 'auto', opacity: 1 }}
+                                      exit={{ height: 0, opacity: 0 }}
+                                      className="overflow-hidden"
+                                    >
+                                      <div className="px-4 pb-4 space-y-2 border-t border-white/5 pt-4">
+                                        {citySegments.map((seg, idx) => (
+                                          <div key={`${seg.from}-${idx}`} className="flex items-center justify-between bg-black/40 px-4 py-3 rounded-xl border border-white/5 group hover:border-emerald-500/20 transition-all">
+                                            <span className="text-[10px] font-black text-[#5A6A85] uppercase tracking-widest group-hover:text-white transition-all">{seg.from}</span>
+                                            <div className="flex items-center gap-2 bg-[#0B1221] rounded-lg px-3 py-1.5 border border-white/5">
+                                              <input 
+                                                type="number"
+                                                value={seg.price || ''}
+                                                onFocus={(e) => e.target.select()}
+                                                onChange={(e) => {
+                                                  const newVal = parseInt(e.target.value) || 0;
+                                                  const mirrVal = Math.round(newVal * exchangeRate);
+                                                  const mirrorKey = `${seg.to.toLowerCase()}_${seg.from.toLowerCase()}`;
+                                                  setPriceMemory(prev => ({ ...prev, [seg.key]: newVal, [mirrorKey]: mirrVal }));
+                                                  setTrip(prev => ({
+                                                    ...prev,
+                                                    inbound: { ...prev.inbound, stops: prev.inbound.stops.map(s => (s.city === seg.to ? { ...s, price: newVal } : s)) },
+                                                    outbound: { ...prev.outbound, stops: prev.outbound.stops.map(s => (s.city === seg.to ? { ...s, price: mirrVal } : s)) }
+                                                  }));
+                                                }}
+                                                className="bg-transparent w-20 text-xs font-black text-emerald-400 outline-none text-right"
+                                              />
+                                              <span className="text-[10px] font-black text-emerald-400/40 uppercase">eur</span>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
@@ -1856,525 +1989,404 @@ export default function NewTrip() {
               </motion.div>
             )}
 
-            {/* STEP 4: PREVIEW (OLD STEP 5) */}
+            {/* STEP 4: PREVIEW - Digital Ticket Visual */}
             {currentStep === 4 && (
               <motion.div 
                 key="step4"
-                initial={{ opacity: 0, scale: 0.98 }}
+                initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="space-y-8"
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="space-y-10"
               >
-                <div id="full-preview-area" className="bg-white rounded-[40px] p-8 text-black shadow-2xl relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-700 via-cyan-500 to-blue-700"></div>
+                <div className="flex items-center justify-between gap-6 pt-6">
+                  <div>
+                    <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Попередній перегляд</h2>
+                    <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.2em] font-bold">Перевірте всі дані перед публікацією рейсу</p>
+                  </div>
+                  <div className="flex items-center gap-2 bg-[#0B1221] px-4 py-2 rounded-xl border border-white/5">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Готово до запуску</span>
+                  </div>
+                </div>
+
+                <div id="full-preview-area" className="bg-[#F8FAFC] rounded-[48px] text-[#0F172A] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] relative overflow-hidden">
+                  {/* Ticket Header Decor */}
+                  <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-blue-600 via-cyan-400 to-blue-600" />
+                  <div className="absolute top-10 right-[-50px] w-[200px] h-[200px] bg-blue-500/5 rounded-full blur-3xl" />
                   
-                      <div className="flex justify-between items-start mb-12">
-                        <div>
-                          <h2 className="text-3xl font-black text-gray-900 tracking-tighter uppercase leading-none mb-2">{trip.routeName}</h2>
-                          <div className="flex items-center gap-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                            <span className="bg-blue-600 text-white px-3 py-1 rounded-full">{trip.operator}</span>
-                            <span className="flex items-center gap-1"><Bus size={12} /> {trip.seats} Місць</span>
-                            <div className="flex gap-2 items-center">
-                              {trip.amenities.map(a => {
-                                const cfg = AMENITIES_CONFIG.find(c => c.id === a);
-                                return cfg?.icon && <cfg.icon key={a} size={12} className="text-blue-500" />;
-                              })}
-                            </div>
+                  <div className="p-10 md:p-16">
+                    <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-16 pb-12 border-b border-slate-200/60">
+                      <div>
+                        <div className="flex items-center gap-3 mb-4">
+                          <span className="bg-blue-600 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">{trip.operator}</span>
+                          {trip.isTransfer && <span className="bg-amber-100 text-amber-700 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">Транзитний рейс</span>}
+                        </div>
+                        <h2 className="text-5xl font-black text-[#0F172A] tracking-tighter uppercase leading-none mb-4">{trip.routeName}</h2>
+                        <div className="flex flex-wrap items-center gap-6 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                          <span className="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-2xl text-slate-600"><Bus size={14} className="text-blue-600" /> {trip.seats} Місць</span>
+                          <div className="flex gap-3 items-center bg-slate-100 px-4 py-2 rounded-2xl">
+                            {trip.amenities.map(a => {
+                              const cfg = AMENITIES_CONFIG.find(c => c.id === a);
+                              return cfg?.icon && <cfg.icon key={a} size={14} className="text-blue-500" />;
+                            })}
+                            <span className="text-slate-600 ml-1">Зручності</span>
                           </div>
                         </div>
-                        <div className={`px-4 py-2 rounded-2xl border text-center ${trip.isTransfer ? 'bg-yellow-50 border-yellow-100' : 'bg-blue-50 border-blue-100'}`}>
-                          <span className={`text-[8px] font-black uppercase block mb-0.5 ${trip.isTransfer ? 'text-yellow-600' : 'text-blue-600'}`}>
-                            {trip.isTransfer ? 'Транзит' : 'Статус'}
-                          </span>
-                          <span className="text-xs font-bold text-gray-900">
-                            {trip.isTransfer ? 'Рейс з пересадкою' : 'Прямий рейс'}
-                          </span>
+                      </div>
+                      <div className="bg-white border-2 border-slate-100 p-6 rounded-[32px] shadow-sm flex flex-col items-center justify-center min-w-[140px]">
+                         <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-3">
+                            <QrCode size={32} className="text-slate-300" />
+                         </div>
+                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">ID: {Math.random().toString(36).substr(2, 6).toUpperCase()}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
+                      {/* Outbound Timeline */}
+                      <div className="relative">
+                        <div className="flex items-center justify-between mb-10">
+                          <h3 className="text-sm font-black uppercase text-blue-600 tracking-[0.2em] flex items-center gap-3">
+                            <ArrowRight size={20} /> ВИЇЗД В ЄВРОПУ
+                          </h3>
+                          <div className="flex items-center gap-2">
+                             <span className="text-[10px] font-black text-slate-400 uppercase">Σ {getTotalDuration(trip.outbound.stops)}</span>
+                             <button onClick={() => autoCalculateDayOffsets('outbound')} className="p-2 hover:bg-blue-50 rounded-xl text-blue-400 transition-colors"><RefreshCcw size={14}/></button>
+                          </div>
+                        </div>
+                        
+                        <div className="relative pl-12 space-y-12">
+                          <div className="absolute left-[20px] top-4 bottom-4 w-[2px] bg-dashed border-l-2 border-slate-200" />
+                          {trip.outbound.stops.map((stop, idx) => (
+                            <div key={stop.id} className="relative group">
+                              <div className={`absolute -left-[45px] top-1 w-11 h-11 rounded-2xl border-4 border-white flex items-center justify-center shadow-md transition-all group-hover:scale-110 z-10 ${idx === 0 ? 'bg-emerald-500 text-white' : idx === trip.outbound.stops.length - 1 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                {idx === 0 ? <MapPin size={18} /> : idx === trip.outbound.stops.length - 1 ? <Navigation size={18} /> : <div className="w-2 h-2 rounded-full bg-slate-300" />}
+                              </div>
+                              <div className="flex items-center justify-between gap-6">
+                                <div>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h4 className="font-black text-[#0F172A] text-xl uppercase tracking-tighter">{stop.city}</h4>
+                                    <span className="text-[10px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-lg uppercase">{getDayName('outbound', stop.dayOffset)}</span>
+                                  </div>
+                                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{stop.address}</p>
+                                </div>
+                                <div className="text-right">
+                                   <p className="text-2xl font-black text-[#0F172A] tabular-nums tracking-tighter">{stop.time}</p>
+                                   {idx > 0 && <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">День {stop.dayOffset || 0}</p>}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                        {/* Outbound */}
-                        <div>
-                          <div 
-                            onClick={() => togglePreviewSection('outbound')}
-                            className="flex items-center justify-between mb-6 cursor-pointer hover:opacity-70 transition-opacity"
-                          >
-                            <div className="flex items-center gap-2">
-                              <motion.div
-                                animate={{ rotate: previewCollapsed.outbound ? -90 : 0 }}
-                                transition={{ duration: 0.2 }}
-                              >
-                                <ChevronDown size={16} className="text-blue-600" />
-                              </motion.div>
-                              <h3 className="text-xs font-black uppercase text-gray-400 tracking-widest">Виїзд (Туда)</h3>
-                            </div>
-                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              <button 
-                                onClick={() => autoCalculateDayOffsets('outbound')}
-                                className="p-1 hover:bg-blue-50 rounded-full text-blue-400 hover:text-blue-600 transition-colors"
-                                title="Перерахувати час"
-                              >
-                                <RefreshCcw size={10} />
-                              </button>
-                              <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">Σ {getTotalDuration(trip.outbound.stops)}</span>
-                            </div>
+                      {/* Inbound Timeline */}
+                      <div className="relative">
+                        <div className="flex items-center justify-between mb-10">
+                          <h3 className="text-sm font-black uppercase text-emerald-600 tracking-[0.2em] flex items-center gap-3">
+                            <ArrowLeft size={20} /> ПОВЕРНЕННЯ В УКРАЇНУ
+                          </h3>
+                          <div className="flex items-center gap-2">
+                             <span className="text-[10px] font-black text-slate-400 uppercase">Σ {getTotalDuration(trip.inbound.stops)}</span>
+                             <button onClick={() => autoCalculateDayOffsets('inbound')} className="p-2 hover:bg-emerald-50 rounded-xl text-emerald-400 transition-colors"><RefreshCcw size={14}/></button>
                           </div>
-                          
-                          <AnimatePresence>
-                            {!previewCollapsed.outbound && (
-                              <motion.div 
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="relative pl-6 space-y-8 border-l border-gray-100 pb-4">
-                                  {trip.outbound.stops.map((stop, idx) => (
-                                    <div key={stop.id} className="relative">
-                                      <div className={`absolute -left-[30px] top-1 w-3 h-3 rounded-full border-2 border-white shadow ${idx === 0 ? 'bg-green-500' : idx === trip.outbound.stops.length - 1 ? 'bg-red-500' : 'bg-blue-500'}`}></div>
-                                      <div className="flex items-baseline justify-between gap-4">
-                                        <div>
-                                          <div className="flex items-center gap-2">
-                                            <h4 className="font-black text-gray-900 text-sm uppercase">{stop.city}</h4>
-                                            <span className="text-[9px] font-black text-blue-400">{getDayName('outbound', stop.dayOffset)}</span>
-                                          </div>
-                                          <span className="text-[10px] text-gray-400 block truncate max-w-[150px]">{stop.address}</span>
-                                        </div>
-                                        <span className="text-sm font-bold text-gray-950 tabular-nums">{stop.time}</span>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
                         </div>
-
-                        {/* Inbound */}
-                        <div>
-                          <div 
-                            onClick={() => togglePreviewSection('inbound')}
-                            className="flex items-center justify-between mb-6 cursor-pointer hover:opacity-70 transition-opacity"
-                          >
-                            <div className="flex items-center gap-2">
-                              <motion.div
-                                animate={{ rotate: previewCollapsed.inbound ? -90 : 0 }}
-                                transition={{ duration: 0.2 }}
-                              >
-                                <ChevronDown size={16} className="text-blue-600" />
-                              </motion.div>
-                              <h3 className="text-xs font-black uppercase text-gray-400 tracking-widest">Назад (Reverse)</h3>
-                            </div>
-                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              <button 
-                                onClick={() => autoCalculateDayOffsets('inbound')}
-                                className="p-1 hover:bg-blue-50 rounded-full text-blue-400 hover:text-blue-600 transition-colors"
-                                title="Перерахувати час"
-                              >
-                                <RefreshCcw size={10} />
-                              </button>
-                              <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">Σ {getTotalDuration(trip.inbound.stops)}</span>
-                            </div>
-                          </div>
-
-                          <AnimatePresence>
-                            {!previewCollapsed.inbound && (
-                              <motion.div 
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="relative pl-6 space-y-8 border-l border-gray-100 pb-4">
-                                  {trip.inbound.stops.map((stop, idx) => (
-                                    <div key={stop.id} className="relative">
-                                      <div className={`absolute -left-[30px] top-1 w-3 h-3 rounded-full border-2 border-white shadow ${idx === 0 ? 'bg-red-500' : idx === trip.inbound.stops.length - 1 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
-                                      <div className="flex items-baseline justify-between gap-4">
-                                        <div>
-                                          <div className="flex items-center gap-2">
-                                            <h4 className="font-black text-gray-900 text-sm uppercase">{stop.city}</h4>
-                                            <span className="text-[9px] font-black text-blue-400">{getDayName('inbound', stop.dayOffset)}</span>
-                                          </div>
-                                          <span className="text-[10px] text-gray-400 block truncate max-w-[150px]">{stop.address}</span>
-                                        </div>
-                                        <span className="text-sm font-bold text-gray-950 tabular-nums">{stop.time}</span>
-                                      </div>
-                                    </div>
-                                  ))}
+                        
+                        <div className="relative pl-12 space-y-12">
+                          <div className="absolute left-[20px] top-4 bottom-4 w-[2px] bg-dashed border-l-2 border-slate-200" />
+                          {trip.inbound.stops.map((stop, idx) => (
+                            <div key={stop.id} className="relative group">
+                              <div className={`absolute -left-[45px] top-1 w-11 h-11 rounded-2xl border-4 border-white flex items-center justify-center shadow-md transition-all group-hover:scale-110 z-10 ${idx === 0 ? 'bg-emerald-500 text-white' : idx === trip.inbound.stops.length - 1 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                {idx === 0 ? <MapPin size={18} /> : idx === trip.inbound.stops.length - 1 ? <Navigation size={18} /> : <div className="w-2 h-2 rounded-full bg-slate-300" />}
+                              </div>
+                              <div className="flex items-center justify-between gap-6">
+                                <div>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h4 className="font-black text-[#0F172A] text-xl uppercase tracking-tighter">{stop.city}</h4>
+                                    <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-lg uppercase">{getDayName('inbound', stop.dayOffset)}</span>
+                                  </div>
+                                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{stop.address}</p>
                                 </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
+                                <div className="text-right">
+                                   <p className="text-2xl font-black text-[#0F172A] tabular-nums tracking-tighter">{stop.time}</p>
+                                   {idx > 0 && <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">День {stop.dayOffset || 0}</p>}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
+                    </div>
 
-                      {/* Price Table Section in Preview */}
-                      {allSegments.length > 0 && (
-                        <div className="mt-12 pt-8 border-t border-gray-100">
-                           <div 
-                             onClick={() => togglePreviewSection('pricing')}
-                             className="flex items-center gap-2 mb-6 cursor-pointer hover:opacity-70 transition-opacity"
-                           >
-                            <motion.div
-                              animate={{ rotate: previewCollapsed.pricing ? -90 : 0 }}
-                              transition={{ duration: 0.2 }}
-                            >
-                              <ChevronDown size={14} className="text-blue-600" />
-                            </motion.div>
-                            <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Тарифікація проїзду:</span>
+                    {/* Price Summary Section */}
+                    <div className="mt-20 pt-16 border-t-2 border-dashed border-slate-200 relative">
+                       <div className="absolute -left-[16px] top-[-16px] w-8 h-8 bg-[#0B1221] rounded-full" />
+                       <div className="absolute -right-[16px] top-[-16px] w-8 h-8 bg-[#0B1221] rounded-full" />
+                       
+                       <div className="flex items-center gap-4 mb-10">
+                          <div className="w-10 h-10 rounded-xl bg-blue-600/10 flex items-center justify-center text-blue-600">
+                             <Coins size={20} />
                           </div>
+                          <h3 className="text-lg font-black text-[#0F172A] uppercase tracking-tighter">Тарифікація маршруту</h3>
+                       </div>
 
-                          <AnimatePresence>
-                            {!previewCollapsed.pricing && (
-                              <motion.div 
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                                  {/* Outbound Prices Filtered */}
-                                  <div>
-                                     <h4 className="text-[9px] font-black text-blue-600 uppercase mb-3 bg-blue-50 px-2 py-1 rounded inline-block">↔ Вартість Туди (ГРН)</h4>
-                                     <div className="space-y-2">
-                                       {allSegments.filter(s => s.currency === 'ГРН').map(seg => (
-                                         <div key={`${seg.from}-${seg.to}-${seg.currency}`} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 rounded px-2 transition-colors">
-                                            <span className="text-[10px] font-bold text-gray-700">{seg.from} — {seg.to}</span>
-                                            <span className="text-xs font-black text-gray-900">{seg.price.toLocaleString()} ГРН</span>
-                                         </div>
-                                       ))}
-                                     </div>
-                                  </div>
-                                  {/* Inbound Prices Filtered */}
-                                  <div>
-                                     <h4 className="text-[9px] font-black text-emerald-600 uppercase mb-3 bg-emerald-50 px-2 py-1 rounded inline-block">↔ Вартість Назад (EUR)</h4>
-                                     <div className="space-y-2">
-                                       {allSegments.filter(s => s.currency === 'EUR').map(seg => (
-                                         <div key={`${seg.from}-${seg.to}-${seg.currency}`} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 rounded px-2 transition-colors">
-                                            <span className="text-[10px] font-bold text-gray-700">{seg.from} — {seg.to}</span>
-                                            <span className="text-xs font-black text-gray-900">{seg.price} €</span>
-                                         </div>
-                                       ))}
-                                     </div>
-                                  </div>
+                       <div className="bg-slate-50 rounded-[32px] p-8">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                             {allSegments.slice(0, 8).map((seg, idx) => (
+                                <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                   <div className="flex items-center justify-between mb-2">
+                                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{seg.from} →</span>
+                                      <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{seg.currency}</span>
+                                   </div>
+                                   <div className="flex items-baseline justify-between">
+                                      <span className="text-sm font-black text-[#0F172A] uppercase">{seg.to}</span>
+                                      <span className="text-lg font-black text-[#0F172A]">{seg.price}</span>
+                                   </div>
                                 </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      )}
-
-                      {/* Discounts Section in Preview */}
-                      {(trip.discounts.child04 || trip.discounts.child412 || trip.customDiscounts.length > 0) && (
-                        <div className="mt-12 pt-8 border-t border-gray-100">
-                          <div 
-                            onClick={() => togglePreviewSection('discounts')}
-                            className="flex items-center gap-2 mb-6 cursor-pointer hover:opacity-70 transition-opacity"
-                          >
-                            <motion.div
-                              animate={{ rotate: previewCollapsed.discounts ? -90 : 0 }}
-                              transition={{ duration: 0.2 }}
-                            >
-                              <ChevronDown size={14} className="text-blue-600" />
-                            </motion.div>
-                            <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Діючі знижки:</span>
+                             ))}
+                             {allSegments.length > 8 && (
+                                <div className="bg-slate-200/50 p-4 rounded-2xl border border-dashed border-slate-300 flex items-center justify-center">
+                                   <span className="text-[10px] font-black text-slate-500 uppercase">Ще {allSegments.length - 8} напрямків...</span>
+                                </div>
+                             )}
                           </div>
-
-                          <AnimatePresence>
-                            {!previewCollapsed.discounts && (
-                              <motion.div 
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="flex flex-wrap gap-2">
-                                  {trip.discounts.child04 && (
-                                    <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-[9px] font-bold border border-blue-100">
-                                      Діти до 4 р. (-50%)
-                                    </span>
-                                  )}
-                                  {trip.discounts.child412 && (
-                                    <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-[9px] font-bold border border-blue-100">
-                                      Діти 4-12 р. (-30%)
-                                    </span>
-                                  )}
-                                  {trip.customDiscounts.map(discount => (
-                                    <span key={discount.id} className="bg-cyan-50 text-cyan-700 px-3 py-1 rounded-full text-[9px] font-bold border border-cyan-100">
-                                      {discount.label || 'Спец. знижка'} (-{discount.value}%)
-                                    </span>
-                                  ))}
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      )}
-
-                      {/* Rules Section in Preview */}
-                      {(trip.rules.length > 0 || trip.customRules.length > 0) && (
-                        <div className="mt-12 pt-8 border-t border-gray-100">
-                          <div 
-                            onClick={() => togglePreviewSection('rules')}
-                            className="flex items-center gap-2 mb-6 cursor-pointer hover:opacity-70 transition-opacity"
-                          >
-                            <motion.div
-                              animate={{ rotate: previewCollapsed.rules ? -90 : 0 }}
-                              transition={{ duration: 0.2 }}
-                            >
-                              <ChevronDown size={14} className="text-blue-600" />
-                            </motion.div>
-                            <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Правила перевезень:</span>
-                          </div>
-
-                          <AnimatePresence>
-                            {!previewCollapsed.rules && (
-                              <motion.div 
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {[...trip.rules, ...trip.customRules.filter(r => r.trim())].map((rule, idx) => (
-                                    <div key={idx} className="flex gap-2">
-                                      <div className="w-1 h-1 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></div>
-                                      <p className="text-[10px] text-gray-600 leading-relaxed italic">{rule}</p>
-                                    </div>
-                                  ))}
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      )}
+                       </div>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             )}
 
-            {/* STEP 5: RULES (OLD STEP 6) */}
+            {/* STEP 5: RULES - Mission Control Selection */}
             {currentStep === 5 && (
               <motion.div 
                 key="step5"
-                initial={{ opacity: 0, x: 50 }}
+                initial={{ opacity: 0, x: 30 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
-                className="space-y-6 pb-20"
+                exit={{ opacity: 0, x: -30 }}
+                className="space-y-10"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-6 pt-6">
                   <div>
                     <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Правила перевезень</h2>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Оберіть умови, які будуть відображатися пасажиру</p>
+                    <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.2em] font-bold">Оберіть умови, які будуть відображатися пасажиру в квитку</p>
                   </div>
-                  <div className="bg-[#00e5ff]/10 px-3 py-1 rounded-full border border-[#00e5ff]/20">
-                    <span className="text-[#00e5ff] text-[10px] font-black uppercase">Обрано: {trip.rules.length + trip.customRules.length}</span>
+                  <div className="flex items-center gap-2 bg-[#0B1221] px-4 py-2 rounded-xl border border-white/5">
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Обрано: {trip.rules.length + trip.customRules.length}</span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {PRESET_RULES.map((rule, idx) => {
                     const isSelected = trip.rules.includes(rule);
                     return (
-                      <button 
+                      <motion.button 
                         key={idx}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
                         onClick={() => toggleRule(rule)}
-                        className={`text-left p-4 rounded-2xl border transition-all relative group flex gap-4 ${isSelected ? 'bg-[#00e5ff] border-[#00e5ff] shadow-[0_10px_30px_rgba(0,229,255,0.2)]' : 'bg-white/5 border-white/5 hover:border-white/20'}`}
+                        className={`text-left p-6 rounded-[24px] border-2 transition-all flex gap-5 relative overflow-hidden group ${isSelected ? 'bg-blue-600/10 border-blue-500 shadow-[0_15px_40px_-15px_rgba(59,130,246,0.3)]' : 'bg-white/5 border-white/5 hover:border-white/10 hover:bg-white/[0.07]'}`}
                       >
-                         <div className={`mt-0.5 w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-colors ${isSelected ? 'bg-white border-white' : 'border-slate-700 bg-black/20'}`}>
-                           {isSelected && <CheckCircle size={12} className="text-[#00e5ff]" strokeWidth={4} />}
+                         <div className={`mt-1 w-6 h-6 rounded-lg flex-shrink-0 flex items-center justify-center transition-all duration-500 ${isSelected ? 'bg-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-slate-800/50 text-slate-600 group-hover:text-slate-400'}`}>
+                           <CheckCircle size={14} strokeWidth={isSelected ? 4 : 2} />
                          </div>
-                         <p className={`text-[11px] leading-relaxed font-medium ${isSelected ? 'text-black' : 'text-slate-400 opacity-80'}`}>
+                         <p className={`text-[12px] leading-relaxed font-bold tracking-tight transition-colors ${isSelected ? 'text-white' : 'text-slate-400 group-hover:text-slate-300'}`}>
                            {rule}
                          </p>
-                      </button>
+                         {isSelected && (
+                           <div className="absolute top-0 right-0 p-1">
+                             <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                           </div>
+                         )}
+                      </motion.button>
                     )
                   })}
                 </div>
 
-                <div className="immersive-card p-6 border-white/5 bg-white/[0.02]">
-                  <div className="flex items-center justify-between mb-4">
-                     <h3 className="text-white font-black text-xs uppercase tracking-widest flex items-center gap-2">
-                       <Zap size={14} className="text-[#00e5ff]" /> Власні правила
-                     </h3>
+                <div className="bg-[#0B1221] rounded-[32px] p-8 border border-white/5 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-8 opacity-[0.02]">
+                    <FileText size={120} />
+                  </div>
+                  
+                  <div className="flex items-center justify-between mb-8 relative z-10">
+                     <div>
+                        <h3 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-3">
+                          <PlusCircle size={18} className="text-blue-500" /> Власні правила
+                        </h3>
+                        <p className="text-[9px] text-[#5A6A85] uppercase tracking-widest font-bold mt-1">Додайте специфічні умови для вашого рейсу</p>
+                     </div>
                      <button 
                        onClick={addCustomRule}
-                       className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg text-[9px] text-[#00e5ff] font-black uppercase hover:bg-white/10 transition-all border border-[#00e5ff]/20"
+                       className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 rounded-2xl text-[10px] text-white font-black uppercase hover:bg-blue-500 transition-all shadow-[0_10px_20px_-5px_rgba(59,130,246,0.3)]"
                      >
-                       <Plus size={10} /> Додати правило
+                       <Plus size={14} /> Додати правило
                      </button>
                   </div>
                   
-                  <div className="space-y-3">
-                    {trip.customRules.map((rule, idx) => (
-                      <div key={idx} className="flex gap-2 group">
-                        <textarea 
-                          value={rule}
-                          onChange={(e) => updateCustomRule(idx, e.target.value)}
-                          className="flex-1 bg-black/40 border border-white/10 rounded-xl p-3 text-[11px] text-white outline-none focus:border-[#00e5ff] transition-all min-h-[60px] resize-none"
-                          placeholder="Введіть ваше власне правило..."
-                        />
-                        <button 
-                          onClick={() => removeCustomRule(idx)}
-                          className="self-start mt-2 p-2 text-slate-700 hover:text-red-500 transition-colors"
+                  <div className="space-y-4 relative z-10">
+                    <AnimatePresence mode="popLayout">
+                      {trip.customRules.map((rule, idx) => (
+                        <motion.div 
+                          key={idx}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          className="flex gap-4 group"
                         >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    ))}
+                          <div className="flex-1 relative">
+                            <textarea 
+                              value={rule}
+                              onChange={(e) => updateCustomRule(idx, e.target.value)}
+                              className="w-full bg-black/40 border-2 border-white/5 rounded-2xl p-4 text-[12px] text-white outline-none focus:border-blue-500 focus:bg-black/60 transition-all min-h-[80px] font-medium leading-relaxed resize-none"
+                              placeholder="Наприклад: Багаж понад 20кг оплачується додатково..."
+                            />
+                            <div className="absolute bottom-3 right-3 text-[9px] font-black text-slate-700 uppercase">{rule.length} / 250</div>
+                          </div>
+                          <button 
+                            onClick={() => removeCustomRule(idx)}
+                            className="self-center p-3 text-slate-700 hover:text-red-500 hover:bg-red-500/10 rounded-2xl transition-all"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                    
                     {trip.customRules.length === 0 && (
-                      <p className="text-[10px] text-slate-600 uppercase font-black text-center py-4">Немає власних правил</p>
+                      <div className="text-center py-12 border-2 border-dashed border-white/5 rounded-[24px]">
+                        <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-700">
+                          <FileText size={20} />
+                        </div>
+                        <p className="text-[10px] text-slate-600 uppercase font-black tracking-widest">Немає власних правил</p>
+                      </div>
                     )}
                   </div>
                 </div>
               </motion.div>
             )}
 
-            {/* STEP 6: EXPORT/SYNC (OLD STEP 7) */}
+            {/* STEP 6: EXPORT/SYNC - Mission Control Success */}
             {currentStep === 6 && (
               <motion.div 
                 key="step6"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="space-y-10"
               >
-                <div className="immersive-card p-10 text-center">
-                  <div className="w-20 h-20 bg-[#00e5ff]/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <CheckCircle2 size={40} className="text-[#00e5ff]" />
-                  </div>
-                  <h2 className="text-2xl font-black text-white uppercase mb-2 leading-none tracking-tighter">Маршрут сформовано!</h2>
-                  <p className="text-slate-400 text-xs mb-10 max-w-sm mx-auto uppercase">Ваш маршрут готовий до експорту або синхронізації з базою даних.</p>
+                <div className="bg-[#0B1221] rounded-[48px] p-12 text-center border border-white/5 relative overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.4)]">
+                   {/* Background Glow */}
+                   <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent" />
+                   <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-64 bg-blue-600/20 rounded-full blur-[100px]" />
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
-                    <button 
-                      onClick={downloadPDF}
-                      disabled={isSaving}
-                      className="flex items-center justify-center gap-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white py-4 rounded-2xl font-bold transition-all group"
-                    >
-                      <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <FileDown size={20} className="text-blue-400" />
-                      </div>
-                      <div className="text-left">
-                        <span className="block text-[10px] uppercase text-slate-500 font-black">Експорт</span>
-                        <span className="text-sm">Скачати PDF-файл</span>
-                      </div>
-                    </button>
+                   <motion.div 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', damping: 12, stiffness: 100 }}
+                    className="w-24 h-24 bg-blue-600 rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-[0_20px_50px_rgba(59,130,246,0.5)] rotate-6"
+                   >
+                    <CheckCircle2 size={48} className="text-white" />
+                   </motion.div>
 
-                    <button 
-                      onClick={() => setCurrentStep(7)}
-                      className={`flex items-center justify-center gap-3 bg-[#00e5ff] text-[#0a0b10] py-4 rounded-2xl font-bold hover:shadow-[0_0_30px_rgba(0,229,255,0.4)] transition-all group`}
-                    >
-                      <div className="w-10 h-10 bg-black/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <ChevronRight size={20} />
-                      </div>
-                      <div className="text-left">
-                        <span className="block text-[10px] uppercase text-black/40 font-black">Наступний крок</span>
-                        <span className="text-sm">Фінальне збереження</span>
-                      </div>
-                    </button>
-                  </div>
+                   <h2 className="text-4xl font-black text-white uppercase mb-4 tracking-tighter leading-none">Маршрут сформовано!</h2>
+                   <p className="text-[#5A6A85] text-sm mb-12 max-w-sm mx-auto uppercase tracking-widest font-bold">Ваш маршрут готовий до експорту або синхронізації з системою</p>
 
-                  <div className="mt-12 pt-12 border-t border-white/5">
-                    <button 
-                      onClick={() => setIsArchiveOpen(!isArchiveOpen)}
-                      className="flex items-center gap-4 mx-auto bg-white/5 p-4 rounded-3xl border border-white/10 hover:border-[#00e5ff]/30 transition-all group"
-                    >
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${isArchiveOpen ? 'bg-[#00e5ff] text-black' : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700'}`}>
-                        <FolderOpen size={24} />
-                      </div>
-                      <div className="text-left">
-                        <h4 className="text-white font-bold text-sm">Сховище квитків</h4>
-                        <p className="text-xs text-slate-500">Переглянути всі доступні комбінації ({allSegments.length})</p>
-                      </div>
-                      <ChevronRight size={20} className={`text-slate-600 transition-transform ${isArchiveOpen ? 'rotate-90' : ''}`} />
-                    </button>
-                  </div>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+                     <motion.button 
+                       whileHover={{ y: -5 }}
+                       onClick={downloadPDF}
+                       disabled={isSaving}
+                       className="flex items-center justify-center gap-5 bg-white/5 border-2 border-white/5 hover:border-white/20 hover:bg-white/10 text-white p-6 rounded-[32px] transition-all group relative overflow-hidden"
+                     >
+                       <div className="w-14 h-14 bg-blue-600/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                         <FileDown size={24} className="text-blue-500" />
+                       </div>
+                       <div className="text-left">
+                         <span className="block text-[10px] uppercase text-[#5A6A85] font-black tracking-widest mb-1">Документація</span>
+                         <span className="text-lg font-black tracking-tight">Скачати PDF</span>
+                       </div>
+                     </motion.button>
+
+                     <motion.button 
+                       whileHover={{ y: -5 }}
+                       onClick={() => setCurrentStep(7)}
+                       className="flex items-center justify-center gap-5 bg-blue-600 text-white p-6 rounded-[32px] hover:bg-blue-500 transition-all group relative overflow-hidden shadow-[0_20px_40px_rgba(59,130,246,0.3)]"
+                     >
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                        <div className="w-14 h-14 bg-black/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <ChevronRight size={28} />
+                        </div>
+                        <div className="text-left">
+                          <span className="block text-[10px] uppercase text-white/50 font-black tracking-widest mb-1">Завершення</span>
+                          <span className="text-lg font-black tracking-tight">Фінальний крок</span>
+                        </div>
+                     </motion.button>
+                   </div>
+
+                   <div className="mt-16 pt-12 border-t border-white/5">
+                     <button 
+                       onClick={() => setIsArchiveOpen(!isArchiveOpen)}
+                       className="flex items-center gap-6 mx-auto bg-white/[0.02] p-5 rounded-[32px] border-2 border-white/5 hover:border-blue-500/30 transition-all group"
+                     >
+                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 ${isArchiveOpen ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.5)]' : 'bg-slate-800/50 text-[#5A6A85]'}`}>
+                         <FolderOpen size={24} />
+                       </div>
+                       <div className="text-left pr-4">
+                         <h4 className="text-white font-black text-sm uppercase tracking-tight">Сховище квитків</h4>
+                         <p className="text-[10px] text-[#5A6A85] uppercase font-bold tracking-widest mt-1">Доступно {allSegments.length} напрямків</p>
+                       </div>
+                       <ChevronDown size={20} className={`text-slate-600 transition-transform duration-500 ${isArchiveOpen ? 'rotate-180' : ''}`} />
+                     </button>
+                   </div>
                 </div>
 
                 <AnimatePresence>
                   {isArchiveOpen && (
                     <motion.div 
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="space-y-6 overflow-hidden"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 20 }}
+                      className="space-y-6"
                     >
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
                         {allSegments.map((seg, idx) => {
                           const isForward = seg.currency === 'ГРН';
-                          const stops = isForward ? trip.outbound.stops : trip.inbound.stops;
-                          const fromIdx = stops.findIndex(s => s.city.toLowerCase() === seg.from.toLowerCase());
-                          const toIdx = stops.findIndex(s => s.city.toLowerCase() === seg.to.toLowerCase());
-                          const segmentStops = (fromIdx !== -1 && toIdx !== -1 && toIdx > fromIdx) ? stops.slice(fromIdx, toIdx + 1) : [];
-
-                          if (segmentStops.length < 2) return null;
-
                           return (
-                            <div key={`${seg.from}-${seg.to}-${seg.currency}-${idx}`} className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 overflow-hidden relative group">
-                              <div className={`absolute top-0 left-0 w-2 h-full ${isForward ? 'bg-blue-600' : 'bg-emerald-600'}`}></div>
+                            <motion.div 
+                              key={idx}
+                              layout
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="bg-white rounded-[32px] p-6 shadow-2xl relative overflow-hidden group"
+                            >
+                              <div className={`absolute top-0 left-0 w-full h-1.5 ${isForward ? 'bg-blue-600' : 'bg-emerald-500'}`} />
                               
-                              <div className="flex justify-between items-start mb-6 pl-4">
-                                <div>
-                                  <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest block mb-1">
-                                    {isForward ? 'Україна → Європа' : 'Європа → Україна'}
+                              <div className="flex justify-between items-start mb-6">
+                                <div className="space-y-1">
+                                  <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${isForward ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                    {isForward ? 'UA → EU' : 'EU → UA'}
                                   </span>
-                                  <h4 className="text-lg font-black uppercase text-gray-900 leading-tight">
-                                    {seg.from} <ArrowRight size={14} className="inline mx-1 text-gray-300" /> {seg.to}
+                                  <h4 className="text-base font-black text-[#0F172A] uppercase flex items-center gap-2">
+                                    {seg.from} <ArrowRight size={12} className="text-slate-300" /> {seg.to}
                                   </h4>
                                 </div>
                                 <div className="text-right">
-                                  <div className="text-xl font-black text-gray-900">{seg.price.toLocaleString()} {seg.currency === 'ГРН' ? 'ГРН' : '€'}</div>
-                                  <span className="text-[8px] font-bold text-gray-400 uppercase">Тариф: Стандарт</span>
+                                   <div className="text-lg font-black text-[#0F172A] leading-none">{seg.price.toLocaleString()}</div>
+                                   <span className="text-[9px] font-black text-[#5A6A85] uppercase">{seg.currency}</span>
                                 </div>
                               </div>
 
-                              <div className="pl-4 space-y-4">
-                                <div className="flex items-center justify-between text-[10px] font-bold text-gray-500 uppercase pb-4 border-b border-gray-50">
-                                   <div className="flex items-center gap-2">
-                                     <Clock size={12} className="text-blue-500" />
-                                     <span>{segmentStops[0]?.time} — {segmentStops[segmentStops.length-1]?.time}</span>
+                              <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                   <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
+                                      <Clock size={14} />
                                    </div>
-                                   <div className="px-3 py-1 bg-gray-50 rounded-full text-gray-700">
-                                      {getTotalDuration(segmentStops)}
-                                   </div>
+                                   <span className="text-[10px] font-black text-[#0F172A]">КВИТОК #{idx + 100}</span>
                                 </div>
-
-                                <div className="space-y-4 pt-2">
-                                  <div className="flex gap-4">
-                                     <div className="flex flex-col items-center gap-1.5 pt-1">
-                                        <div className="w-2.5 h-2.5 rounded-full border-2 border-blue-600 bg-white"></div>
-                                        <div className="w-0.5 flex-1 bg-dashed border-l-2 border-gray-200 min-h-[30px]"></div>
-                                        <div className="w-2.5 h-2.5 rounded-full border-2 border-red-600 bg-white"></div>
-                                     </div>
-                                     <div className="flex-1 space-y-6">
-                                        <div>
-                                           <div className="text-[12px] font-black text-gray-900 uppercase leading-none">{segmentStops[0]?.city}</div>
-                                           <div className="text-[9px] text-gray-400 mt-1">{segmentStops[0]?.address}</div>
-                                        </div>
-                                        <div>
-                                           <div className="text-[12px] font-black text-gray-900 uppercase leading-none">{segmentStops[segmentStops.length-1]?.city}</div>
-                                           <div className="text-[9px] text-gray-400 mt-1">{segmentStops[segmentStops.length-1]?.address}</div>
-                                        </div>
-                                     </div>
-                                  </div>
-                                </div>
-
-                                <div className="pt-6 flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <div className="flex -space-x-1">
-                                      {trip.amenities.slice(0, 3).map(a => {
-                                        const cfg = AMENITIES_CONFIG.find(c => c.id === a);
-                                        return (
-                                          <div key={a} className="w-6 h-6 rounded-full bg-gray-50 border border-white flex items-center justify-center">
-                                            {cfg?.icon && <cfg.icon size={10} className="text-gray-400" />}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                    <span className="text-[14px] font-bold text-gray-900">1 <span className="text-[10px] text-gray-400">дорослий</span></span>
-                                  </div>
-                                  <button className="bg-gray-900 text-white text-[9px] font-black uppercase px-6 py-2.5 rounded-xl hover:bg-blue-600 transition-colors shadow-lg">Вибрати</button>
-                                </div>
+                                <button className="p-2.5 bg-slate-900 text-white rounded-xl hover:bg-blue-600 transition-colors">
+                                   <Eye size={14} />
+                                </button>
                               </div>
-                            </div>
+                            </motion.div>
                           );
                         })}
                       </div>
@@ -2384,96 +2396,122 @@ export default function NewTrip() {
               </motion.div>
             )}
 
-            {/* STEP 7: FINAL SAVE (OLD STEP 8) */}
+            {/* STEP 7: FINAL SAVE - Immersive Terminal */}
             {currentStep === 7 && (
               <motion.div 
                 key="step7"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="space-y-6"
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="space-y-10"
               >
-                <div className="immersive-card p-12 text-center bg-gradient-to-br from-[#0a0b10] to-[#1a1b26]">
-                  <div className="w-24 h-24 bg-[#00e5ff] rounded-3xl flex items-center justify-center mx-auto mb-8 rotate-3 shadow-[0_0_50px_rgba(0,229,255,0.3)]">
-                    <Save size={48} className="text-[#0a0b10]" />
-                  </div>
+                <div className="bg-[#0B1221] rounded-[56px] p-16 text-center border-4 border-white/5 relative overflow-hidden shadow-[0_60px_120px_-30px_rgba(0,0,0,0.6)]">
+                  {/* Visual Decor */}
+                  <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-600/10 rounded-full blur-[100px]" />
+                  <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-emerald-500/10 rounded-full blur-[100px]" />
                   
-                  <h2 className="text-3xl font-black text-white uppercase mb-4 tracking-tighter">Готово до збереження</h2>
-                  <p className="text-slate-400 text-sm mb-12 max-w-md mx-auto uppercase tracking-wide leading-relaxed">
-                    Натисніть кнопку нижче, щоб зберегти цей маршрут у вашій системі. 
-                    Наразі це демо-функція, яка в майбутньому дозволить автоматично публікувати рейси на вашому сайті.
+                  <motion.div 
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="w-28 h-28 bg-gradient-to-br from-blue-600 to-blue-400 rounded-[40px] flex items-center justify-center mx-auto mb-10 shadow-[0_25px_60px_-15px_rgba(59,130,246,0.6)] rotate-3"
+                  >
+                    <Save size={56} className="text-white" />
+                  </motion.div>
+                  
+                  <h2 className="text-5xl font-black text-white uppercase mb-6 tracking-tighter leading-none">Готово до збереження</h2>
+                  <p className="text-[#5A6A85] text-base mb-16 max-w-md mx-auto uppercase tracking-widest font-bold leading-relaxed">
+                    Підтвердіть створення маршруту для завершення процесу налаштування
                   </p>
 
-                  <div className="max-w-md mx-auto">
-                    <button 
+                  <div className="max-w-md mx-auto relative z-10">
+                    <motion.button 
+                      whileHover={{ scale: 1.02, y: -5 }}
+                      whileTap={{ scale: 0.98 }}
                       onClick={syncToSupabase}
                       disabled={isSaving}
-                      className={`w-full group relative overflow-hidden bg-[#00e5ff] text-[#0a0b10] py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-[0_20px_50px_rgba(0,229,255,0.3)] hover:shadow-[0_30px_80px_rgba(0,229,255,0.5)] hover:-translate-y-2 transition-all active:scale-95 flex items-center justify-center gap-4 ${isSaving ? 'opacity-70 cursor-wait' : ''}`}
+                      className={`w-full group relative overflow-hidden bg-white text-[#0B1221] py-8 rounded-[36px] font-black text-2xl uppercase tracking-tighter shadow-[0_30px_70px_rgba(255,255,255,0.1)] hover:shadow-[0_40px_100px_rgba(255,255,255,0.2)] transition-all flex items-center justify-center gap-6 ${isSaving ? 'opacity-70 cursor-wait' : ''}`}
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
                       {isSaving ? (
                         <>
-                          <RefreshCcw size={24} className="animate-spin" />
-                          <span>Зберігаємо...</span>
+                          <RefreshCcw size={32} className="animate-spin text-blue-600" />
+                          <span className="animate-pulse">Зберігаємо...</span>
                         </>
                       ) : (
                         <>
-                          <Save size={28} />
-                          <span>Зберегти маршрут</span>
+                          <CheckCircle size={32} className="text-blue-600" />
+                          <span>Завершити та зберегти</span>
                         </>
                       )}
-                    </button>
+                    </motion.button>
                     
-                    <p className="mt-8 text-[10px] text-slate-600 font-bold uppercase tracking-[0.2em]">
-                      Система автоматично підготувала {allSegments.length} квитків для продажу
-                    </p>
+                    <div className="mt-10 flex items-center justify-center gap-4 text-[11px] font-black text-[#5A6A85] uppercase tracking-[0.3em]">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      СИСТЕМА ГОТОВА ДО ІНТЕГРАЦІЇ
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="immersive-card p-6 border-blue-500/10">
-                    <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center mb-4">
-                      <Layout size={20} className="text-blue-400" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pr-2">
+                  {[
+                    { icon: Layout, title: 'Портал перевізника', desc: 'Рейс з\'явиться у пошуку', color: 'text-blue-400' },
+                    { icon: FileText, title: 'Відомість пасажирів', desc: 'Генерація списків', color: 'text-cyan-400' },
+                    { icon: Zap, title: 'BUSNET API', desc: 'Миттєва синхронізація', color: 'text-emerald-400' }
+                  ].map((item, idx) => (
+                    <div key={idx} className="bg-[#0B1221] p-8 rounded-[40px] border border-white/5 hover:border-white/10 transition-all group">
+                      <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <item.icon size={28} className={item.color} />
+                      </div>
+                      <h4 className="text-white font-black text-sm uppercase tracking-tight mb-2">{item.title}</h4>
+                      <p className="text-[10px] text-[#5A6A85] uppercase font-bold tracking-widest">{item.desc}</p>
                     </div>
-                    <h4 className="text-white font-bold text-xs uppercase mb-1">Сайт перевізника</h4>
-                    <p className="text-[10px] text-slate-500 uppercase">Рейс з'явиться у пошуку</p>
-                  </div>
-                  <div className="immersive-card p-6 border-cyan-500/10">
-                    <div className="w-10 h-10 bg-cyan-500/10 rounded-xl flex items-center justify-center mb-4">
-                      <FileText size={20} className="text-cyan-400" />
-                    </div>
-                    <h4 className="text-white font-bold text-xs uppercase mb-1">Відомість</h4>
-                    <p className="text-[10px] text-slate-500 uppercase">Генерація посадкового листа</p>
-                  </div>
-                  <div className="immersive-card p-6 border-purple-500/10">
-                    <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center mb-4">
-                      <Zap size={20} className="text-purple-400" />
-                    </div>
-                    <h4 className="text-white font-bold text-xs uppercase mb-1">API Інтеграція</h4>
-                    <p className="text-[10px] text-slate-500 uppercase">Синхронізація з BUSNET</p>
-                  </div>
+                  ))}
                 </div>
               </motion.div>
             )}
+
           </AnimatePresence>
 
-          {/* Wizard Navigation */}
-          <div className="flex justify-between items-center mt-12 mb-8 bg-[#0B1221] p-2 pr-2 pl-6 rounded-full border border-white/5 w-full max-w-3xl mx-auto shadow-xl">
-            <button 
-              onClick={prevStep}
-              disabled={currentStep === 1}
-              className="flex items-center gap-2 px-4 py-3 rounded-full text-[10px] font-black text-[#5A6A85] hover:text-white disabled:opacity-20 transition-all uppercase tracking-widest"
-            >
-              <ChevronLeft size={14} /> НАЗАД
-            </button>
-            <div className="text-[10px] font-black text-[#00E5FF] uppercase tracking-[0.2em]">
-               ЕТАП {currentStep} З 7
+          {/* Wizard Navigation - Premium Control Deck */}
+          <div className="sticky bottom-6 z-50 mt-12 mb-8 w-full max-w-4xl mx-auto px-4">
+            <div className="bg-[#0B1221]/80 backdrop-blur-2xl p-3 rounded-[32px] border border-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)] flex justify-between items-center relative overflow-hidden group/footer">
+              {/* Progress Glow Line */}
+              <div className="absolute bottom-0 left-0 h-[3px] bg-blue-500 transition-all duration-1000 ease-out" style={{ width: `${(currentStep / 7) * 100}%` }} />
+              
+              <motion.button 
+                whileHover={{ x: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={prevStep}
+                disabled={currentStep === 1}
+                className="flex items-center gap-3 px-6 py-4 rounded-2xl text-[11px] font-black text-[#5A6A85] hover:text-white disabled:opacity-10 transition-all uppercase tracking-[0.2em] group/back"
+              >
+                <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center group-hover/back:bg-white/10 transition-colors">
+                  <ChevronLeft size={18} />
+                </div>
+                <span className="hidden sm:inline">Назад</span>
+              </motion.button>
+
+              <div className="flex flex-col items-center">
+                 <div className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-1">Архiтектор</div>
+                 <div className="flex gap-1.5">
+                    {[1,2,3,4,5,6,7].map(s => (
+                       <div key={s} className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${s === currentStep ? 'bg-blue-500 w-6 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : s < currentStep ? 'bg-emerald-500/50' : 'bg-slate-800'}`} />
+                    ))}
+                 </div>
+              </div>
+
+              <motion.button 
+                whileHover={{ scale: 1.02, x: 2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={nextStep}
+                className={`flex items-center gap-4 px-10 py-4 rounded-[20px] text-[11px] font-black uppercase tracking-[0.2em] transition-all relative overflow-hidden ${currentStep === 7 ? 'bg-emerald-500 text-white shadow-[0_15px_30px_-5px_rgba(16,185,129,0.4)]' : 'bg-blue-600 text-white shadow-[0_15px_30px_-5px_rgba(59,130,246,0.4)] hover:bg-blue-500'}`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/footer:translate-x-full transition-transform duration-1500" />
+                <span>{currentStep === 7 ? 'Завершити' : 'Наступний'}</span>
+                <div className="w-8 h-8 rounded-xl bg-black/10 flex items-center justify-center">
+                  {currentStep === 7 ? <Save size={18} /> : <ChevronRight size={18} />}
+                </div>
+              </motion.button>
             </div>
-            <button 
-              onClick={nextStep}
-              className={`flex items-center gap-2 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${currentStep === 7 ? 'bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'bg-[#00E5FF] text-black shadow-[0_0_15px_rgba(0,229,255,0.4)] hover:scale-105'}`}
-            >
-              {currentStep === 7 ? 'ЗАВЕРШИТИ' : 'ДАЛІ'} <ChevronRight size={14} />
-            </button>
           </div>
         </div>
       </main>

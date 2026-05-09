@@ -34,13 +34,49 @@ const NotificationsTab: React.FC = () => {
     fetchNotifications();
 
     const channel = supabase.channel(`user_notifications_${user.uid}_${Date.now()}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `userId=eq.${user.uid}` }, fetchNotifications)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.uid}` }, fetchNotifications)
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, [user]);
+
+  const handleMarkAllAsRead = async () => {
+    if (!user) return;
+    const toastId = toast.loading('Оновлення...');
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('user_id', user.uid);
+      if (error) throw error;
+      toast.success('Усі сповіщення прочитано', { id: toastId });
+    } catch (e) {
+      toast.error('Помилка оновлення', { id: toastId });
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!user || !confirm('Видалити всі сповіщення?')) return;
+    const toastId = toast.loading('Видалення...');
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('user_id', user.uid);
+      if (error) throw error;
+      toast.success('Сповіщення видалено', { id: toastId });
+    } catch (e) {
+      toast.error('Помилка видалення', { id: toastId });
+    }
+  };
+
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await supabase.from('notifications').update({ read: true }).eq('id', id);
+    } catch (e) {}
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-top-4 duration-500">
@@ -51,10 +87,18 @@ const NotificationsTab: React.FC = () => {
           <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest mt-2">Центр системних та клієнтських повідомлень</p>
         </div>
         <div className="flex gap-3">
-           <button className="p-3 rounded-full bg-white/5 border border-white/5 text-[#8899B5] hover:text-white hover:bg-white/10 transition-all shadow-lg">
+           <button 
+             onClick={handleMarkAllAsRead}
+             className="p-3 rounded-full bg-white/5 border border-white/5 text-[#8899B5] hover:text-white hover:bg-white/10 transition-all shadow-lg"
+             title="Прочитати всі"
+           >
               <MailOpen size={16} />
            </button>
-           <button className="p-3 rounded-full bg-rose-500/5 border border-rose-500/10 text-rose-500 hover:text-white hover:bg-rose-500 transition-all shadow-lg">
+           <button 
+             onClick={handleClearAll}
+             className="p-3 rounded-full bg-rose-500/5 border border-rose-500/10 text-rose-500 hover:text-white hover:bg-rose-500 transition-all shadow-lg"
+             title="Видалити всі"
+           >
               <Trash2 size={16} />
            </button>
         </div>

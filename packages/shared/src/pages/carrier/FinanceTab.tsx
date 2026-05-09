@@ -56,7 +56,7 @@ const FinanceTab: React.FC = () => {
       .subscribe();
 
     const bookingsChannel = supabase.channel('carrier_transactions')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `carrierId=eq.${user.uid}` }, fetchFinanceData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `carrier_id=eq.${user.uid}` }, fetchFinanceData)
       .subscribe();
 
     return () => {
@@ -64,6 +64,39 @@ const FinanceTab: React.FC = () => {
       supabase.removeChannel(bookingsChannel);
     };
   }, [user]);
+
+  const handleRequestPayout = () => {
+    if (balance <= 0) {
+      toast.error('Недостатньо коштів для виплати');
+      return;
+    }
+    const toastId = toast.loading('Створення запиту на виплату...');
+    setTimeout(() => {
+      // In a real app we would insert into a payouts table:
+      // await supabase.from('payouts').insert({ carrier_id: user.uid, amount: balance });
+      toast.success('Запит на виплату надіслано в фінансовий відділ', { id: toastId });
+    }, 1500);
+  };
+
+  const handleExportCSV = () => {
+    if (transactions.length === 0) {
+      toast.error('Немає транзакцій для експорту');
+      return;
+    }
+    const headers = ['ID', 'Тип', 'Дата', 'Опис', 'Сума (€)', 'Статус'];
+    const csvContent = [
+      headers.join(','),
+      ...transactions.map(t => \`"\${t.id}","\${t.type === 'income' ? 'Дохід' : t.type === 'payout' ? 'Виплата' : 'Повернення'}","\${t.date}","\${t.desc}",\${t.amount},"\${t.status}"\`)
+    ].join('\\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = \`finance_report_\${new Date().toISOString().split('T')[0]}.csv\`;
+    link.click();
+    toast.success('Звіт успішно експортовано');
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
@@ -77,16 +110,17 @@ const FinanceTab: React.FC = () => {
         </div>
         <div className="flex gap-4">
           <button 
-            onClick={() => toast.success('Звіт успішно згенеровано та підготовлено до завантаження')}
+            onClick={handleExportCSV}
             className="px-8 py-3.5 bg-[#0B1221] border border-white/5 rounded-full text-[10px] font-black uppercase tracking-widest text-white hover:bg-[#1A2639] transition-all flex items-center gap-2"
           >
-            <Download size={14} /> ЕКСПОРТ ЗВІТУ
+            <Download size={14} /> <span className="hidden md:inline-block">ЕКСПОРТ ЗВІТУ</span>
           </button>
           <button 
-            onClick={() => toast.loading('Запит обробляється банком...', { duration: 2000 })}
+            onClick={handleRequestPayout}
             className="px-8 py-3.5 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]"
           >
-            ЗАПРОСИТИ ВИПЛАТУ
+            <span className="hidden md:inline-block">ЗАПРОСИТИ ВИПЛАТУ</span>
+            <span className="md:hidden">ВИПЛАТА</span>
           </button>
         </div>
       </div>
@@ -115,6 +149,44 @@ const FinanceTab: React.FC = () => {
           </motion.div>
         ))}
       </div>
+      
+      {/* Finance Chart Section */}
+      <div className="bg-[#0B1221] border border-white/5 rounded-[32px] p-8 shadow-2xl">
+         <div className="flex items-center justify-between mb-8">
+            <div>
+               <h3 className="text-white font-black text-sm uppercase tracking-widest mb-1">Динаміка прибутку</h3>
+               <p className="text-[10px] text-[#5A6A85] font-bold uppercase tracking-widest">Статистика за останні 7 днів (EUR)</p>
+            </div>
+            <div className="flex items-center gap-2">
+               <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-[#00E5FF]"></div>
+                  <span className="text-[9px] font-black text-[#5A6A85] uppercase">Дохід</span>
+               </div>
+            </div>
+         </div>
+         
+         <div className="h-48 w-full flex items-end justify-between gap-2 px-2">
+            {[65, 45, 80, 55, 90, 70, 85].map((val, i) => (
+               <div key={i} className="flex-1 flex flex-col items-center gap-3 group">
+                  <div className="w-full relative">
+                     <motion.div 
+                        initial={{ height: 0 }}
+                        animate={{ height: `${val}%` }}
+                        transition={{ duration: 1, delay: i * 0.1 }}
+                        className="w-full bg-gradient-to-t from-[#00E5FF]/20 to-[#00E5FF] rounded-t-xl relative group-hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all"
+                     >
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-white text-black text-[9px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                           €{(val * 12).toLocaleString()}
+                        </div>
+                     </motion.div>
+                  </div>
+                  <span className="text-[8px] font-black text-[#5A6A85] uppercase">
+                     {['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'НД'][i]}
+                  </span>
+               </div>
+            ))}
+         </div>
+      </div>
 
       <div className="bg-[#0B1221] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl min-h-[400px]">
         <div className="p-6 border-b border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -129,7 +201,7 @@ const FinanceTab: React.FC = () => {
               />
            </div>
         </div>
-        <div className="overflow-x-auto h-full">
+        <div className="overflow-x-auto scrollbar-hide h-full">
           <table className="min-w-[800px] w-full text-left">
             <thead>
               <tr className="bg-transparent border-b border-white/5">

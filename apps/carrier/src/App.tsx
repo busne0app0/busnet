@@ -52,7 +52,13 @@ export default function App() {
         <Route path="profile" element={<ProfileTab />} />
         <Route path="docs" element={<DocsTab />} />
         <Route path="settings" element={<SettingsTab />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <h1 className="text-6xl font-black text-[#00E5FF] mb-4">404</h1>
+            <h2 className="text-2xl font-bold text-white uppercase tracking-widest mb-2">Сторінку не знайдено</h2>
+            <p className="text-[#8899B5] text-sm font-medium uppercase tracking-widest">Розділ знаходиться в розробці або був переміщений</p>
+          </div>
+        } />
       </Route>
     </AppShell>
   );

@@ -9,9 +9,11 @@ import {
   BrainCircuit, ChevronRight, Zap 
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 export default function OnboardingWidget() {
   const [activeStep, setActiveStep] = useState(1);
+  const navigate = useNavigate();
 
   const steps = [
     {
@@ -108,7 +110,7 @@ export default function OnboardingWidget() {
            </div>
 
            <button 
-             onClick={() => toast.success('Система готова до роботи. Розпочнемо!')}
+             onClick={() => navigate('/newtrip')}
              className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#ff6b35] hover:text-white transition-all shadow-xl active:scale-95"
            >
               Почати роботу <Zap size={14} />

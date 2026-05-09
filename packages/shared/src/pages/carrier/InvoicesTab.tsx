@@ -111,6 +111,69 @@ const InvoicesTab: React.FC = () => {
     toast.success(`Інвойс ${inv.id} відкрито для друку/збереження`);
   };
 
+  const handleDownloadAll = () => {
+    if (invoices.length === 0) {
+      toast.error('Немає інвойсів для завантаження');
+      return;
+    }
+    toast.success('Генерація загального звіту...');
+    // We open a print window that contains all invoices
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Invoices Archive 2026</title>
+          <style>
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; color: #333; }
+            .invoice { page-break-after: always; margin-bottom: 50px; border-bottom: 2px dashed #ccc; padding-bottom: 50px; }
+            .header { border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 40px; }
+            .header h1 { margin: 0; color: #111; text-transform: uppercase; }
+            .details { display: flex; justify-content: space-between; margin-bottom: 40px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 40px; }
+            th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+          </style>
+        </head>
+        <body>
+          ${invoices.map(inv => \`
+            <div class="invoice">
+              <div class="header">
+                <h1>INVOICE</h1>
+                <p><strong>ID:</strong> \${inv.id}</p>
+                <p><strong>Date:</strong> \${inv.date}</p>
+              </div>
+              <div class="details">
+                <div>
+                  <h3>Bill To:</h3>
+                  <p>Carrier ID: \${user?.uid || 'Unknown'}</p>
+                </div>
+                <div>
+                  <h3>From:</h3>
+                  <p>Busnet Services LLC</p>
+                </div>
+              </div>
+              <table>
+                <thead><tr><th>Description</th><th>Quantity</th><th>Amount</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td>Platform Commission (\${inv.period})</td>
+                    <td>\${inv.items}</td>
+                    <td>€\${inv.amount.toLocaleString()}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <h2 style="margin-top: 20px">Total Due: €\${inv.amount.toLocaleString()}</h2>
+            </div>
+          \`).join('')}
+          <script>window.onload = function() { window.print(); }</script>
+        </body>
+      </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-2">
@@ -130,7 +193,7 @@ const InvoicesTab: React.FC = () => {
             </h3>
             <div className="flex gap-4">
                <button 
-                 onClick={() => toast.success('Архів інвойсів за 2026 рік готується до завантаження...')}
+                 onClick={handleDownloadAll}
                  className="px-6 py-2.5 rounded-[12px] bg-[#1A2639] text-[#8899B5] hover:text-white transition-all text-[9px] font-black uppercase tracking-widest flex items-center gap-2 border border-transparent hover:border-white/10"
                >
                   <Download size={14} /> СКАЧАТИ ВСІ

@@ -64,7 +64,7 @@ const DocsTab: React.FC = () => {
     fetchDocs();
 
     const channel = supabase.channel('carrier_docs')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'carrier_documents', filter: `carrierId=eq.${user.uid}` }, fetchDocs)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'carrier_documents', filter: `carrier_id=eq.${user.uid}` }, fetchDocs)
       .subscribe();
 
     return () => {
@@ -330,7 +330,7 @@ const DocsTab: React.FC = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#0B1221] border border-[#10B981]/20 rounded-[40px] p-10 w-full max-w-md space-y-6 shadow-[0_0_30px_rgba(16,185,129,0.1)] relative"
+              className="bg-[#0B1221] border border-[#10B981]/20 rounded-[40px] p-6 md:p-10 w-full max-w-md max-h-[90vh] overflow-y-auto space-y-6 shadow-[0_0_30px_rgba(16,185,129,0.1)] relative scrollbar-hide"
             >
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-black uppercase tracking-widest text-white">ЗАВАНТАЖИТИ ДОКУМЕНТ</h3>

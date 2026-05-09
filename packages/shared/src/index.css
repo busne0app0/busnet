@@ -53,13 +53,39 @@
     background: #030712;
   }
   
-  /* GLOBALLY HIDE SCROLLBARS FOR MISSION CONTROL LOOK */
+  /* CUSTOM NEON SCROLLBARS */
   * {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 212, 255, 0.2) transparent;
   }
   
   *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.1);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 212, 255, 0.3);
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+  }
+
+  /* Utility for completely hiding scrollbar on specific elements */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
 

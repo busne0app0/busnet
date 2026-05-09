@@ -87,10 +87,14 @@ const AgentsTab: React.FC = () => {
           <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest ml-4">Партнерська мережа та ефективність продажів</p>
         </div>
         <button 
-          onClick={() => toast.success('Запит на партнерство надіслано в BUSNET Admin')}
+          onClick={() => {
+            navigator.clipboard.writeText(`https://busnet.ua/agent-invite/${user?.uid}`);
+            toast.success('Посилання для запрошення партнерів скопійовано!');
+          }}
           className="px-8 py-3.5 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-gray-200 transition-all shadow-[0_0_15px_rgba(168,85,247,0.3)]"
         >
-          ДОДАТИ ПАРТНЕРА
+          <span className="hidden md:inline-block">ДОДАТИ ПАРТНЕРА</span>
+          <Plus size={16} className="md:hidden" />
         </button>
       </div>
 

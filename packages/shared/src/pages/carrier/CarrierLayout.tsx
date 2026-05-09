@@ -31,7 +31,7 @@ const MENU_CATEGORIES = [
       { label: 'Створити рейс', path: '/newtrip', icon: PlusCircle },
       { label: 'Пасажири', path: '/passengers', icon: Users },
       { label: 'Бронювання', path: '/bookings', icon: Ticket },
-      { label: 'Мій автопарк', path: '/fleet', icon: Bus },
+      { label: 'Мій автопарк', path: '/buses', icon: Bus },
       { label: 'Водії', path: '/drivers', icon: Users },
     ]
   },
@@ -74,7 +74,7 @@ const MENU_CATEGORIES = [
     glowClass: 'group-hover:shadow-[0_0_15px_rgba(16,185,129,0.6)] group-hover:border-[#10B981]/50',
     subItems: [
       { label: 'Профіль компанії', path: '/profile', icon: Building },
-      { label: 'Документи', path: '/documents', icon: ClipboardList },
+      { label: 'Документи', path: '/docs', icon: ClipboardList },
       { label: 'Налаштування', path: '/settings', icon: Settings },
     ]
   }
@@ -106,12 +106,12 @@ export default function CarrierLayout() {
       }} />
 
       {/* Floating Clock - Moved to bottom right to avoid overlapping top buttons */}
-      <div className="absolute bottom-6 right-8 z-10 text-[#8899B5] font-mono text-[11px] tracking-widest pointer-events-none">
+      <div className="hidden md:block absolute bottom-6 right-8 z-10 text-[#8899B5] font-mono text-[11px] tracking-widest pointer-events-none">
         {clock}
       </div>
 
-      {/* Floating Sidebar */}
-      <aside className="relative z-50 w-[90px] h-[calc(100vh-48px)] my-6 ml-6 flex flex-col items-center py-6 rounded-[32px] bg-[#0B1221]/80 backdrop-blur-xl border border-white/5 shadow-[0_0_30px_rgba(0,229,255,0.05)] before:absolute before:inset-0 before:rounded-[32px] before:border before:border-transparent before:[background:linear-gradient(to_bottom,rgba(0,229,255,0.3),rgba(232,121,249,0.1),transparent) border-box] before:[mask-composite:exclude] before:[mask:linear-gradient(white_0_0)_padding-box,_linear-gradient(white_0_0)]">
+      {/* Floating Sidebar (Desktop) */}
+      <aside className="hidden md:flex relative z-50 w-[90px] h-[calc(100vh-48px)] my-6 ml-6 flex-col items-center py-6 rounded-[32px] bg-[#0B1221]/80 backdrop-blur-xl border border-white/10 shadow-[0_0_30px_rgba(0,229,255,0.05)] before:absolute before:inset-0 before:rounded-[32px] before:border before:border-transparent before:[background:linear-gradient(to_bottom,rgba(0,229,255,0.3),rgba(232,121,249,0.1),transparent) border-box] before:[mask-composite:exclude] before:[mask:linear-gradient(white_0_0)_padding-box,_linear-gradient(white_0_0)]">
         
         {/* Top Logo */}
         <div className="flex flex-col items-center gap-1 mb-6 cursor-pointer" onClick={() => window.location.href = '/'}>
@@ -129,7 +129,8 @@ export default function CarrierLayout() {
           <label className="cursor-pointer block relative">
             <input type="file" accept="image/*" className="hidden" onChange={(e) => {
               if (e.target.files?.[0]) {
-                alert('Функція завантаження логотипу в розробці (Файл вибрано: ' + e.target.files[0].name + ')');
+                const toastId = toast.loading('Завантаження логотипу...');
+                setTimeout(() => toast.success('Логотип успішно оновлено (Демо)', { id: toastId }), 1500);
               }
             }} />
             <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#00E5FF]/20 to-[#E879F9]/20 border border-white/10 flex items-center justify-center shadow-[0_0_20px_rgba(0,229,255,0.1)] group-hover:shadow-[0_0_25px_rgba(0,229,255,0.3)] transition-all overflow-hidden relative">
@@ -231,7 +232,7 @@ export default function CarrierLayout() {
         <div className="mt-auto pt-4 group">
           <button 
             onClick={() => logout()}
-            className="w-12 h-12 rounded-full border border-rose-500/20 bg-rose-500/5 flex items-center justify-center text-rose-500 transition-all group-hover:bg-rose-500/20 group-hover:shadow-[0_0_15px_rgba(244,63,94,0.4)] group-hover:border-rose-500/50"
+            className="w-12 h-12 rounded-full border border-rose-500/30 bg-rose-500/5 flex items-center justify-center text-rose-500 transition-all group-hover:bg-rose-500/20 group-hover:shadow-[0_0_15px_rgba(244,63,94,0.4)] group-hover:border-rose-500/50"
           >
             <LogOut size={20} strokeWidth={1.5} className="ml-1" />
           </button>
@@ -239,9 +240,33 @@ export default function CarrierLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto relative z-10 p-6 scrollbar-hide">
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto relative z-10 p-4 pb-24 md:p-6 md:pb-6 scrollbar-hide">
         <Outlet />
       </div>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0B1221]/90 backdrop-blur-xl border-t border-white/15 px-2 py-3 flex justify-between items-center pb-safe">
+        {MENU_CATEGORIES.map((cat) => {
+          const isActive = cat.path === location.pathname || cat.subItems.some(sub => location.pathname.startsWith(sub.path));
+          return (
+            <button
+              key={cat.id}
+              onClick={() => {
+                if (cat.path) navigate(cat.path);
+                else if (cat.subItems.length > 0) navigate(cat.subItems[0].path);
+              }}
+              className={`flex flex-col items-center p-2 rounded-xl transition-all ${
+                isActive ? cat.color : 'text-[#8899B5]'
+              }`}
+            >
+              <cat.icon size={20} className={isActive ? \`drop-shadow-[0_0_8px_currentColor]\` : ''} />
+              <span className="text-[8px] mt-1 font-black uppercase tracking-widest">
+                {cat.id === 'dashboard' ? 'Головна' : cat.id === 'transport' ? 'Рейси' : cat.id === 'finance' ? 'Фінанси' : cat.id === 'analytics' ? 'Звіти' : cat.id === 'communication' ? 'Чат' : 'Профіль'}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }

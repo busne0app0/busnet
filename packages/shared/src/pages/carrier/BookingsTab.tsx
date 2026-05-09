@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Ticket, Search, Filter, Calendar, MapPin, User, CheckCircle2, Clock, XCircle, ChevronDown, Loader2, MoreVertical } from 'lucide-react';
+import { Ticket, Search, Filter, Calendar, MapPin, User, CheckCircle2, Clock, XCircle, ChevronDown, Loader2, MoreVertical, X } from 'lucide-react';
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { toast } from 'react-hot-toast';
@@ -24,6 +24,7 @@ const BookingsTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [updating, setUpdating] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchBookings = async () => {
     if (!user) return;
@@ -98,7 +99,13 @@ const BookingsTab: React.FC = () => {
     }
   };
 
-  const filtered = bookings.filter(b => filterStatus === 'all' || b.status === filterStatus);
+  const filtered = bookings.filter(b => {
+    const matchesStatus = filterStatus === 'all' || b.status === filterStatus;
+    const matchesSearch = !searchTerm || 
+      b.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (b.passengerName && b.passengerName.toLowerCase().includes(searchTerm.toLowerCase()));
+    return matchesStatus && matchesSearch;
+  });
 
   return (
     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-700">
@@ -112,34 +119,69 @@ const BookingsTab: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 p-1.5 bg-[#0B1221] rounded-full w-fit border border-white/5 shadow-lg">
-        {['all', 'confirmed', 'pending', 'cancelled'].map((status) => (
-          <button
-            key={status}
-            onClick={() => setFilterStatus(status)}
-            className={`
-              px-6 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all
-              ${filterStatus === status 
-                ? 'bg-[#F97316] text-white shadow-[0_0_15px_rgba(249,115,22,0.3)]' 
-                : 'text-[#5A6A85] hover:text-white hover:bg-[#1A2639]'}
-            `}
-          >
-            {status === 'all' ? 'Всі' : status === 'confirmed' ? 'Підтверджені' : status === 'pending' ? 'Очікують' : 'Скасовані'}
-          </button>
-        ))}
+      <div className="flex flex-col md:flex-row items-center gap-4">
+        <div className="flex flex-wrap items-center gap-2 p-1.5 bg-[#0B1221] rounded-full w-fit border border-white/5 shadow-lg">
+          {['all', 'confirmed', 'pending', 'cancelled'].map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilterStatus(status)}
+              className={`
+                px-6 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all
+                ${filterStatus === status 
+                  ? 'bg-[#F97316] text-white shadow-[0_0_15px_rgba(249,115,22,0.3)]' 
+                  : 'text-[#5A6A85] hover:text-white hover:bg-[#1A2639]'}
+              `}
+            >
+              {status === 'all' ? 'Всі' : status === 'confirmed' ? 'Підтверджені' : status === 'pending' ? 'Очікують' : 'Скасовані'}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative flex-1 w-full md:max-w-md">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5A6A85]" size={14} />
+          <input 
+            type="text"
+            placeholder="Пошук за ID або ім'ям..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-[#0B1221] border border-white/5 rounded-full pl-10 pr-10 py-3 text-[11px] text-white focus:border-[#F97316]/50 outline-none transition-all placeholder-[#5A6A85] font-bold"
+          />
+          {searchTerm && (
+            <button 
+              onClick={() => setSearchTerm('')}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-[#5A6A85] hover:text-white"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-[#0B1221] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl relative min-h-[400px]">
-        <div className="overflow-x-auto h-full">
+        <div className="overflow-x-auto scrollbar-hide h-full">
           {loading ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4">
-              <Loader2 className="text-[#F97316] animate-spin" size={40} />
-              <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest">ЗАВАНТАЖЕННЯ БРОНЮВАНЬ...</p>
+            <div className="p-8 space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center gap-4 animate-pulse">
+                  <div className="w-12 h-12 rounded-lg bg-white/5" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-white/5 rounded w-1/3" />
+                    <div className="h-3 bg-white/5 rounded w-2/3" />
+                  </div>
+                  <div className="w-20 h-6 rounded-full bg-white/5" />
+                </div>
+              ))}
             </div>
           ) : filtered.length === 0 ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4">
               <Ticket className="text-[#1A2639]" size={70} />
               <p className="text-[#5A6A85] text-[11px] font-black uppercase tracking-widest">БРОНЮВАНЬ НЕ ЗНАЙДЕНО</p>
+              <button 
+                onClick={() => navigate('/newtrip')}
+                className="mt-4 px-6 py-2 bg-[#F97316]/10 border border-[#F97316]/20 text-[#F97316] text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-[#F97316] hover:text-white transition-all"
+              >
+                Створити рейс
+              </button>
             </div>
           ) : (
             <table className="min-w-[800px] w-full text-left h-full">
