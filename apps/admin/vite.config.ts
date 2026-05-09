@@ -22,15 +22,15 @@ export default defineConfig({
         theme_color: '#030712',
         background_color: '#030712',
         display: 'standalone',
-        scope: '/admin/',
-        start_url: '/admin/',
+        scope: '/',
+        start_url: '/',
         icons: [
           { src: 'icon.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
         ]
       }
     })
   ],
-  base: '/admin/',
+  base: '/',
   server: { 
     hmr: process.env.DISABLE_HMR !== 'true',
     fs: {

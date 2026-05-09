@@ -22,15 +22,15 @@ export default defineConfig({
         theme_color: '#030712',
         background_color: '#030712',
         display: 'standalone',
-        scope: '/agent/',
-        start_url: '/agent/',
+        scope: '/',
+        start_url: '/',
         icons: [
           { src: 'icon.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
         ]
       }
     })
   ],
-  base: '/agent/',
+  base: '/',
   server: { 
     hmr: process.env.DISABLE_HMR !== 'true',
     fs: {
