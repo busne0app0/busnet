@@ -22,7 +22,7 @@ import { Building2 } from 'lucide-react';
 
 export default function App() {
   return (
-    <AppShell basename="/agent">
+    <AppShell basename="/">
       <Route path="/login" element={
         <PortalLogin
           role="agent"

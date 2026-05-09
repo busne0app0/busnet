@@ -9,7 +9,7 @@ import DriverDashboard from '@busnet/shared/pages/driver/DriverDashboard';
 
 export default function App() {
   return (
-    <AppShell basename="/driver">
+    <AppShell basename="/">
       <Route path="/login" element={
         <PortalLogin
           role="driver"

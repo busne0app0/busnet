@@ -13,7 +13,7 @@ import { Shield } from 'lucide-react';
 
 export default function App() {
   return (
-    <AppShell basename="/admin">
+    <AppShell basename="/">
       <Route path="/login" element={
         <PortalLogin
           role="admin"
