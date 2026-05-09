@@ -117,7 +117,6 @@ const InvoicesTab: React.FC = () => {
       return;
     }
     toast.success('Генерація загального звіту...');
-    // We open a print window that contains all invoices
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -136,17 +135,17 @@ const InvoicesTab: React.FC = () => {
           </style>
         </head>
         <body>
-          ${invoices.map(inv => \`
+          ${invoices.map(inv => `
             <div class="invoice">
               <div class="header">
                 <h1>INVOICE</h1>
-                <p><strong>ID:</strong> \${inv.id}</p>
-                <p><strong>Date:</strong> \${inv.date}</p>
+                <p><strong>ID:</strong> ${inv.id}</p>
+                <p><strong>Date:</strong> ${inv.date}</p>
               </div>
               <div class="details">
                 <div>
                   <h3>Bill To:</h3>
-                  <p>Carrier ID: \${user?.uid || 'Unknown'}</p>
+                  <p>Carrier ID: ${user?.uid || 'Unknown'}</p>
                 </div>
                 <div>
                   <h3>From:</h3>
@@ -157,15 +156,15 @@ const InvoicesTab: React.FC = () => {
                 <thead><tr><th>Description</th><th>Quantity</th><th>Amount</th></tr></thead>
                 <tbody>
                   <tr>
-                    <td>Platform Commission (\${inv.period})</td>
-                    <td>\${inv.items}</td>
-                    <td>€\${inv.amount.toLocaleString()}</td>
+                    <td>Platform Commission (${inv.period})</td>
+                    <td>${inv.items}</td>
+                    <td>€${inv.amount.toLocaleString()}</td>
                   </tr>
                 </tbody>
               </table>
-              <h2 style="margin-top: 20px">Total Due: €\${inv.amount.toLocaleString()}</h2>
+              <h2 style="margin-top: 20px">Total Due: €${inv.amount.toLocaleString()}</h2>
             </div>
-          \`).join('')}
+          `).join('')}
           <script>window.onload = function() { window.print(); }</script>
         </body>
       </html>

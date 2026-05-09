@@ -11,6 +11,7 @@ import {
   Bus, LogOut, MessageSquare, Bell, Building, ClipboardList, Settings
 } from 'lucide-react';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
+import { toast } from 'react-hot-toast';
 
 const MENU_CATEGORIES = [
   {
@@ -259,7 +260,7 @@ export default function CarrierLayout() {
                 isActive ? cat.color : 'text-[#8899B5]'
               }`}
             >
-              <cat.icon size={20} className={isActive ? \`drop-shadow-[0_0_8px_currentColor]\` : ''} />
+              <cat.icon size={20} className={isActive ? `drop-shadow-[0_0_8px_currentColor]` : ''} />
               <span className="text-[8px] mt-1 font-black uppercase tracking-widest">
                 {cat.id === 'dashboard' ? 'Головна' : cat.id === 'transport' ? 'Рейси' : cat.id === 'finance' ? 'Фінанси' : cat.id === 'analytics' ? 'Звіти' : cat.id === 'communication' ? 'Чат' : 'Профіль'}
               </span>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Users, Search, Mail, Phone, MapPin, Star, Filter, ArrowUpRight, Loader2, MessageSquare, Ban, ChevronDown, X, Copy } from 'lucide-react';
 import { supabase } from '@busnet/shared/supabase/config';
@@ -18,6 +19,7 @@ interface Passenger {
 
 const CRMTab: React.FC = () => {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -232,7 +234,6 @@ const CRMTab: React.FC = () => {
                     </td>
                     <td className="py-5 px-6">
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-xs text-[#8899B5]">
                         <div className="flex items-center gap-2 text-xs text-[#8899B5] group/item">
                           <Mail size={12} className="opacity-50" /> {p.email}
                           <button onClick={() => handleCopy(p.email, 'Email')} className="opacity-0 group-hover/item:opacity-100 hover:text-[#00E5FF] transition-all">

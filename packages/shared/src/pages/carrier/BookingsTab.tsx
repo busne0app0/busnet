@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Ticket, Search, Filter, Calendar, MapPin, User, CheckCircle2, Clock, XCircle, ChevronDown, Loader2, MoreVertical, X } from 'lucide-react';
 import { supabase } from '@busnet/shared/supabase/config';
@@ -20,6 +21,7 @@ interface Booking {
 
 const BookingsTab: React.FC = () => {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');

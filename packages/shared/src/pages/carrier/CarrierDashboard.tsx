@@ -37,7 +37,7 @@ export default function CarrierDashboard() {
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
-    const currency = user?.currency || '€';
+    const currency = (user as any)?.currency || '€';
     return (
       <div className="bg-[#050B14] border border-[#00E5FF]/20 rounded-lg p-2 text-[10px]">
         <p className="text-[#8899B5] font-bold mb-1">{label}</p>
@@ -303,7 +303,7 @@ export default function CarrierDashboard() {
               <TrendingUp size={10} /> +18%
             </span>
           </div>
-          <div className="text-2xl md:text-4xl font-black text-white group-hover:text-[#00E5FF] transition-colors">{user?.currency || '€'}{liveStats.revenueTotal.toLocaleString()}</div>
+          <div className="text-2xl md:text-4xl font-black text-white group-hover:text-[#00E5FF] transition-colors">{(user as any)?.currency || '€'}{liveStats.revenueTotal.toLocaleString()}</div>
           <div className="h-12 w-full mt-2">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={liveStats.chart.slice(-7)}>
@@ -316,7 +316,7 @@ export default function CarrierDashboard() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </motion.div>
 
         {/* Card 2: Active Trips */}
         <motion.div 
@@ -336,7 +336,7 @@ export default function CarrierDashboard() {
             </div>
           </div>
           <div className="text-[10px] text-[#8899B5] mt-1 font-medium">{liveStats.activeTripsLive.length} в дорозі, завантажуються</div>
-        </div>
+        </motion.div>
 
         {/* Card 3: Passengers */}
         <motion.div 
@@ -360,7 +360,7 @@ export default function CarrierDashboard() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </motion.div>
 
         {/* Card 4: Rating */}
         <motion.div 
@@ -387,7 +387,7 @@ export default function CarrierDashboard() {
             <Info size={12} className="shrink-0" />
             <span className="leading-tight">AI-рекомендація: Збільшити кількість рейсів на вихідні.</span>
           </div>
-        </div>
+        </motion.div>
 
       </div>
 

@@ -5,10 +5,6 @@ import { toast } from 'react-hot-toast';
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 
-import { supabase } from '@busnet/shared/supabase/config';
-import { useAuthStore } from '@busnet/shared/store/useAuthStore';
-import { toast } from 'react-hot-toast';
-
 const ReviewsTab: React.FC = () => {
   const { user } = useAuthStore();
   const [reviews, setReviews] = useState<any[]>([]);

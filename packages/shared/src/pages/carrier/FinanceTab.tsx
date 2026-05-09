@@ -86,14 +86,14 @@ const FinanceTab: React.FC = () => {
     const headers = ['ID', 'Тип', 'Дата', 'Опис', 'Сума (€)', 'Статус'];
     const csvContent = [
       headers.join(','),
-      ...transactions.map(t => \`"\${t.id}","\${t.type === 'income' ? 'Дохід' : t.type === 'payout' ? 'Виплата' : 'Повернення'}","\${t.date}","\${t.desc}",\${t.amount},"\${t.status}"\`)
-    ].join('\\n');
+      ...transactions.map(t => `"${t.id}","${t.type === 'income' ? 'Дохід' : t.type === 'payout' ? 'Виплата' : 'Повернення'}","${t.date}","${t.desc}",${t.amount},"${t.status}"`)
+    ].join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = \`finance_report_\${new Date().toISOString().split('T')[0]}.csv\`;
+    link.download = `finance_report_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     toast.success('Звіт успішно експортовано');
   };

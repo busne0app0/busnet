@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Handshake, Search, Filter, TrendingUp, Users, Target, ArrowUpRight, ShieldCheck } from 'lucide-react';
+import { Handshake, Search, Filter, TrendingUp, Users, Target, ArrowUpRight, ShieldCheck, Plus } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
