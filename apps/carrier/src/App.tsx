@@ -1,6 +1,7 @@
 import { Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from '@busnet/shared/components/common/ProtectedRoute';
 import { AppShell } from '@busnet/shared/components/common/AppShell';
+import { SpeedInsights } from '@vercel/speed-insights/react';
  
 import CarrierLayout from '@busnet/shared/pages/carrier/CarrierLayout';
 import CarrierDashboard from '@busnet/shared/pages/carrier/CarrierDashboard';
@@ -28,10 +29,12 @@ import { Briefcase } from 'lucide-react';
  
 export default function App() {
   return (
-    <AppShell basename="/">
-      <Route path="/login" element={
-         <PortalLogin role="carrier" title="BUSNET CRM" subtitle="Екосистема розвитку вашого автопарку" colorClass="bg-orange-500/20 text-orange-400 border-orange-500/30" icon={Briefcase} dashboardRoute="/carrier/" />
-      } />
+    <>
+      <SpeedInsights />
+      <AppShell basename="/">
+        <Route path="/login" element={
+           <PortalLogin role="carrier" title="BUSNET CRM" subtitle="Екосистема розвитку вашого автопарку" colorClass="bg-orange-500/20 text-orange-400 border-orange-500/30" icon={Briefcase} dashboardRoute="/carrier/" />
+        } />
       <Route path="/" element={<ProtectedRoute role="carrier" loginUrl="/login"><CarrierLayout /></ProtectedRoute>}>
         <Route index element={<CarrierDashboard />} />
         <Route path="livetrips" element={<LiveTrips />} />
@@ -60,6 +63,7 @@ export default function App() {
           </div>
         } />
       </Route>
-    </AppShell>
+      </AppShell>
+    </>
   );
 }
