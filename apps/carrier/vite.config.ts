@@ -14,7 +14,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       workbox: {
-        maximumFileSizeToCacheInBytes: 3000000 
+        maximumFileSizeToCacheInBytes: 3000000,
+        skipWaiting: true,
+        clientsClaim: true
       },
       manifest: {
         name: 'BUSNET CRM',
