@@ -274,7 +274,7 @@ export default function CarrierDashboard() {
           </div>
         </div>
         <div className="h-24 md:h-16 w-full md:w-[300px] z-10 opacity-70">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <AreaChart data={aiChartData}>
               <defs>
                 <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
@@ -305,7 +305,7 @@ export default function CarrierDashboard() {
           </div>
           <div className="text-2xl md:text-4xl font-black text-white group-hover:text-[#00E5FF] transition-colors">{(user as any)?.currency || '€'}{liveStats.revenueTotal.toLocaleString()}</div>
           <div className="h-12 w-full mt-2">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <BarChart data={liveStats.chart.slice(-7)}>
                 <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(0,229,255,0.05)'}} />
                 <Bar dataKey="rev" fill="#00E5FF" radius={[2,2,0,0]}>
@@ -352,7 +352,7 @@ export default function CarrierDashboard() {
             <span className="text-[#8899B5] text-[9px] font-bold bg-[#1A2639]/50 px-2 py-0.5 rounded">Усього за травень: 1,450</span>
           </div>
           <div className="h-12 w-full mt-auto">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <BarChart data={[
                 {v: 20},{v: 40},{v: 30},{v: 80},{v: 100},{v: 60},{v: 40},{v: 20},{v: 10},{v: 5}
               ]}>

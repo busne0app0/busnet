@@ -31,3 +31,5 @@ BUSNET_AUDIT_REPORT.html
 busnet_mobile_audit*.html
 
 .vercel
+
+.env*.local
