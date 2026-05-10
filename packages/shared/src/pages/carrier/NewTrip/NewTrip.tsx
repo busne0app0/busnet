@@ -132,6 +132,11 @@ const PRESET_RULES = [
   "Посадкові місця в автобусі вказуються лише представником компанії при посадці."
 ];
 
+const DAY_NAME_TO_CODE: Record<string, string> = {
+  'понеділок': 'ПН', 'вівторок': 'ВТ', 'середа': 'СР', 'четвер': 'ЧТ', 'п\'ятниця': 'ПТ', 'субота': 'СБ', 'неділя': 'НД',
+  'пн': 'ПН', 'вт': 'ВТ', 'ср': 'СР', 'чт': 'ЧТ', 'пт': 'ПТ', 'сб': 'СБ', 'нд': 'НД'
+};
+
 export default function NewTrip() {
   const { user, activeRole } = useAuthStore();
   const navigate = useNavigate();
@@ -258,6 +263,77 @@ export default function NewTrip() {
   const [isSaving, setIsSaving] = useState(false);
   const [editingRouteId] = useState<string | null>(() => localStorage.getItem('busnet_editing_route_id'));
 
+  const handleSmartParse = () => {
+    if (!smartInputStep1) return;
+    const lines = smartInputStep1.split('\n').map(l => l.trim()).filter(l => l);
+    
+    // Pattern: [Time Day] [City] [Address] [ReturnTime Day]
+    if (lines.length >= 4) {
+      const newOutStops: Stop[] = [];
+      const newInStops: Stop[] = [];
+      const tripDays: Set<string> = new Set();
+      const returnDays: Set<string> = new Set();
+
+      for (let i = 0; i < lines.length; i += 4) {
+        const line1 = lines[i];
+        const line2 = lines[i + 1];
+        const line3 = lines[i + 2];
+        const line4 = lines[i + 3];
+
+        if (!line1 || !line2) continue;
+
+        const outMatch = line1.match(/(\d{2}:\d{2})\s+([\w']+)/i);
+        const city = line2;
+        const address = line3?.replace(/[()]/g, '') || '';
+        const inMatch = line4?.match(/(\d{2}:\d{2})\s+([\w']+)/i);
+
+        if (outMatch) {
+          const dayCode = DAY_NAME_TO_CODE[outMatch[2].toLowerCase()];
+          if (dayCode) tripDays.add(dayCode);
+          newOutStops.push({
+            id: generateId(),
+            city,
+            address,
+            time: outMatch[1],
+            price: 0,
+            dayOffset: 0,
+            cityStatus: 'pending'
+          });
+        }
+
+        if (inMatch) {
+          const dayCode = DAY_NAME_TO_CODE[inMatch[2].toLowerCase()];
+          if (dayCode) returnDays.add(dayCode);
+          newInStops.push({
+            id: generateId(),
+            city,
+            address,
+            time: inMatch[1],
+            price: 0,
+            dayOffset: 0,
+            cityStatus: 'pending'
+          });
+        }
+      }
+
+      if (newOutStops.length > 0) {
+        const finalInStops = [...newInStops].reverse();
+        setTrip(prev => ({
+          ...prev,
+          outbound: { ...prev.outbound, stops: newOutStops, days: Array.from(tripDays) },
+          inbound: { ...prev.inbound, stops: finalInStops, days: Array.from(returnDays) },
+          routeName: `${newOutStops[0].city} — ${newOutStops[newOutStops.length - 1].city}`
+        }));
+        toast.success(`Розпізнано ${newOutStops.length} зупинок`);
+        setSmartInputStep1('');
+        return;
+      }
+    }
+
+    setTrip(prev => ({ ...prev, routeName: smartInputStep1.trim() }));
+    setSmartInputStep1('');
+  };
+
   const prevTimesRef = useRef({ out: '', in: '' });
   useEffect(() => {
     const outTimes = trip.outbound.stops.map(s => s.time).join(',');
@@ -368,11 +444,26 @@ export default function NewTrip() {
     setTrip(prev => ({ ...prev, customDiscounts: prev.customDiscounts.filter(d => d.id !== id) }));
   };
 
-  const addStop = (type: 'outbound' | 'inbound') => {
+  const addStop = (type: 'outbound' | 'inbound', index?: number) => {
     setTrip(prev => {
-      const last = prev[type].stops[prev[type].stops.length - 1];
-      const newStop: Stop = { id: generateId(), city: '', address: '', time: '12:00', dayOffset: last?.dayOffset ?? 0, price: last?.price ?? 0, priceManuallySet: false, cityStatus: 'pending' };
-      return { ...prev, [type]: { ...prev[type], stops: [...prev[type].stops, newStop] } };
+      const stops = [...prev[type].stops];
+      const last = stops[stops.length - 1];
+      const newStop: Stop = { 
+        id: generateId(), 
+        city: '', 
+        address: '', 
+        time: '12:00', 
+        dayOffset: last?.dayOffset ?? 0, 
+        price: 0, 
+        priceManuallySet: false, 
+        cityStatus: 'pending' 
+      };
+      if (typeof index === 'number') {
+        stops.splice(index + 1, 0, newStop);
+      } else {
+        stops.push(newStop);
+      }
+      return { ...prev, [type]: { ...prev[type], stops } };
     });
   };
 
@@ -405,12 +496,6 @@ export default function NewTrip() {
     }
     return segments;
   }, [trip.outbound.stops, priceMemory]);
-
-  const handleSmartParseStep1 = () => {
-    if (!smartInputStep1) return;
-    setTrip(prev => ({ ...prev, routeName: smartInputStep1.trim() }));
-    setSmartInputStep1('');
-  };
 
   const nextStep = () => {
     if (currentStep === 7) { syncToSupabase(); return; }
@@ -500,16 +585,17 @@ export default function NewTrip() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                   <div className="lg:col-span-4 bg-[#0B1221] rounded-2xl p-5 border border-white/10 shadow-lg flex flex-col h-[320px]">
-                    <h3 className="text-[10px] font-black text-[#00E5FF] uppercase tracking-widest mb-3 flex items-center gap-2">
-                      <Zap size={14} /> Smart Parser
+                    <h3 className="text-[10px] font-black text-[#00E5FF] uppercase tracking-widest mb-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2"><Zap size={14} /> Smart Parser</div>
+                      <HelpCircle size={12} className="text-[#5A6A85] cursor-help" />
                     </h3>
                     <textarea 
                       value={smartInputStep1} onChange={(e) => setSmartInputStep1(e.target.value)}
-                      className="w-full flex-1 bg-[#050B14] border border-white/10 focus:border-[#00E5FF]/50 focus:shadow-[0_0_10px_rgba(0,229,255,0.1)] rounded-xl p-4 text-white text-xs outline-none resize-none transition-all placeholder:text-[#5A6A85]"
-                      placeholder="Наприклад: Одеса-Краків..."
+                      className="w-full flex-1 bg-[#050B14] border border-white/10 focus:border-[#00E5FF]/50 focus:shadow-[0_0_10px_rgba(0,229,255,0.1)] rounded-xl p-4 text-white text-[11px] font-medium outline-none resize-none transition-all placeholder:text-[#5A6A85] leading-relaxed"
+                      placeholder="Вставте розклад тут..."
                     />
-                    <button onClick={handleSmartParseStep1} className="w-full mt-4 bg-[#00E5FF] text-[#050B14] hover:bg-[#00E5FF]/90 hover:shadow-[0_0_15px_rgba(0,229,255,0.4)] py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
-                      Аналізувати текст
+                    <button onClick={handleSmartParse} className="w-full mt-4 bg-[#00E5FF] text-[#050B14] hover:bg-[#00E5FF]/90 hover:shadow-[0_0_15px_rgba(0,229,255,0.4)] py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                      Обробити розклад
                     </button>
                   </div>
 
@@ -643,15 +729,33 @@ export default function NewTrip() {
                     </div>
                     <div className="space-y-3">
                       {trip.outbound.stops.map((stop, idx) => (
-                        <div key={stop.id} className="group relative flex gap-3 items-center bg-[#0B1221] p-3 rounded-xl border border-white/5 hover:border-[#00E5FF]/30 transition-all">
-                          <div className="w-5 flex justify-center text-[10px] font-black text-[#5A6A85]">{idx + 1}</div>
-                          <input value={stop.city} onChange={(e) => updateStop('outbound', stop.id, { city: e.target.value })} className="flex-1 bg-[#050B14] border border-white/5 focus:border-[#00E5FF]/50 rounded-lg px-3 py-2 text-sm font-bold text-white outline-none placeholder:text-[#5A6A85]" placeholder="Місто" />
-                          <input type="time" value={stop.time} onChange={(e) => updateStop('outbound', stop.id, { time: e.target.value })} className="bg-[#050B14] border border-white/5 focus:border-[#00E5FF]/50 rounded-lg px-2 py-2 text-[11px] font-bold text-[#00E5FF] outline-none w-[75px]" />
-                          <button onClick={() => removeStop('outbound', stop.id)} className="text-[#5A6A85] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all px-1"><XCircle size={16}/></button>
-                        </div>
+                        <React.Fragment key={stop.id}>
+                          <div className="group relative flex gap-3 items-center bg-[#0B1221] p-3 rounded-xl border border-white/5 hover:border-[#00E5FF]/30 transition-all">
+                            <div className="w-5 flex justify-center text-[10px] font-black text-[#5A6A85]">{idx + 1}</div>
+                            <div className="flex-1 space-y-2">
+                              <input value={stop.city} onChange={(e) => updateStop('outbound', stop.id, { city: e.target.value })} className="w-full bg-[#050B14] border border-white/5 focus:border-[#00E5FF]/50 rounded-lg px-3 py-2 text-sm font-bold text-white outline-none placeholder:text-[#5A6A85]" placeholder="Місто" />
+                              <input value={stop.address} onChange={(e) => updateStop('outbound', stop.id, { address: e.target.value })} className="w-full bg-transparent border-none px-3 text-[10px] font-medium text-[#5A6A85] outline-none placeholder:text-white/10" placeholder="Адреса зупинки..." />
+                            </div>
+                            <div className="flex flex-col gap-1 items-end">
+                              <input type="time" value={stop.time} onChange={(e) => updateStop('outbound', stop.id, { time: e.target.value })} className="bg-[#050B14] border border-white/5 focus:border-[#00E5FF]/50 rounded-lg px-2 py-2 text-[11px] font-black text-[#00E5FF] outline-none w-[75px]" />
+                              <div className="flex items-center gap-1 bg-[#050B14] rounded-lg px-2 py-1 border border-white/5">
+                                <span className="text-[8px] font-bold text-[#5A6A85] uppercase">День</span>
+                                <input type="number" min="0" value={stop.dayOffset} onChange={(e) => updateStop('outbound', stop.id, { dayOffset: parseInt(e.target.value) || 0 })} className="bg-transparent border-none text-[10px] font-bold text-white w-4 outline-none text-center" />
+                              </div>
+                            </div>
+                            <button onClick={() => removeStop('outbound', stop.id)} className="text-[#5A6A85] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all px-1"><Trash2 size={14}/></button>
+                          </div>
+                          {idx < trip.outbound.stops.length - 1 && (
+                            <div className="flex justify-center -my-1">
+                              <button onClick={() => addStop('outbound', idx)} className="w-6 h-6 rounded-full bg-[#00E5FF]/10 border border-[#00E5FF]/30 text-[#00E5FF] flex items-center justify-center hover:bg-[#00E5FF] hover:text-[#050B14] transition-all scale-75 hover:scale-100 z-10">
+                                <Plus size={14} />
+                              </button>
+                            </div>
+                          )}
+                        </React.Fragment>
                       ))}
                       <button onClick={() => addStop('outbound')} className="w-full py-3 bg-[#0B1221] border border-dashed border-white/10 hover:border-[#00E5FF]/50 hover:bg-[#00E5FF]/5 rounded-xl text-[10px] font-bold text-[#5A6A85] hover:text-[#00E5FF] uppercase tracking-widest transition-all">
-                        + Додати
+                        + Додати в кінець
                       </button>
                     </div>
                   </div>
@@ -662,15 +766,33 @@ export default function NewTrip() {
                     </div>
                     <div className="space-y-3">
                       {trip.inbound.stops.map((stop, idx) => (
-                        <div key={stop.id} className="group relative flex gap-3 items-center bg-[#0B1221] p-3 rounded-xl border border-white/5 hover:border-[#D946EF]/30 transition-all">
-                          <div className="w-5 flex justify-center text-[10px] font-black text-[#5A6A85]">{idx + 1}</div>
-                          <input value={stop.city} onChange={(e) => updateStop('inbound', stop.id, { city: e.target.value })} className="flex-1 bg-[#050B14] border border-white/5 focus:border-[#D946EF]/50 rounded-lg px-3 py-2 text-sm font-bold text-white outline-none placeholder:text-[#5A6A85]" placeholder="Місто" />
-                          <input type="time" value={stop.time} onChange={(e) => updateStop('inbound', stop.id, { time: e.target.value })} className="bg-[#050B14] border border-white/5 focus:border-[#D946EF]/50 rounded-lg px-2 py-2 text-[11px] font-bold text-[#D946EF] outline-none w-[75px]" />
-                          <button onClick={() => removeStop('inbound', stop.id)} className="text-[#5A6A85] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all px-1"><XCircle size={16}/></button>
-                        </div>
+                        <React.Fragment key={stop.id}>
+                          <div className="group relative flex gap-3 items-center bg-[#0B1221] p-3 rounded-xl border border-white/5 hover:border-[#D946EF]/30 transition-all">
+                            <div className="w-5 flex justify-center text-[10px] font-black text-[#5A6A85]">{idx + 1}</div>
+                            <div className="flex-1 space-y-2">
+                              <input value={stop.city} onChange={(e) => updateStop('inbound', stop.id, { city: e.target.value })} className="w-full bg-[#050B14] border border-white/5 focus:border-[#D946EF]/50 rounded-lg px-3 py-2 text-sm font-bold text-white outline-none placeholder:text-[#5A6A85]" placeholder="Місто" />
+                              <input value={stop.address} onChange={(e) => updateStop('inbound', stop.id, { address: e.target.value })} className="w-full bg-transparent border-none px-3 text-[10px] font-medium text-[#5A6A85] outline-none placeholder:text-white/10" placeholder="Адреса зупинки..." />
+                            </div>
+                            <div className="flex flex-col gap-1 items-end">
+                              <input type="time" value={stop.time} onChange={(e) => updateStop('inbound', stop.id, { time: e.target.value })} className="bg-[#050B14] border border-white/5 focus:border-[#D946EF]/50 rounded-lg px-2 py-2 text-[11px] font-black text-[#D946EF] outline-none w-[75px]" />
+                              <div className="flex items-center gap-1 bg-[#050B14] rounded-lg px-2 py-1 border border-white/5">
+                                <span className="text-[8px] font-bold text-[#5A6A85] uppercase">День</span>
+                                <input type="number" min="0" value={stop.dayOffset} onChange={(e) => updateStop('inbound', stop.id, { dayOffset: parseInt(e.target.value) || 0 })} className="bg-transparent border-none text-[10px] font-bold text-white w-4 outline-none text-center" />
+                              </div>
+                            </div>
+                            <button onClick={() => removeStop('inbound', stop.id)} className="text-[#5A6A85] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all px-1"><Trash2 size={14}/></button>
+                          </div>
+                          {idx < trip.inbound.stops.length - 1 && (
+                            <div className="flex justify-center -my-1">
+                              <button onClick={() => addStop('inbound', idx)} className="w-6 h-6 rounded-full bg-[#D946EF]/10 border border-[#D946EF]/30 text-[#D946EF] flex items-center justify-center hover:bg-[#D946EF] hover:text-white transition-all scale-75 hover:scale-100 z-10">
+                                <Plus size={14} />
+                              </button>
+                            </div>
+                          )}
+                        </React.Fragment>
                       ))}
                       <button onClick={() => addStop('inbound')} className="w-full py-3 bg-[#0B1221] border border-dashed border-white/10 hover:border-[#D946EF]/50 hover:bg-[#D946EF]/5 rounded-xl text-[10px] font-bold text-[#5A6A85] hover:text-[#D946EF] uppercase tracking-widest transition-all">
-                        + Додати
+                        + Додати в кінець
                       </button>
                     </div>
                   </div>
