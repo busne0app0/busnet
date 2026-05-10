@@ -1,0 +1,10 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/admin/:path*", "destination": "/admin/index.html" },
+    { "source": "/carrier/:path*", "destination": "/carrier/index.html" },
+    { "source": "/agent/:path*", "destination": "/agent/index.html" },
+    { "source": "/driver/:path*", "destination": "/driver/index.html" },
+    { "source": "/((?!admin|carrier|agent|driver|api|assets|.*\\..*).*)", "destination": "/index.html" }
+  ]
+}
