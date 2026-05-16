@@ -1,211 +1,252 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  MessageSquare, Search, Filter, Clock, 
-  CheckCircle2, AlertCircle, Phone, 
-  Send, User, MoreVertical, MessageCircle
-} from 'lucide-react';
+import { MessageSquare, Search, Filter, CheckCircle2, Clock, Phone, RefreshCw, User, Bot, ShieldAlert, UserCircle, Send, Loader2, X } from 'lucide-react';
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAdminStore } from '@busnet/shared/store/useAdminStore';
+import toast from 'react-hot-toast';
 
-const SupportTab: React.FC = () => {
+interface Ticket {
+  id: string;
+  user_id: string;
+  assigned_to: 'ai' | 'carrier' | 'admin';
+  status: 'open' | 'resolved' | 'escalated';
+  last_updated: string;
+  created_at: string;
+}
+
+interface Message {
+  id: string;
+  role: 'user' | 'ai' | 'carrier' | 'admin' | 'system';
+  text: string;
+  sender_name: string | null;
+  created_at: string;
+  ticket_id: string;
+}
+
+export default function SupportTab() {
   const { addLog } = useAdminStore();
-  const [realTickets, setRealTickets] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tickets, setTickets]   = useState<Ticket[]>([]);
+  const [selected, setSelected] = useState<Ticket | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [reply, setReply]       = useState('');
+  const [sending, setSending]   = useState(false);
+  const [search, setSearch]     = useState('');
+  const [filter, setFilter]     = useState<'all' | 'open' | 'escalated' | 'resolved'>('all');
 
   useEffect(() => {
-    const fetchTickets = async () => {
-      const { data, error } = await supabase
+    const load = async () => {
+      const { data } = await supabase
         .from('support_tickets')
         .select('*')
-        .order('lastUpdated', { ascending: false });
-      
-      if (!error && data) {
-        const results = data.map(d => ({
-          id: d.id,
-          user: d.userEmail || 'Анонім',
-          subject: d.messages?.[d.messages.length - 1]?.text || 'Без теми',
-          priority: d.priority || 'medium',
-          status: d.status || 'open',
-          time: d.lastUpdated ? new Date(d.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Зараз',
-          ...d
-        }));
-        setRealTickets(results);
-      }
-      setLoading(false);
+        .order('last_updated', { ascending: false });
+      setTickets(data || []);
     };
+    load();
 
-    fetchTickets();
-
-    const channel = supabase.channel(`support_tickets_${Math.random().toString(36).slice(2)}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, fetchTickets)
+    const ch = supabase.channel('admin_support_tickets')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, load)
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
-  const handleResolveTicket = async (id: string) => {
-    try {
-      if (id.startsWith('TKT-')) {
-         alert('Cannot resolve simulated demo ticket. Create a real ticket to test.');
-         return;
-      }
-      
-      const { error } = await supabase.from('support_tickets').update({ status: 'closed' }).eq('id', id);
-      if (error) throw error;
-      
-      addLog({
-        id: Date.now().toString(),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        actor: 'Admin',
-        role: 'owner',
-        action: 'SUPPORT',
-        obj: `Тікет ${id} вирішено`,
-        icon: '✅'
-      });
-    } catch (err) {
-      console.error("Error resolving ticket:", err);
-    }
+  useEffect(() => {
+    if (!selected) return;
+    const load = async () => {
+      const { data } = await supabase
+        .from('ticket_messages')
+        .select('*')
+        .eq('ticket_id', selected.id)
+        .order('created_at', { ascending: true });
+      setMessages(data || []);
+    };
+    load();
+
+    const ch = supabase.channel(`admin_msgs_${selected.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_messages', filter: `ticket_id=eq.${selected.id}` }, (p) => {
+        const m = p.new as Message;
+        setMessages(prev => prev.find(x => x.id === m.id) ? prev : [...prev, m]);
+      }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [selected]);
+
+  const handleReply = async () => {
+    if (!reply.trim() || !selected || sending) return;
+    setSending(true);
+    await supabase.from('ticket_messages').insert({
+      ticket_id: selected.id, role: 'admin', text: reply.trim(), sender_name: 'Адміністратор BUSNET',
+    });
+    await supabase.from('support_tickets').update({
+      assigned_to: 'admin', last_updated: new Date().toISOString(),
+    }).eq('id', selected.id);
+    setReply('');
+    setSending(false);
+    addLog({ id: Date.now().toString(), time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), actor: 'Admin', role: 'owner', action: 'REPLY', obj: `Відповідь на тікет ${selected.id.slice(0,8)}`, icon: '💬' });
   };
 
-  const [filterType, setFilterType] = useState('all');
-  const [search, setSearch] = useState('');
+  const handleResolve = async (t: Ticket) => {
+    await supabase.from('ticket_messages').insert({ ticket_id: t.id, role: 'system', text: 'Тікет вирішено адміністратором. Дякуємо за звернення!', sender_name: null });
+    await supabase.from('support_tickets').update({ status: 'resolved', last_updated: new Date().toISOString() }).eq('id', t.id);
+    toast.success('Тікет закрито');
+    setSelected(null);
+  };
 
-  const baseTickets = (realTickets.length > 0 ? realTickets : [
-    { id: 'TKT-1045', user: 'Ігор Шевчук', subject: 'Помилка при оплаті Apple Pay', priority: 'high', status: 'open', time: '12 хв тому' },
-    { id: 'TKT-1044', user: 'Марія К.', subject: 'Запит на повернення квитка BN-1202', priority: 'medium', status: 'open', time: '45 хв тому' },
-  ]);
-
-  const tickets = baseTickets.filter(t => 
-    (t.subject.toLowerCase().includes(search.toLowerCase()) || 
-    t.user.toLowerCase().includes(search.toLowerCase()) || 
-    t.id.toLowerCase().includes(search.toLowerCase())) &&
-    (filterType === 'all' || 
-     (filterType === 'pay' && (t.subject.toLowerCase().includes('оплат') || t.subject.toLowerCase().includes('pay'))) ||
-     (filterType === 'refund' && t.subject.toLowerCase().includes('повернен')) ||
-     (filterType === 'tech' && t.subject.toLowerCase().includes('помилк')))
+  const filtered = tickets.filter(t =>
+    (filter === 'all' || t.status === filter) &&
+    t.id.toLowerCase().includes(search.toLowerCase())
   );
 
+  const statusColor = (s: string) => {
+    if (s === 'open')      return 'text-[#00c8ff] bg-[#00c8ff]/10 border-[#00c8ff]/20';
+    if (s === 'escalated') return 'text-[#f87171] bg-[#f87171]/10 border-[#f87171]/20';
+    return 'text-[#4ade80] bg-[#4ade80]/10 border-[#4ade80]/20';
+  };
+  const statusLabel = (s: string) => ({ open: 'Відкрито', escalated: 'Ескалація', resolved: 'Вирішено' }[s] || s);
+  const assignedLabel = (a: string) => ({ ai: '🤖 AI', carrier: '🚌 Перевізник', admin: '🛡 Адмін' }[a] || a);
+
+  const getBubble = (role: string, isUser: boolean) => {
+    if (isUser) return 'bg-[#1a2d4a] border border-white/5 text-white ml-auto rounded-br-none';
+    if (role === 'admin') return 'bg-[#2e0d0d] border border-[#f87171]/20 text-white rounded-bl-none';
+    if (role === 'system') return '';
+    if (role === 'carrier') return 'bg-[#0d2e18] border border-[#4ade80]/20 text-white rounded-bl-none';
+    return 'bg-white/5 border border-white/10 text-[#e8f4ff] rounded-bl-none';
+  };
+
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+    <div className="space-y-6 animate-in fade-in duration-500 h-full flex flex-col">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-           <div className="flex items-center gap-3 mb-1">
-              <div className="w-2 h-6 bg-[#00c8ff] rounded-full shadow-[0_0_10px_#00c8ff]" />
-              <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white font-sans">Центр Підтримки</h2>
-           </div>
-           <p className="text-[#7a9ab5] text-sm font-medium tracking-wide ml-5">Керування запитами пасажирів та партнерів</p>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-2 h-6 rounded-full bg-[#00c8ff] shadow-[0_0_10px_#00c8ff]" />
+            <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white">Центр Підтримки</h2>
+          </div>
+          <p className="text-[#5a6a85] text-[10px] font-black uppercase tracking-widest ml-5">Управління всіма зверненнями</p>
         </div>
-        <div className="flex gap-3">
-           <div className="px-4 py-2 bg-[#00c8ff]/10 border border-[#00c8ff]/20 rounded-xl flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#00c8ff] animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#00c8ff]">{baseTickets.filter(t => t.status === 'open').length} активних діалоги</span>
-           </div>
+        <div className="flex items-center gap-2">
+          <div className="px-4 py-2 bg-[#00c8ff]/10 border border-[#00c8ff]/20 rounded-xl flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-[#00c8ff] animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#00c8ff]">{tickets.filter(t => t.status !== 'resolved').length} активних</span>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <div className="lg:col-span-1 space-y-6">
-           <div className="bg-[#0f1520] border border-[#1c2e48] rounded-3xl p-6">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-[#3d5670] mb-6">Категорії</h3>
-              <div className="space-y-2">
-                 {[
-                   { id: 'all', label: 'Всі тікети', count: baseTickets.length },
-                   { id: 'pay', label: 'Оплати', count: baseTickets.filter(t => t.subject.toLowerCase().includes('оплат') || t.subject.toLowerCase().includes('pay')).length },
-                   { id: 'refund', label: 'Повернення', count: baseTickets.filter(t => t.subject.toLowerCase().includes('повернен')).length },
-                   { id: 'tech', label: 'Тех. підтримка', count: baseTickets.filter(t => t.subject.toLowerCase().includes('помилк')).length },
-                 ].map((cat) => (
-                   <button 
-                     key={cat.id} 
-                     onClick={() => setFilterType(cat.id)}
-                     className={`w-full flex justify-between items-center px-4 py-3 rounded-xl transition-all ${filterType === cat.id ? 'bg-[#00c8ff] text-black font-black' : 'text-[#7a9ab5] hover:bg-white/5'}`}
-                   >
-                      <span className="text-xs uppercase tracking-tight">{cat.label}</span>
-                      <span className="text-[10px]">{cat.count}</span>
-                   </button>
-                 ))}
-              </div>
-           </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
+        {/* Left: Ticket list */}
+        <div className="flex flex-col gap-4 min-h-0">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#3d5670]" size={14} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Пошук..." className="w-full bg-[#0f1520] border border-[#1c2e48] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white outline-none focus:border-[#00c8ff] transition-all" />
+            </div>
+            <select value={filter} onChange={e => setFilter(e.target.value as any)} className="bg-[#0f1520] border border-[#1c2e48] rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-[#00c8ff] cursor-pointer">
+              <option value="all">Всі</option>
+              <option value="open">Відкриті</option>
+              <option value="escalated">Ескалація</option>
+              <option value="resolved">Вирішені</option>
+            </select>
+          </div>
 
-           <div className="bg-gradient-to-br from-[#1c2e48] to-[#0f1520] border border-white/5 rounded-3xl p-6 relative overflow-hidden group">
-              <div className="relative z-10">
-                 <h4 className="text-xs font-black uppercase tracking-widest text-white mb-2 italic">SOS Лінія</h4>
-                 <p className="text-[10px] text-[#7a9ab5] leading-relaxed mb-4">Для термінових питань по рейсах в русі</p>
-                 <button className="w-full py-3 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-[#00e676] transition-colors flex items-center justify-center gap-2">
-                    <Phone size={14} /> +380 800 500 400
-                 </button>
+          <div className="flex-1 overflow-y-auto space-y-2 scrollbar-hide">
+            {filtered.map((t, i) => (
+              <motion.button
+                key={t.id}
+                initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
+                onClick={() => setSelected(t)}
+                className={`w-full text-left p-4 rounded-2xl border transition-all ${selected?.id === t.id ? 'border-[#00c8ff]/40 bg-[#00c8ff]/5' : 'border-[#1c2e48] bg-[#0f1520] hover:border-[#00c8ff]/20'}`}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-[9px] font-black text-[#3d5670] uppercase tracking-widest font-mono">{t.id.slice(0, 8).toUpperCase()}</span>
+                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded border ${statusColor(t.status)}`}>{statusLabel(t.status)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-white/50">{assignedLabel(t.assigned_to)}</span>
+                  <span className="text-[9px] text-[#3d5670] flex items-center gap-1"><Clock size={9} /> {new Date(t.last_updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              </motion.button>
+            ))}
+            {filtered.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 text-[#3d5670]">
+                <MessageSquare size={32} className="mb-3 opacity-30" />
+                <p className="text-[10px] font-black uppercase tracking-widest">Тікетів не знайдено</p>
               </div>
-              <div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none group-hover:scale-110 transition-transform">
-                 <Phone size={100} className="text-white" />
-              </div>
-           </div>
+            )}
+          </div>
         </div>
 
-        <div className="lg:col-span-3 space-y-6">
-           <div className="bg-[#0f1520] border border-[#1c2e48] rounded-3xl p-6 flex gap-4">
-              <div className="relative flex-1">
-                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#3d5670]" size={16} />
-                 <input 
-                   value={search}
-                   onChange={e => setSearch(e.target.value)}
-                   placeholder="Пошук за ID, ПІБ або темою..." 
-                   className="w-full bg-[#070912] border border-[#1c2e48] rounded-xl pl-12 pr-4 py-3 text-xs text-white outline-none focus:border-[#00c8ff] transition-all" 
-                 />
+        {/* Right: Chat view */}
+        <div className="lg:col-span-2 flex flex-col rounded-[24px] overflow-hidden bg-[#080f1a] border border-white/5 min-h-0">
+          {!selected ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 text-white/20">
+              <ShieldAlert size={48} className="opacity-30" />
+              <p className="text-[11px] font-black uppercase tracking-widest">Оберіть тікет для перегляду</p>
+            </div>
+          ) : (
+            <>
+              {/* Chat header */}
+              <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between bg-[#0d1525] shrink-0">
+                <div>
+                  <p className="text-[10px] font-black text-[#00c8ff] uppercase tracking-widest font-mono">#{selected.id.slice(0, 8).toUpperCase()}</p>
+                  <p className="text-[11px] text-white/50">{assignedLabel(selected.assigned_to)} · {statusLabel(selected.status)}</p>
+                </div>
+                <div className="flex gap-2">
+                  {selected.status !== 'resolved' && (
+                    <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                      onClick={() => handleResolve(selected)}
+                      className="px-4 py-1.5 rounded-xl bg-[#4ade80]/10 text-[#4ade80] border border-[#4ade80]/20 text-[9px] font-black uppercase tracking-widest hover:bg-[#4ade80]/20 transition-all flex items-center gap-1.5"
+                    >
+                      <CheckCircle2 size={11} /> Закрити
+                    </motion.button>
+                  )}
+                  <button onClick={() => setSelected(null)} className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-white/30 hover:text-white transition-colors"><X size={14} /></button>
+                </div>
               </div>
-              <button className="px-6 rounded-xl border border-[#1c2e48] text-[#7a9ab5] hover:text-white transition-colors">
-                 <Filter size={16} />
-              </button>
-           </div>
 
-           <div className="space-y-4">
-              {tickets.map((t, i) => (
-                <motion.div 
-                  key={t.id}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  className={`bg-[#151e2e]/50 border rounded-[2rem] p-6 flex items-center justify-between group hover:border-white/20 transition-all ${t.priority === 'high' ? 'border-[#f44336]/20' : 'border-[#1c2e48]'}`}
-                >
-                  <div className="flex gap-5 items-start">
-                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${t.priority === 'high' ? 'bg-[#f44336]/10 text-[#f44336]' : 'bg-[#00c8ff]/10 text-[#00c8ff]'}`}>
-                        <MessageCircle size={24} />
-                     </div>
-                     <div>
-                        <div className="flex items-center gap-3 mb-1">
-                           <h4 className="text-sm font-bold text-white tracking-tight">{t.subject}</h4>
-                           <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${t.priority === 'high' ? 'bg-[#f44336] text-white' : 'bg-[#1c2e48] text-[#7a9ab5]'}`}>{t.priority}</span>
-                        </div>
-                        <p className="text-[10px] font-bold text-[#7a9ab5] uppercase tracking-widest">{t.id} · {t.user} · <span className="text-[#3d5670] italic">{t.time}</span></p>
-                     </div>
-                  </div>
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 scrollbar-hide">
+                {messages.map(m => {
+                  if (m.role === 'system') return (
+                    <div key={m.id} className="flex justify-center">
+                      <span className="px-3 py-1 rounded-full bg-black/30 border border-white/5 text-[9px] text-white/30 font-bold tracking-widest flex items-center gap-1"><RefreshCw size={8} /> {m.text}</span>
+                    </div>
+                  );
+                  const isUser = m.role === 'user';
+                  return (
+                    <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className={`flex flex-col gap-0.5 max-w-[80%] ${isUser ? 'ml-auto items-end' : 'items-start'}`}>
+                      {!isUser && <span className="text-[9px] font-black uppercase tracking-widest px-1" style={{ color: m.role === 'admin' ? '#f87171' : m.role === 'carrier' ? '#4ade80' : '#00c8ff' }}>{m.sender_name || m.role}</span>}
+                      <div className={`px-4 py-2.5 rounded-2xl text-xs leading-relaxed shadow-lg ${getBubble(m.role, isUser)}`}>
+                        <p className="whitespace-pre-wrap">{m.text}</p>
+                        <p className="text-[8px] mt-1 opacity-40">{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
 
-                  <div className="flex items-center gap-4">
-                     {t.status === 'open' ? (
-                       <button 
-                         onClick={() => handleResolveTicket(t.id)}
-                         className="px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[#00e676] hover:bg-[#00e676] hover:text-black transition-all"
-                       >
-                         Вирішено
-                       </button>
-                     ) : (
-                       <div className="flex items-center gap-2 text-[#00e676] px-6">
-                          <CheckCircle2 size={16} />
-                          <span className="text-[10px] font-black uppercase">Закрито</span>
-                       </div>
-                     )}
-                     <button className="w-10 h-10 rounded-xl bg-[#070912] border border-[#1c2e48] flex items-center justify-center text-[#7a9ab5] hover:text-white transition-all">
-                        <MoreVertical size={16} />
-                     </button>
+              {/* Reply input */}
+              {selected.status !== 'resolved' && (
+                <div className="px-4 py-3 border-t border-white/5 bg-[#050c15] shrink-0">
+                  <div className="flex items-center gap-3 bg-[#0d1525] border border-white/8 rounded-2xl px-4 py-2.5">
+                    <input
+                      value={reply}
+                      onChange={e => setReply(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleReply()}
+                      placeholder="Відповісти від імені адміністратора..."
+                      className="flex-1 bg-transparent border-none outline-none text-sm text-white placeholder:text-white/20"
+                    />
+                    <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                      onClick={handleReply} disabled={!reply.trim() || sending}
+                      className="w-9 h-9 rounded-xl flex items-center justify-center disabled:opacity-30 transition-all"
+                      style={{ background: reply.trim() ? '#f87171' : '#f8717120' }}
+                    >
+                      {sending ? <Loader2 size={14} className="animate-spin text-white" /> : <Send size={14} className="text-white translate-x-0.5" />}
+                    </motion.button>
                   </div>
-                </motion.div>
-              ))}
-           </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
   );
-};
-
-export default SupportTab;
+}
