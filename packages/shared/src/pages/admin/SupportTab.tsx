@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Search, CheckCircle2, Clock, RefreshCw, ShieldAlert, Send, Loader2, X, EyeOff } from 'lucide-react';
+import { MessageSquare, Search, CheckCircle2, Clock, RefreshCw, ShieldAlert, Send, Loader2, X, EyeOff, Bot, Power } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAdminStore } from '@busnet/shared/store/useAdminStore';
@@ -35,6 +35,8 @@ export default function SupportTab() {
   const [reply, setReply]       = useState('');
   const [sending, setSending]   = useState(false);
   const [whisperMode, setWhisperMode] = useState(false);
+  const [aiEnabled, setAiEnabled]     = useState(true);
+  const [aiToggling, setAiToggling]   = useState(false);
   const [search, setSearch]     = useState(searchParams.get('q') || '');
   const [filter, setFilter]     = useState<'all' | 'open' | 'escalated' | 'resolved'>(
     (searchParams.get('status') as any) || 'all'
@@ -46,6 +48,24 @@ export default function SupportTab() {
   // Sync filters to URL
   const updateFilter = (key: string, value: string) => {
     setSearchParams(prev => { prev.set(key, value); return prev; }, { replace: true });
+  };
+
+  // Load AI autopilot global state
+  useEffect(() => {
+    supabase.from('system_settings').select('value').eq('key', 'ai_autopilot').maybeSingle()
+      .then(({ data }) => {
+        if (data) setAiEnabled(data.value !== 'false' && data.value !== false);
+      });
+  }, []);
+
+  const toggleAI = async () => {
+    setAiToggling(true);
+    const newVal = !aiEnabled;
+    await supabase.from('system_settings').upsert({ key: 'ai_autopilot', value: String(newVal) }, { onConflict: 'key' });
+    setAiEnabled(newVal);
+    setAiToggling(false);
+    toast(newVal ? '🤖 AI Автопілот увімкнено' : '🔴 AI вимкнено — всі нові чати йдуть до операторів', { duration: 4000 });
+    addLog({ id: Date.now().toString(), time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), actor: 'Admin', role: 'owner', action: newVal ? 'AI_ON' : 'AI_OFF', obj: `Глобальний AI Автопілот ${newVal ? 'увімкнено' : 'вимкнено'}`, icon: newVal ? '🤖' : '🔴' });
   };
 
   useEffect(() => {
@@ -132,6 +152,7 @@ export default function SupportTab() {
   const getBubble = (role: string, isUser: boolean) => {
     if (isUser) return 'bg-[#1a2d4a] border border-white/5 text-white ml-auto rounded-br-none';
     if (role === 'admin') return 'bg-[#2e0d0d] border border-[#f87171]/20 text-white rounded-bl-none';
+    if (role === 'admin_whisper') return 'bg-[#1a0d2e] border border-[#8B5CF6]/30 text-[#c4b5fd] rounded-bl-none italic';
     if (role === 'system') return '';
     if (role === 'carrier') return 'bg-[#0d2e18] border border-[#4ade80]/20 text-white rounded-bl-none';
     return 'bg-white/5 border border-white/10 text-[#e8f4ff] rounded-bl-none';
@@ -148,7 +169,23 @@ export default function SupportTab() {
           </div>
           <p className="text-[#5a6a85] text-[10px] font-black uppercase tracking-widest ml-5">Управління всіма зверненнями</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* AI Autopilot Toggle */}
+          <button
+            onClick={toggleAI}
+            disabled={aiToggling}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+              aiEnabled
+                ? 'bg-[#10B981]/10 border-[#10B981]/30 text-[#10B981] hover:bg-[#10B981]/20'
+                : 'bg-[#f87171]/10 border-[#f87171]/30 text-[#f87171] hover:bg-[#f87171]/20'
+            }`}
+          >
+            {aiToggling ? <Loader2 size={11} className="animate-spin" /> : <Bot size={11} />}
+            <span className="hidden md:inline">AI {aiEnabled ? 'Увімкнено' : 'Вимкнено'}</span>
+            <div className={`w-8 h-4 rounded-full relative transition-colors ${aiEnabled ? 'bg-[#10B981]' : 'bg-white/20'}`}>
+              <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${aiEnabled ? 'right-0.5' : 'left-0.5'}`} />
+            </div>
+          </button>
           <div className="px-4 py-2 bg-[#00c8ff]/10 border border-[#00c8ff]/20 rounded-xl flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#00c8ff] animate-pulse" />
             <span className="text-[10px] font-black uppercase tracking-widest text-[#00c8ff]">{tickets.filter(t => t.status !== 'resolved').length} активних</span>
@@ -182,7 +219,13 @@ export default function SupportTab() {
               <motion.button
                 key={t.id}
                 initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
-                onClick={() => setSelected(t)}
+                onClick={() => {
+                  setSelected(t);
+                  // 🔒 GDPR: log snooping access to B2B private chats
+                  if (t.chat_type?.startsWith('b2b')) {
+                    addLog({ id: Date.now().toString(), time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), actor: 'Admin', role: 'owner', action: 'SNOOP', obj: `🔍 Перегляд B2B чату ${t.id.slice(0,8).toUpperCase()} (автолог GDPR)`, icon: '🔍' });
+                  }
+                }}
                 className={`w-full text-left p-4 rounded-2xl border transition-all ${selected?.id === t.id ? 'border-[#00c8ff]/40 bg-[#00c8ff]/5' : 'border-[#1c2e48] bg-[#0f1520] hover:border-[#00c8ff]/20'}`}
               >
                 <div className="flex justify-between items-start mb-2">

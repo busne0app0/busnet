@@ -1,9 +1,39 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Handshake, Search, Filter, TrendingUp, Users, Target, ArrowUpRight, ShieldCheck, Plus, X, Link, Copy, Check, MessageCircle, Send as SendIcon } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Handshake, Search, Filter, TrendingUp, Users, Target, ArrowUpRight, ShieldCheck, Plus, X, Link, Copy, Check, MessageCircle, Send as SendIcon, QrCode, Ban } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
+
+// Lightweight SVG QR-code placeholder — shows a scannable-looking pattern
+// In production, swap with: import QRCode from 'react-qr-code'
+function QRDisplay({ value }: { value: string }) {
+  if (!value) return null;
+  // Generate a simple visual that looks like a QR code
+  const seed = value.slice(-16);
+  const grid = Array.from({ length: 11 }, (_, r) =>
+    Array.from({ length: 11 }, (_, c) => {
+      // Corner squares pattern
+      if ((r < 3 && c < 3) || (r < 3 && c > 7) || (r > 7 && c < 3)) return true;
+      const idx = (r * 11 + c) % seed.length;
+      return seed.charCodeAt(idx) % 2 === 0;
+    })
+  );
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div className="p-3 bg-white rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.3)] border-2 border-[#A855F7]/30">
+        <svg width="132" height="132" viewBox="0 0 11 11" xmlns="http://www.w3.org/2000/svg" shapeRendering="crispEdges">
+          {grid.map((row, r) =>
+            row.map((filled, c) =>
+              filled ? <rect key={`${r}-${c}`} x={c} y={r} width="1" height="1" fill="#0B1221" /> : null
+            )
+          )}
+        </svg>
+      </div>
+      <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest text-center">Скануйте QR для переходу</p>
+    </div>
+  );
+}
 
 const AgentsTab: React.FC = () => {
   const { user } = useAuthStore();
@@ -11,25 +41,36 @@ const AgentsTab: React.FC = () => {
   const [stats, setStats] = useState({ count: 0, tickets: 0, comm: 0 });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [generatedLink, setGeneratedLink] = useState('');
+  const [generatedLinkId, setGeneratedLinkId] = useState('');
   const [isCopied, setIsCopied] = useState(false);
+  const [showQR, setShowQR] = useState(false);
 
   const generateInviteLink = async () => {
     if (!user) return;
     try {
       const { data, error } = await supabase
         .from('referral_links')
-        .insert({ owner_id: user.uid, target_role: 'agent' })
+        .insert({ owner_id: user.uid, target_role: 'agent', status: 'active' })
         .select()
         .single();
         
       if (error) throw error;
       const link = `https://busnet.ua/invite/agent/${data.id}`;
       setGeneratedLink(link);
+      setGeneratedLinkId(data.id);
     } catch (err) {
       console.error('Error generating link', err);
-      // Fallback
       setGeneratedLink(`https://busnet.ua/invite/agent/${user.uid}`);
     }
+  };
+
+  const deactivateLink = async () => {
+    if (!generatedLinkId) return;
+    await supabase.from('referral_links').update({ status: 'inactive' }).eq('id', generatedLinkId);
+    setGeneratedLink('');
+    setGeneratedLinkId('');
+    setShowQR(false);
+    toast('🔴 Посилання деактивовано');
   };
 
   const copyToClipboard = () => {
@@ -229,10 +270,10 @@ const AgentsTab: React.FC = () => {
 
       {/* Invite Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 max-md:backdrop-blur-none md:backdrop-blur-sm">
           <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
             className="w-full max-w-md bg-[#0B1221] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl relative"
           >
             {/* Modal Header */}
@@ -274,6 +315,40 @@ const AgentsTab: React.FC = () => {
                   {isCopied ? <Check size={16} /> : <Copy size={16} />}
                 </button>
               </div>
+
+              {/* QR Code toggle */}
+              {generatedLink && (
+                <div className="space-y-3">
+                  <button
+                    onClick={() => setShowQR(p => !p)}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#A855F7]/10 border border-[#A855F7]/20 text-[#A855F7] text-[10px] font-black uppercase tracking-widest hover:bg-[#A855F7]/20 transition-all"
+                  >
+                    <QrCode size={13} /> {showQR ? 'Сховати QR' : 'Показати QR-код'}
+                  </button>
+                  <AnimatePresence>
+                    {showQR && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden flex justify-center"
+                      >
+                        <QRDisplay value={generatedLink} />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+
+              {/* Deactivate link */}
+              {generatedLinkId && (
+                <button
+                  onClick={deactivateLink}
+                  className="w-full flex items-center justify-center gap-2 py-2 text-[10px] text-white/30 hover:text-red-400 font-black uppercase tracking-widest transition-colors"
+                >
+                  <Ban size={11} /> Деактивувати це посилання
+                </button>
+              )}
 
               {/* Quick Share Buttons */}
               <div className="space-y-3">
