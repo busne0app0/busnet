@@ -5,9 +5,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Wallet, CheckCircle2, Users, Star, 
-  TrendingUp, Info, ChevronRight, Plus,
-  MapPin, Clock, Edit3, Trash2, Bus, AlertCircle, Brain, Activity
+  Activity, Clock, Users, ArrowUpRight, Bus, Wallet, Star, Info, Plus, Handshake, Link,
+  TrendingUp, ChevronRight, MapPin, Edit3, Trash2, AlertCircle, Brain
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -390,6 +389,39 @@ export default function CarrierDashboard() {
         </motion.div>
 
       </div>
+
+      {/* Network Expansion Banner */}
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+        className="mb-8 bg-gradient-to-r from-[#7c5cfc]/20 to-[#00E5FF]/10 border border-[#7c5cfc]/30 rounded-[32px] p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden shadow-[0_0_30px_rgba(124,92,252,0.15)]"
+      >
+        {/* Glow effect */}
+        <div className="absolute top-0 left-1/4 w-1/2 h-full bg-[#7c5cfc] opacity-20 blur-[100px] pointer-events-none" />
+        
+        <div className="flex items-center gap-5 z-10">
+          <div className="w-14 h-14 rounded-[16px] bg-[#0B1221]/80 backdrop-blur-md border border-[#7c5cfc]/50 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(124,92,252,0.4)] text-[#7c5cfc]">
+            <Handshake size={28} />
+          </div>
+          <div>
+            <h3 className="text-xl md:text-2xl font-black text-white italic tracking-tighter uppercase mb-1">
+              Розвиток Мережі
+            </h3>
+            <p className="text-[#8899B5] text-[10px] md:text-xs font-bold uppercase tracking-widest leading-relaxed">
+              Запрошуйте агентів та партнерів для збільшення продажів. Вони автоматично отримуватимуть 10% комісії.
+            </p>
+          </div>
+        </div>
+
+        <button 
+          onClick={() => {
+            navigator.clipboard.writeText(`https://busnet.ua/invite/agent/${user?.uid}`);
+            toast.success('Посилання для запрошення агентів скопійовано!');
+          }}
+          className="w-full md:w-auto px-8 py-4 bg-[#7c5cfc] text-white text-[11px] font-black uppercase tracking-widest rounded-full hover:bg-[#6b4ae8] hover:scale-105 hover:shadow-[0_0_20px_rgba(124,92,252,0.6)] transition-all flex items-center justify-center gap-3 shrink-0 z-10"
+        >
+          <Link size={16} /> ЗГЕНЕРУВАТИ ЛІНК
+        </button>
+      </motion.div>
 
       {/* Routes Section */}
       <div>

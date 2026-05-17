@@ -69,7 +69,8 @@ export default function NewBooking() {
   const [searchParams, setSearchParams] = useState({
     from: 'Київ',
     to: 'Варшава',
-    date: '2026-04-22'
+    date: '2026-04-22',
+    network: 'busnet'
   });
 
   // Handle click outside for calendar
@@ -231,7 +232,7 @@ export default function NewBooking() {
             className="space-y-6"
           >
             <div className="bg-[#151c28] border border-white/5 rounded-[32px] p-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-[#4a5c72] uppercase tracking-widest ml-1">Звідки</label>
                   <div className="relative group">
@@ -285,6 +286,20 @@ export default function NewBooking() {
                       </div>
                     )}
                   </AnimatePresence>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-[#4a5c72] uppercase tracking-widest ml-1">Мережа Рейсів</label>
+                  <div className="relative group">
+                    <select 
+                      value={searchParams.network}
+                      onChange={(e) => setSearchParams({...searchParams, network: e.target.value})}
+                      className="w-full bg-[#121824] border border-white/5 rounded-xl py-3 px-4 text-sm font-bold text-[#00E5FF] outline-none focus:border-[#00E5FF] transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="busnet">Платформа BUSNET</option>
+                      <option value="private">Мої Перевізники</option>
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-[#00E5FF] pointer-events-none" size={16} />
+                  </div>
                 </div>
               </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Handshake, Search, Filter, TrendingUp, Users, Target, ArrowUpRight, ShieldCheck, Plus } from 'lucide-react';
+import { Handshake, Search, Filter, TrendingUp, Users, Target, ArrowUpRight, ShieldCheck, Plus, X, Link, Copy, Check, MessageCircle, Send as SendIcon } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
@@ -9,6 +9,35 @@ const AgentsTab: React.FC = () => {
   const { user } = useAuthStore();
   const [agents, setAgents] = useState<any[]>([]);
   const [stats, setStats] = useState({ count: 0, tickets: 0, comm: 0 });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [generatedLink, setGeneratedLink] = useState('');
+  const [isCopied, setIsCopied] = useState(false);
+
+  const generateInviteLink = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('referral_links')
+        .insert({ owner_id: user.uid, target_role: 'agent' })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      const link = `https://busnet.ua/invite/agent/${data.id}`;
+      setGeneratedLink(link);
+    } catch (err) {
+      console.error('Error generating link', err);
+      // Fallback
+      setGeneratedLink(`https://busnet.ua/invite/agent/${user.uid}`);
+    }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(generatedLink);
+    setIsCopied(true);
+    toast.success('Лінк скопійовано!');
+    setTimeout(() => setIsCopied(false), 2000);
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -88,8 +117,8 @@ const AgentsTab: React.FC = () => {
         </div>
         <button 
           onClick={() => {
-            navigator.clipboard.writeText(`https://busnet.ua/agent-invite/${user?.uid}`);
-            toast.success('Посилання для запрошення партнерів скопійовано!');
+            setIsModalOpen(true);
+            if (!generatedLink) generateInviteLink();
           }}
           className="px-8 py-3.5 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-gray-200 transition-all shadow-[0_0_15px_rgba(168,85,247,0.3)]"
         >
@@ -197,6 +226,81 @@ const AgentsTab: React.FC = () => {
             </tbody>
          </table>
       </div>
+
+      {/* Invite Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-md bg-[#0B1221] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl relative"
+          >
+            {/* Modal Header */}
+            <div className="p-6 border-b border-white/5 bg-[#1A2639]/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-[12px] bg-[#A855F7]/10 border border-[#A855F7]/20 flex items-center justify-center text-[#A855F7]">
+                  <Link size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">ЗАПРОСИТИ АГЕНТА</h3>
+                  <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest mt-0.5">Рекрутинг партнерів</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 text-white/50 hover:bg-white/10 hover:text-white transition-all"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              <p className="text-xs text-white/60 leading-relaxed font-medium">
+                Надішліть це унікальне посилання агенту. Після реєстрації він автоматично отримає доступ до продажу ваших рейсів.
+              </p>
+
+              {/* Link Input Box */}
+              <div className="p-1 rounded-2xl bg-[#050C15] border border-white/5 flex items-center gap-2">
+                <input 
+                  readOnly 
+                  value={generatedLink || 'Генерація посилання...'} 
+                  className="bg-transparent border-none text-white text-xs font-mono px-4 py-3 w-full outline-none opacity-70"
+                />
+                <button 
+                  onClick={copyToClipboard}
+                  className={`p-3 rounded-xl flex items-center justify-center transition-all ${isCopied ? 'bg-[#10B981] text-black' : 'bg-[#1A2639] text-white hover:bg-white/20'}`}
+                >
+                  {isCopied ? <Check size={16} /> : <Copy size={16} />}
+                </button>
+              </div>
+
+              {/* Quick Share Buttons */}
+              <div className="space-y-3">
+                <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest text-center">Швидке надсилання</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <a 
+                    href={`https://t.me/share/url?url=${encodeURIComponent(generatedLink)}&text=${encodeURIComponent('Вітаю! Запрошую стати офіційним агентом з продажу моїх квитків на BUSNET.')}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#2AABEE]/10 text-[#2AABEE] border border-[#2AABEE]/20 hover:bg-[#2AABEE]/20 transition-all"
+                  >
+                    <SendIcon size={14} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Telegram</span>
+                  </a>
+                  <a 
+                    href={`viber://forward?text=${encodeURIComponent('Вітаю! Запрошую стати офіційним агентом з продажу моїх квитків на BUSNET: ' + generatedLink)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#7360F2]/10 text-[#7360F2] border border-[#7360F2]/20 hover:bg-[#7360F2]/20 transition-all"
+                  >
+                    <MessageCircle size={14} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Viber</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
