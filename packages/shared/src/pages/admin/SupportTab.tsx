@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Search, Filter, CheckCircle2, Clock, Phone, RefreshCw, User, Bot, ShieldAlert, UserCircle, Send, Loader2, X } from 'lucide-react';
+import { MessageSquare, Search, CheckCircle2, Clock, RefreshCw, ShieldAlert, Send, Loader2, X, EyeOff } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAdminStore } from '@busnet/shared/store/useAdminStore';
 import toast from 'react-hot-toast';
@@ -17,7 +18,7 @@ interface Ticket {
 
 interface Message {
   id: string;
-  role: 'user' | 'ai' | 'carrier' | 'admin' | 'system';
+  role: 'user' | 'ai' | 'carrier' | 'admin' | 'system' | 'admin_whisper';
   text: string;
   sender_name: string | null;
   created_at: string;
@@ -26,14 +27,26 @@ interface Message {
 
 export default function SupportTab() {
   const { addLog } = useAdminStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [tickets, setTickets]   = useState<Ticket[]>([]);
   const [selected, setSelected] = useState<Ticket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [reply, setReply]       = useState('');
   const [sending, setSending]   = useState(false);
-  const [search, setSearch]     = useState('');
-  const [filter, setFilter]     = useState<'all' | 'open' | 'escalated' | 'resolved'>('all');
-  const [chatTypeFilter, setChatTypeFilter] = useState<'all' | 'support' | 'b2b'>('all');
+  const [whisperMode, setWhisperMode] = useState(false);
+  const [search, setSearch]     = useState(searchParams.get('q') || '');
+  const [filter, setFilter]     = useState<'all' | 'open' | 'escalated' | 'resolved'>(
+    (searchParams.get('status') as any) || 'all'
+  );
+  const [chatTypeFilter, setChatTypeFilter] = useState<'all' | 'support' | 'b2b'>(
+    (searchParams.get('type') as any) || 'all'
+  );
+
+  // Sync filters to URL
+  const updateFilter = (key: string, value: string) => {
+    setSearchParams(prev => { prev.set(key, value); return prev; }, { replace: true });
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -74,15 +87,23 @@ export default function SupportTab() {
   const handleReply = async () => {
     if (!reply.trim() || !selected || sending) return;
     setSending(true);
+    const msgRole = whisperMode ? 'admin_whisper' : 'admin';
+    const senderLabel = whisperMode ? '🔇 Адмін (тільки для перевізника)' : 'Адміністратор BUSNET';
     await supabase.from('ticket_messages').insert({
-      ticket_id: selected.id, role: 'admin', text: reply.trim(), sender_name: 'Адміністратор BUSNET',
+      ticket_id: selected.id,
+      role: msgRole,
+      text: whisperMode ? `[ШЕПІТ] ${reply.trim()}` : reply.trim(),
+      sender_name: senderLabel,
     });
-    await supabase.from('support_tickets').update({
-      assigned_to: 'admin', last_updated: new Date().toISOString(),
-    }).eq('id', selected.id);
+    if (!whisperMode) {
+      await supabase.from('support_tickets').update({
+        assigned_to: 'admin', last_updated: new Date().toISOString(),
+      }).eq('id', selected.id);
+    }
     setReply('');
     setSending(false);
-    addLog({ id: Date.now().toString(), time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), actor: 'Admin', role: 'owner', action: 'REPLY', obj: `Відповідь на тікет ${selected.id.slice(0,8)}`, icon: '💬' });
+    addLog({ id: Date.now().toString(), time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), actor: 'Admin', role: 'owner', action: whisperMode ? 'WHISPER' : 'REPLY', obj: `${whisperMode ? '🔇 Шепіт' : '💬 Відповідь'} на тікет ${selected.id.slice(0,8)}`, icon: whisperMode ? '🔇' : '💬' });
+    if (whisperMode) toast.success('Шепіт надіслано перевізнику');
   };
 
   const handleResolve = async (t: Ticket) => {
@@ -240,19 +261,33 @@ export default function SupportTab() {
 
               {/* Reply input */}
               {selected.status !== 'resolved' && (
-                <div className="px-4 py-3 border-t border-white/5 bg-[#050c15] shrink-0">
-                  <div className="flex items-center gap-3 bg-[#0d1525] border border-white/8 rounded-2xl px-4 py-2.5">
+                <div className="px-4 py-3 border-t border-white/5 bg-[#050c15] shrink-0 space-y-2">
+                  {/* Whisper toggle */}
+                  <button
+                    onClick={() => setWhisperMode(p => !p)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                      whisperMode
+                        ? 'bg-[#8B5CF6]/15 border-[#8B5CF6]/30 text-[#8B5CF6]'
+                        : 'bg-white/5 border-white/10 text-white/30 hover:text-white/50'
+                    }`}
+                  >
+                    <EyeOff size={11} />
+                    {whisperMode ? 'Режим Шепоту активний (тільки перевізник бачить)' : 'Шепіт для перевізника'}
+                  </button>
+                  <div className={`flex items-center gap-3 rounded-2xl px-4 py-2.5 border transition-all ${
+                    whisperMode ? 'bg-[#8B5CF6]/10 border-[#8B5CF6]/25' : 'bg-[#0d1525] border-white/8'
+                  }`}>
                     <input
                       value={reply}
                       onChange={e => setReply(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleReply()}
-                      placeholder="Відповісти від імені адміністратора..."
-                      className="flex-1 bg-transparent border-none outline-none text-sm text-white placeholder:text-white/20"
+                      placeholder={whisperMode ? '🔇 Шепіт для перевізника (пасажир не бачить)...' : 'Відповісти від імені адміністратора...'}
+                      className="flex-1 bg-transparent border-none outline-none text-sm text-white placeholder:text-white/30"
                     />
                     <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
                       onClick={handleReply} disabled={!reply.trim() || sending}
                       className="w-9 h-9 rounded-xl flex items-center justify-center disabled:opacity-30 transition-all"
-                      style={{ background: reply.trim() ? '#f87171' : '#f8717120' }}
+                      style={{ background: reply.trim() ? (whisperMode ? '#8B5CF6' : '#f87171') : (whisperMode ? '#8B5CF620' : '#f8717120') }}
                     >
                       {sending ? <Loader2 size={14} className="animate-spin text-white" /> : <Send size={14} className="text-white translate-x-0.5" />}
                     </motion.button>

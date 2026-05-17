@@ -208,6 +208,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               isInitialized: true,
             });
 
+            // 🔗 Auto-process pending referral (Guest Referral Flow)
+            // If user clicked an invite link before logging in, the referralId was saved
+            // to localStorage. We now silently process it in the background.
+            const pendingReferral = localStorage.getItem('busnet_pending_referral');
+            if (pendingReferral && event === 'SIGNED_IN') {
+              console.log('[initAuth] Processing pending referral:', pendingReferral);
+              supabase.functions.invoke('process-referral', {
+                body: { referralId: pendingReferral, newUserId: session.user.id },
+              }).then(({ error: refErr }) => {
+                if (refErr) {
+                  console.warn('[initAuth] Pending referral processing failed:', refErr.message);
+                } else {
+                  localStorage.removeItem('busnet_pending_referral');
+                  console.log('[initAuth] ✅ Pending referral processed and cleared');
+                }
+              });
+            }
+
           } catch (err: any) {
             console.error('[initAuth] Error:', err);
             set({ loading: false, initInProgress: false, isInitialized: true });
