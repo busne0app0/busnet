@@ -23,3 +23,4 @@ export { default as InvoicesTab } from './admin/InvoicesTab';
 export { default as AuthPage } from './AuthPage';
 export { default as ForumPage } from './ForumPage';
 export { default as NetworkTab } from './admin/NetworkTab';
+export { default as InvitePage } from './InvitePage';
