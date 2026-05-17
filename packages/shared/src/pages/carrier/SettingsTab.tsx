@@ -69,11 +69,11 @@ const SettingsTab: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in zoom-in-95 duration-500 pb-20">
-      <div className="flex items-center gap-3 mb-12">
-        <div className="w-2 h-6 bg-[#10B981] rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+    <div className="space-y-12 animate-in fade-in zoom-in-95 duration-500 pb-20">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="w-1.5 h-6 bg-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
         <div>
-          <h2 className="text-3xl font-black uppercase tracking-widest text-white">НАЛАШТУВАННЯ</h2>
+          <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white">НАЛАШТУВАННЯ</h2>
           <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest mt-1">Конфігурація кабінету та безпеки</p>
         </div>
       </div>

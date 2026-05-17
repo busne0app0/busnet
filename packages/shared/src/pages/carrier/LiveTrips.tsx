@@ -56,16 +56,19 @@ export default function LiveTrips() {
 
   return (
     <div className="space-y-8 pb-12">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="font-syne font-black text-3xl italic tracking-tighter uppercase text-white">Мої рейси Live</h2>
-          <div className="text-[#5a6a85] text-sm font-medium mt-1 uppercase tracking-widest flex items-center gap-2">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-1.5 h-6 bg-[#00E5FF] shadow-[0_0_10px_rgba(0,229,255,0.5)]" />
+            <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white">МОІ РЕЙСИ LIVE</h2>
+          </div>
+          <div className="text-[#5a6a85] text-[10px] font-black mt-1 ml-4 uppercase tracking-widest flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Відстеження в реальному часі · {liveTrips.length} активних рейси
+            Відстеження в реальному часі · {liveTrips.length} активних рейсів
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button className="px-6 py-2 bg-white/[0.03] border border-white/5 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-white/[0.07] transition-all">
+          <button className="px-6 py-2.5 bg-[#00E5FF]/10 border border-[#00E5FF]/30 text-[#00E5FF] rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-[#00E5FF]/20 transition-all flex items-center gap-2">
             Оновити дані
           </button>
         </div>

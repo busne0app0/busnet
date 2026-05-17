@@ -159,7 +159,64 @@ const BookingsTab: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-[#0B1221] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl relative min-h-[400px]">
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {loading ? (
+          <div className="space-y-3">
+            {[1,2,3].map(i => <div key={i} className="h-28 bg-[#0B1221] rounded-2xl animate-pulse" />)}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-4 bg-[#0B1221] rounded-[24px] border border-white/5">
+            <Ticket className="text-[#1A2639]" size={48} />
+            <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest">БРОНЮВАНЬ НЕ ЗНАЙДЕНО</p>
+          </div>
+        ) : filtered.map((b, idx) => (
+          <motion.div
+            key={b.id}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.03 }}
+            className="bg-[#0B1221] border border-white/5 rounded-[20px] p-4 space-y-3"
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-[#F97316]/10 border border-[#F97316]/20 flex items-center justify-center text-[#F97316]">
+                  <Ticket size={14} />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-white uppercase tracking-widest">#{b.id.substring(0,6).toUpperCase()}</p>
+                  <p className="text-[9px] text-[#5A6A85] font-bold uppercase">{b.createdAt ? new Date(b.createdAt).toLocaleDateString('uk-UA') : ''}</p>
+                </div>
+              </div>
+              <span className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase border ${
+                b.status === 'confirmed' ? 'bg-[#00e676]/10 text-[#00e676] border-[#00e676]/20' :
+                b.status === 'pending' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                'bg-rose-500/10 text-rose-500 border-rose-500/20'
+              }`}>
+                {b.status === 'confirmed' ? 'Підтверджено' : b.status === 'pending' ? 'Очікує' : 'Скасовано'}
+              </span>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white leading-tight">{b.route}</p>
+              <p className="text-[10px] text-[#5A6A85] font-bold uppercase mt-1 flex items-center gap-2">
+                <User size={9} /> {b.passengerName} · <Calendar size={9} /> {b.date} {b.time}
+              </p>
+            </div>
+            <div className="flex justify-between items-center pt-2 border-t border-white/5">
+              <span className="text-[11px] font-black text-[#00E5FF]">€{b.totalPrice} · {b.seats} місць</span>
+              {b.status === 'pending' && (
+                <div className="flex gap-2">
+                  <button onClick={() => handleUpdateStatus(b.id, 'confirmed')} disabled={updating === b.id} className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-50">Підтв</button>
+                  <button onClick={() => handleUpdateStatus(b.id, 'cancelled')} disabled={updating === b.id} className="p-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all disabled:opacity-50"><XCircle size={14} /></button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-[#0B1221] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl relative min-h-[400px]">
         <div className="overflow-x-auto scrollbar-hide h-full">
           {loading ? (
             <div className="p-8 space-y-4">
@@ -178,12 +235,6 @@ const BookingsTab: React.FC = () => {
             <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4">
               <Ticket className="text-[#1A2639]" size={70} />
               <p className="text-[#5A6A85] text-[11px] font-black uppercase tracking-widest">БРОНЮВАНЬ НЕ ЗНАЙДЕНО</p>
-              <button 
-                onClick={() => navigate('/newtrip')}
-                className="mt-4 px-6 py-2 bg-[#F97316]/10 border border-[#F97316]/20 text-[#F97316] text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-[#F97316] hover:text-white transition-all"
-              >
-                Створити рейс
-              </button>
             </div>
           ) : (
             <table className="min-w-[800px] w-full text-left h-full">
@@ -199,7 +250,7 @@ const BookingsTab: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {filtered.map((b, idx) => (
-                  <motion.tr 
+                  <motion.tr
                     key={b.id}
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -242,8 +293,8 @@ const BookingsTab: React.FC = () => {
                     <td className="py-5 px-6">
                        <span className={`
                           px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border
-                          ${b.status === 'confirmed' ? 'bg-[#00e676]/10 text-[#00e676] border-[#00e676]/20' : 
-                            b.status === 'pending' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 
+                          ${b.status === 'confirmed' ? 'bg-[#00e676]/10 text-[#00e676] border-[#00e676]/20' :
+                            b.status === 'pending' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
                             'bg-rose-500/10 text-rose-500 border-rose-500/20'}
                        `}>
                           {b.status === 'confirmed' ? 'Підтверджено' : b.status === 'pending' ? 'Очікує' : 'Скасовано'}
@@ -253,14 +304,14 @@ const BookingsTab: React.FC = () => {
                        <div className="flex items-center justify-end gap-2">
                         {b.status === 'pending' ? (
                           <>
-                            <button 
+                            <button
                               onClick={() => handleUpdateStatus(b.id, 'confirmed')}
                               disabled={updating === b.id}
                               className="px-3 py-1.5 rounded-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-50"
                             >
                               Підтвердити
                             </button>
-                            <button 
+                            <button
                               onClick={() => handleUpdateStatus(b.id, 'cancelled')}
                               disabled={updating === b.id}
                               className="p-1.5 rounded-[10px] bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all disabled:opacity-50"

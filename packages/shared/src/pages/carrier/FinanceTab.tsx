@@ -188,7 +188,31 @@ const FinanceTab: React.FC = () => {
          </div>
       </div>
 
-      <div className="bg-[#0B1221] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl min-h-[400px]">
+      {/* Mobile Transactions */}
+      <div className="md:hidden space-y-3">
+        {transactions.map((trx, idx) => (
+          <div key={idx} className="bg-[#0B1221] border border-white/5 rounded-[20px] p-4 flex justify-between items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-xl ${trx.type === 'income' ? 'bg-[#10B981]/10 text-[#10B981]' : trx.type === 'payout' ? 'bg-[#0EA5E9]/10 text-[#0EA5E9]' : 'bg-rose-500/10 text-rose-500'}`}>
+                {trx.type === 'income' ? <ArrowDownRight size={16} /> : trx.type === 'payout' ? <Landmark size={16} /> : <ArrowUpRight size={16} />}
+              </div>
+              <div>
+                <p className="text-xs font-black text-white italic uppercase">{trx.type === 'income' ? 'Дохід' : trx.type === 'payout' ? 'Виплата' : 'Повернення'}</p>
+                <p className="text-[9px] text-[#5A6A85] font-bold uppercase">{trx.date}</p>
+                <span className={`text-[8px] font-black uppercase tracking-widest mt-1 inline-block ${trx.status === 'completed' ? 'text-[#10B981]' : 'text-amber-500'}`}>
+                  {trx.status === 'completed' ? 'ЗАВЕРШЕНО' : 'В ОБРОБЦІ'}
+                </span>
+              </div>
+            </div>
+            <span className={`text-sm font-black italic tracking-tighter shrink-0 ${trx.amount > 0 ? 'text-[#10B981]' : 'text-rose-500'}`}>
+              {trx.amount > 0 ? '+' : ''}€{trx.amount.toLocaleString()}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-[#0B1221] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl min-h-[400px]">
         <div className="p-6 border-b border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
            <h3 className="text-[12px] font-black uppercase tracking-widest text-white flex items-center gap-3">
               <History size={16} className="text-[#00E5FF]" /> ОСТАННЯ АКТИВНІСТЬ

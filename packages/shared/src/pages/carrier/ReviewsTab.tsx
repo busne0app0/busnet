@@ -83,8 +83,8 @@ const ReviewsTab: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="col-span-1 bg-[#1A2639]/30 border border-white/5 rounded-[32px] p-8 flex flex-col items-center justify-center text-center space-y-4 shadow-lg h-fit">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-1 bg-[#1A2639]/30 border border-white/5 rounded-[24px] p-6 flex flex-col items-center justify-center text-center space-y-3 shadow-lg">
            <p className="text-[9px] font-black uppercase text-[#5A6A85] tracking-widest">СЕР. РЕЙТИНГ</p>
            <h3 className="text-7xl font-black text-white italic tracking-tighter">{avgRating.toFixed(1)}</h3>
            <div className="flex items-center gap-2">
@@ -95,14 +95,14 @@ const ReviewsTab: React.FC = () => {
            <p className="text-[10px] font-black text-[#FBBF24] uppercase tracking-widest mt-2">{reviews.length > 0 ? `ВІДГУКІВ: ${reviews.length}` : 'НЕМАЄ ВІДГУКІВ'}</p>
         </div>
 
-        <div className="col-span-2 space-y-4">
+        <div className="md:col-span-2 space-y-4">
            {reviews.map((rev, i) => (
              <motion.div 
                key={rev.id}
                initial={{ opacity: 0, x: 20 }}
                animate={{ opacity: 1, x: 0 }}
                transition={{ delay: i * 0.1 }}
-               className="bg-[#0B1221] border border-white/5 rounded-[32px] p-8 relative overflow-hidden group shadow-lg"
+               className="bg-[#0B1221] border border-white/5 rounded-[24px] p-5 relative overflow-hidden group shadow-lg"
              >
                 <div className="flex justify-between items-start mb-6">
                    <div className="flex items-center gap-4">

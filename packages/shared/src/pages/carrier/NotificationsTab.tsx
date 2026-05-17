@@ -79,27 +79,27 @@ const NotificationsTab: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-top-4 duration-500">
-      <div className="flex justify-between items-end">
+    <div className="space-y-8 animate-in slide-in-from-top-4 duration-500">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <div className="w-12 h-1 bg-[#A855F7] mb-4 shadow-[0_0_10px_rgba(168,85,247,0.5)] rounded-full" />
-          <h2 className="text-3xl font-black uppercase tracking-widest text-white">СПОВІЩЕННЯ</h2>
-          <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest mt-2">Центр системних та клієнтських повідомлень</p>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-1.5 h-6 bg-[#A855F7] shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
+            <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white">СПОВІЩЕННЯ</h2>
+          </div>
+          <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest ml-4">Центр системних та клієнтських повідомлень</p>
         </div>
         <div className="flex gap-3">
-           <button 
+           <button
              onClick={handleMarkAllAsRead}
-             className="p-3 rounded-full bg-white/5 border border-white/5 text-[#8899B5] hover:text-white hover:bg-white/10 transition-all shadow-lg"
-             title="Прочитати всі"
+             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-[#8899B5] hover:text-white hover:bg-white/10 transition-all text-[9px] font-black uppercase tracking-widest"
            >
-              <MailOpen size={16} />
+              <MailOpen size={14} /> <span className="hidden sm:inline">Прочитати всі</span>
            </button>
-           <button 
+           <button
              onClick={handleClearAll}
-             className="p-3 rounded-full bg-rose-500/5 border border-rose-500/10 text-rose-500 hover:text-white hover:bg-rose-500 transition-all shadow-lg"
-             title="Видалити всі"
+             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/5 border border-rose-500/10 text-rose-500 hover:text-white hover:bg-rose-500 transition-all text-[9px] font-black uppercase tracking-widest"
            >
-              <Trash2 size={16} />
+              <Trash2 size={14} /> <span className="hidden sm:inline">Видалити всі</span>
            </button>
         </div>
       </div>

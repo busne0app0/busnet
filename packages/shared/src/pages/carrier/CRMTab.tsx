@@ -166,7 +166,45 @@ const CRMTab: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-[#0B1221] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl relative min-h-[400px]">
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-3">
+        {loading ? (
+          <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-24 bg-[#0B1221] rounded-2xl animate-pulse" />)}</div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3 bg-[#0B1221] rounded-[24px] border border-white/5">
+            <Users className="text-[#1A2639]" size={48} />
+            <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest">ПАСАЖИРІВ НЕМАЄ</p>
+          </div>
+        ) : filtered.map((p, idx) => (
+          <motion.div key={idx} initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} transition={{delay:idx*0.04}} className="bg-[#0B1221] border border-white/5 rounded-[20px] p-4 space-y-3">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#00E5FF]/10 border border-[#00E5FF]/20 flex items-center justify-center text-[#00E5FF] font-bold text-xs uppercase">
+                  {p.name.split(' ').map((n: string) => n[0]).join('')}
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">{p.name}</p>
+                  <div className="flex items-center gap-1">
+                    <Star size={10} className="text-amber-400 fill-amber-400" />
+                    <span className="text-[10px] font-black text-amber-400">{p.rating.toFixed(1)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-black text-[#00E5FF] italic">€{p.totalSpent.toLocaleString()}</p>
+                <p className="text-[9px] text-[#5A6A85] uppercase">{p.tripsCount} поїздок</p>
+              </div>
+            </div>
+            <div className="text-[10px] text-[#8899B5] space-y-0.5">
+              <p className="flex items-center gap-2"><Mail size={10} className="opacity-50" /> {p.email}</p>
+              <p className="flex items-center gap-2"><Phone size={10} className="opacity-50" /> {p.phone}</p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-[#0B1221] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl relative min-h-[400px]">
         <div className="overflow-x-auto scrollbar-hide h-full">
           {loading ? (
             <div className="p-8 space-y-4">
