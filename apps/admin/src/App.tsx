@@ -6,7 +6,7 @@ import {
   AdminLayout, DashboardTab, ForumPage,
   LiveTripsTab, ApprovalsTab, ConflictsTab, CarriersTab, AgentsTab, RoutesTab,
   FinanceTab, RefundsTab, TransactionsTab, InvoicesTab,
-  CRMTab, MarketingTab, SupportTab, SettingsTab, LogsTab, SecurityTab
+  CRMTab, MarketingTab, SupportTab, SettingsTab, LogsTab, SecurityTab, NetworkTab
 } from '@busnet/shared/pages';
 import PortalLogin from '@busnet/shared/components/auth/PortalLogin';
 import { Shield } from 'lucide-react';
@@ -35,6 +35,7 @@ export default function App() {
         <Route path="refunds" element={<RefundsTab />} />
         <Route path="transactions" element={<TransactionsTab />} />
         <Route path="invoices" element={<InvoicesTab />} />
+        <Route path="network" element={<NetworkTab />} />
         <Route path="crm" element={<CRMTab />} />
         <Route path="marketing" element={<MarketingTab />} />
         <Route path="support" element={<SupportTab />} />

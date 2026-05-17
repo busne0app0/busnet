@@ -10,6 +10,7 @@ interface Ticket {
   user_id: string;
   assigned_to: 'ai' | 'carrier' | 'admin';
   status: 'open' | 'resolved' | 'escalated';
+  chat_type?: string;
   last_updated: string;
   created_at: string;
 }
@@ -32,6 +33,7 @@ export default function SupportTab() {
   const [sending, setSending]   = useState(false);
   const [search, setSearch]     = useState('');
   const [filter, setFilter]     = useState<'all' | 'open' | 'escalated' | 'resolved'>('all');
+  const [chatTypeFilter, setChatTypeFilter] = useState<'all' | 'support' | 'b2b'>('all');
 
   useEffect(() => {
     const load = async () => {
@@ -90,10 +92,13 @@ export default function SupportTab() {
     setSelected(null);
   };
 
-  const filtered = tickets.filter(t =>
-    (filter === 'all' || t.status === filter) &&
-    t.id.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = tickets.filter(t => {
+    const matchStatus = filter === 'all' || t.status === filter;
+    const matchSearch = t.id.toLowerCase().includes(search.toLowerCase());
+    const isB2B = t.chat_type?.startsWith('b2b');
+    const matchType = chatTypeFilter === 'all' || (chatTypeFilter === 'b2b' && isB2B) || (chatTypeFilter === 'support' && !isB2B);
+    return matchStatus && matchSearch && matchType;
+  });
 
   const statusColor = (s: string) => {
     if (s === 'open')      return 'text-[#00c8ff] bg-[#00c8ff]/10 border-[#00c8ff]/20';
@@ -139,10 +144,15 @@ export default function SupportTab() {
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Пошук..." className="w-full bg-[#0f1520] border border-[#1c2e48] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white outline-none focus:border-[#00c8ff] transition-all" />
             </div>
             <select value={filter} onChange={e => setFilter(e.target.value as any)} className="bg-[#0f1520] border border-[#1c2e48] rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-[#00c8ff] cursor-pointer">
-              <option value="all">Всі</option>
+              <option value="all">Всі Статуси</option>
               <option value="open">Відкриті</option>
               <option value="escalated">Ескалація</option>
               <option value="resolved">Вирішені</option>
+            </select>
+            <select value={chatTypeFilter} onChange={e => setChatTypeFilter(e.target.value as any)} className="bg-[#0f1520] border border-[#1c2e48] rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-[#00c8ff] cursor-pointer">
+              <option value="all">Всі Типи</option>
+              <option value="support">B2C Підтримка</option>
+              <option value="b2b">B2B Чати</option>
             </select>
           </div>
 
@@ -188,7 +198,13 @@ export default function SupportTab() {
                   <p className="text-[10px] font-black text-[#00c8ff] uppercase tracking-widest font-mono">#{selected.id.slice(0, 8).toUpperCase()}</p>
                   <p className="text-[11px] text-white/50">{assignedLabel(selected.assigned_to)} · {statusLabel(selected.status)}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-4 items-center">
+                  {selected.chat_type?.startsWith('b2b') && selected.assigned_to !== 'admin' && (
+                    <div className="text-[9px] text-[#f87171] uppercase tracking-widest bg-[#f87171]/10 border border-[#f87171]/20 px-2 py-1.5 rounded animate-pulse">
+                      Режим Перехоплення (Snooping)
+                    </div>
+                  )}
+                  <div className="flex gap-2">
                   {selected.status !== 'resolved' && (
                     <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                       onClick={() => handleResolve(selected)}

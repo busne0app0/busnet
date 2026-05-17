@@ -7,7 +7,7 @@ import {
   ClipboardList, FileText, Users, MessageSquare, 
   Megaphone, Search, Bell, Settings, FileCode, 
   Shield, LogOut, RefreshCw, Clock, Menu, X,
-  Cpu, Zap, Globe, Activity, Calendar
+  Cpu, Zap, Globe, Activity, Calendar, Network
 } from 'lucide-react';
 import { useAdminStore } from '@busnet/shared/store/useAdminStore';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
@@ -82,6 +82,7 @@ const AdminLayout: React.FC = () => {
   ];
 
   const secondaryNav = [
+    { id: 'network', label: 'Мережа', icon: Network, path: '/network' },
     { id: 'carriers', label: 'Партнери', icon: Handshake, path: '/carriers' },
     { id: 'finance', label: 'Фінанси', icon: CreditCard, path: '/finance' },
     { id: 'crm', label: 'Клієнти', icon: Users, path: '/crm' },
