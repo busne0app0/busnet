@@ -114,7 +114,49 @@ const AgentsTab: React.FC = () => {
         ))}
       </div>
 
-      <div className="overflow-x-auto min-h-[400px]">
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-3">
+        {agents.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-3 bg-[#0B1221] rounded-[24px] border border-white/5">
+            <Users className="text-[#1A2639]" size={40} />
+            <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest">АГЕНТІВ НЕМАЄ</p>
+          </div>
+        ) : agents.map((agent, idx) => (
+          <div key={idx} className="bg-[#0B1221] border border-white/5 rounded-[20px] p-4 space-y-3">
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-[12px] bg-[#A855F7]/10 border border-[#A855F7]/20 flex items-center justify-center text-[#A855F7]">
+                  <Handshake size={20} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white tracking-tight uppercase">{agent.name}</p>
+                  <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest mt-0.5">{agent.id}</p>
+                </div>
+              </div>
+              <span className={`px-2.5 py-1 rounded-[10px] text-[8px] font-black uppercase border ${agent.status === 'active' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                {agent.status === 'active' ? 'АКТИВНИЙ' : 'ПЕРЕВІРКА'}
+              </span>
+            </div>
+            <div className="flex justify-between items-end pt-2 border-t border-white/5">
+              <div>
+                <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest">КВИТКІВ</p>
+                <p className="text-sm font-black text-white italic">{agent.tickets}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest">ОБІГ</p>
+                <p className="text-sm font-black text-white italic">€{agent.revenue.toLocaleString()}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest">КОМІСІЯ</p>
+                <p className="text-sm font-black text-[#10B981] italic">€{agent.commission.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden md:block overflow-x-auto min-h-[400px]">
          <table className="min-w-[800px] w-full text-left border-separate border-spacing-y-2">
             <thead>
                <tr className="bg-[#1A2639]/30">
