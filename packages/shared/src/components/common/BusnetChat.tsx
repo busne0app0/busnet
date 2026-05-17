@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send, Bot, User, ShieldAlert, UserCircle,
   Loader2, RefreshCw, CheckCircle2, AlertCircle,
-  Paperclip, Smile, Zap, X, ChevronDown, MessageSquare
+  Paperclip, Smile, Zap, X, ChevronDown, MessageSquare, Ticket as TicketIcon, MapPin, Calendar
 } from 'lucide-react';
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
@@ -29,6 +29,8 @@ interface Ticket {
   user_id: string;
   carrier_id: string | null;
   trip_id: string | null;
+  agent_id: string | null;
+  booking_id: string | null;
   assigned_to: 'ai' | 'carrier' | 'admin';
   status: 'open' | 'resolved' | 'escalated';
   created_at: string;
@@ -40,6 +42,8 @@ interface BusnetChatProps {
   portalRole?: 'passenger' | 'carrier' | 'agent' | 'admin';
   /** Optional fixed height class, defaults to h-[calc(100vh-180px)] */
   heightClass?: string;
+  /** Contextual booking ID if opened from a specific ticket */
+  bookingId?: string;
 }
 
 // ─── Config by role ───────────────────────────────────────────────────────────
@@ -107,6 +111,7 @@ export default function BusnetChat({ portalRole = 'passenger', heightClass }: Bu
   const [isTyping, setIsTyping] = useState(false);
   const [loading, setLoading]   = useState(true);
   const [showQuick, setShowQuick] = useState(true);
+  const [bookingContext, setBookingContext] = useState<any>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef       = useRef<HTMLInputElement>(null);
@@ -137,7 +142,14 @@ export default function BusnetChat({ portalRole = 'passenger', heightClass }: Bu
       if (!existing) {
         const { data } = await supabase
           .from('support_tickets')
-          .insert({ user_id: user.uid, carrier_id: null, trip_id: null, assigned_to: 'ai', status: 'open' })
+          .insert({ 
+            user_id: user.uid, 
+            carrier_id: null, 
+            trip_id: null, 
+            booking_id: bookingId || null,
+            assigned_to: 'ai', 
+            status: 'open' 
+          })
           .select().single();
         existing = data;
 
@@ -161,6 +173,14 @@ export default function BusnetChat({ portalRole = 'passenger', heightClass }: Bu
         .eq('ticket_id', existing.id)
         .order('created_at', { ascending: true });
       setMessages(msgs || []);
+
+      // Fetch booking context if exists
+      const bId = existing.booking_id || bookingId;
+      if (bId) {
+        const { data: bData } = await supabase.from('bookings').select('*').eq('id', bId).single();
+        if (bData) setBookingContext(bData);
+      }
+
       setLoading(false);
 
       // Realtime
@@ -215,7 +235,7 @@ export default function BusnetChat({ portalRole = 'passenger', heightClass }: Bu
   const generateAI = async (userText: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('chat-support', {
-        body: { message: userText, ticketId: ticket!.id, userId: ticket!.user_id },
+        body: { message: userText, ticketId: ticket!.id, userId: ticket!.user_id, userRole: portalRole },
       });
 
       let aiText: string;
@@ -231,9 +251,10 @@ export default function BusnetChat({ portalRole = 'passenger', heightClass }: Bu
       }
 
       await supabase.from('ticket_messages').insert({ ticket_id: ticket!.id, role: 'ai', text: aiText, sender_name: 'AI Консьєрж' });
-      if (escalate) await escalateTicket('carrier');
+      const targetRole = portalRole === 'passenger' ? 'carrier' : 'admin';
+      if (escalate) await escalateTicket(targetRole);
     } catch {
-      await supabase.from('ticket_messages').insert({ ticket_id: ticket!.id, role: 'ai', text: 'Виникла помилка. Переключаю на оператора...', sender_name: 'AI Консьєрж' });
+      await supabase.from('ticket_messages').insert({ ticket_id: ticket!.id, role: 'ai', text: 'Виникла помилка. Переключаю на адміністратора...', sender_name: 'AI Консьєрж' });
       await escalateTicket('admin');
     }
   };
@@ -310,6 +331,36 @@ export default function BusnetChat({ portalRole = 'passenger', heightClass }: Bu
           </div>
         </div>
       </div>
+
+      {/* Context Panel (Booking Info) */}
+      {bookingContext && (
+        <div className="px-6 py-3 border-b border-white/5 bg-[#050c15]/80 backdrop-blur-md shrink-0 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-[12px] bg-[#7c5cfc]/10 border border-[#7c5cfc]/20 flex items-center justify-center text-[#7c5cfc]">
+              <TicketIcon size={18} />
+            </div>
+            <div>
+              <p className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
+                {bookingContext.route?.from || 'Місто А'} <span className="text-[#5A6A85]">➔</span> {bookingContext.route?.to || 'Місто Б'}
+              </p>
+              <div className="flex items-center gap-3 mt-1">
+                <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest flex items-center gap-1">
+                  <Calendar size={10} /> {bookingContext.date || 'Дата не вказана'}
+                </p>
+                <span className="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/20">
+                  {bookingContext.status || 'АКТИВНИЙ'}
+                </span>
+              </div>
+            </div>
+          </div>
+          <button 
+            onClick={() => toast.success(`Відкриття квитка ${bookingContext.id}...`)}
+            className="px-4 py-2 rounded-xl bg-[#7c5cfc]/10 text-[#7c5cfc] hover:bg-[#7c5cfc] hover:text-white transition-all text-[10px] font-black uppercase tracking-widest border border-[#7c5cfc]/20"
+          >
+            ДЕТАЛІ КВИТКА
+          </button>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 scrollbar-hide" style={{ background: 'linear-gradient(to bottom, #080f1a, #050c15)' }}>

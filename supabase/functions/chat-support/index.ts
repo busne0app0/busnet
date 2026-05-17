@@ -1,6 +1,6 @@
 /**
  * Supabase Edge Function: chat-support
- * Handles AI responses for passenger support chat via Vercel AI Gateway.
+ * Handles AI responses for passenger/carrier/agent support chat via Vercel AI Gateway.
  * 
  * Deploy with:
  *   supabase functions deploy chat-support
@@ -12,23 +12,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const AI_GATEWAY_URL = "https://ai-gateway.vercel.sh/v1/chat/completions";
-const AI_MODEL = "openai/gpt-4o"; // Change to gpt-5.5 when available
-
-const SYSTEM_PROMPT = `
-Ти — AI Консьєрж BUSNET, дружній помічник пасажирів автобусних рейсів.
-Відповідай ТІЛЬКИ українською мовою. Будь коротким (2-4 речення).
-
-Ти можеш допомогти з:
-- Інформацією про квитки та бронювання
-- Нормами багажу (1 сумка 20кг + ручна поклажа 5кг)
-- Бонусною програмою (10 балів = 1 грн знижки)
-- Загальними питаннями про рейси
-
-Якщо питання складне (скасування, відшкодування, скарга, юридичне), 
-додай у відповідь JSON-мітку: {"escalate": true}
-
-Якщо пасажир просить людину або оператора — ОБОВ'ЯЗКОВО додай {"escalate": true}.
-`.trim();
+const AI_MODEL = "openai/gpt-4o";
 
 Deno.serve(async (req: Request) => {
   // CORS headers
@@ -42,7 +26,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { message, ticketId, tripId, userId } = await req.json();
+    const { message, ticketId, tripId, userId, userRole } = await req.json();
 
     if (!message) {
       return new Response(JSON.stringify({ error: "No message provided" }), { status: 400 });
@@ -51,6 +35,28 @@ Deno.serve(async (req: Request) => {
     const apiKey = Deno.env.get("AI_GATEWAY_API_KEY");
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "AI_GATEWAY_API_KEY not set" }), { status: 500 });
+    }
+
+    // Dynamic System Prompt based on role
+    let systemPrompt = `Ти — AI Консьєрж BUSNET. Відповідай ТІЛЬКИ українською мовою. Будь коротким (2-4 речення).\n`;
+
+    if (userRole === 'carrier') {
+      systemPrompt += `
+Ти спілкуєшся з ПЕРЕВІЗНИКОМ. Допомагай йому з управлінням рейсами, агентами, та адмін питаннями.
+Якщо перевізник просить підключити адміністратора BUSNET, додай у відповідь JSON-мітку: {"escalate": true}
+`;
+    } else if (userRole === 'agent') {
+      systemPrompt += `
+Ти спілкуєшся з АГЕНТОМ (партнером). Допомагай з продажами, бронюваннями, комісіями.
+Якщо агент просить вирішити складне питання через адміністратора, додай у відповідь JSON-мітку: {"escalate": true}
+`;
+    } else {
+      systemPrompt += `
+Ти спілкуєшся з ПАСАЖИРОМ. Допомагай з квитками, багажем, поверненнями. 
+Норма багажу: 1 сумка 20кг + ручна поклажа 5кг. 
+Бонуси: 10 балів = 1 грн знижки.
+Якщо пасажир просить людину, оператора, або питання дуже складне (скасування, скарга) — ОБОВ'ЯЗКОВО додай: {"escalate": true}
+`;
     }
 
     // Build context-aware prompt
@@ -67,7 +73,7 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         model: AI_MODEL,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           { role: "user", content: contextMessage },
         ],
         max_tokens: 300,
@@ -81,21 +87,16 @@ Deno.serve(async (req: Request) => {
       console.error("AI Gateway error:", errorBody);
       return new Response(JSON.stringify({ 
         error: "AI service unavailable",
-        reply: "Вибачте, сервіс тимчасово недоступний. Спробуйте пізніше або зверніться до оператора.",
-        escalate: false
-      }), { status: 200 }); // Return 200 so frontend handles gracefully
+        reply: "Вибачте, сервіс тимчасово недоступний. Переключаю вас на оператора.",
+        escalate: true
+      }), { status: 200 });
     }
 
     const aiData = await aiResponse.json();
     const rawReply: string = aiData.choices?.[0]?.message?.content || "";
 
-    // Check if AI decided to escalate
     const escalate = rawReply.includes('"escalate": true') || rawReply.includes('"escalate":true');
-
-    // Clean JSON tags from reply text
-    const reply = rawReply
-      .replace(/\{[^}]*"escalate"[^}]*\}/g, "")
-      .trim();
+    const reply = rawReply.replace(/\{[^}]*"escalate"[^}]*\}/g, "").trim();
 
     return new Response(
       JSON.stringify({ reply, escalate }),
@@ -110,7 +111,7 @@ Deno.serve(async (req: Request) => {
     console.error("Edge function error:", err);
     return new Response(
       JSON.stringify({ 
-        reply: "Виникла помилка. Переключаю вас на оператора.",
+        reply: "Виникла помилка. Переключаю вас на адміністратора.",
         escalate: true 
       }),
       { status: 200 }
