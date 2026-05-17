@@ -22,7 +22,8 @@ export default function CRM() {
   const [tasks, setTasks] = useState(INITIAL_TASKS);
   const [showNewDealModal, setShowNewDealModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [newDeal, setNewDeal] = useState({ name: '', route: '', price: '', note: '' });
+  const [newDeal, setNewDeal] = useState({ name: '', phone: '', email: '', route: '', price: '', note: '' });
+  const [isCreating, setIsCreating] = useState(false);
   const [generatedLink, setGeneratedLink] = useState('');
   const [isCopied, setIsCopied] = useState(false);
   const navigate = useNavigate();
@@ -51,11 +52,25 @@ export default function CRM() {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  const handleCreateDeal = () => {
-    if (!newDeal.name || !newDeal.route) return;
-    toast.success(`Угоду для ${newDeal.name} створено!`);
-    setShowNewDealModal(false);
-    setNewDeal({ name: '', route: '', price: '', note: '' });
+  const handleCreateDeal = async () => {
+    if (!newDeal.name) {
+      toast.error('Ім\'я обов\'язкове');
+      return;
+    }
+    setIsCreating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-client', {
+        body: newDeal
+      });
+      if (error) throw error;
+      toast.success(`Профіль для ${newDeal.name} створено!`);
+      setShowNewDealModal(false);
+      setNewDeal({ name: '', phone: '', email: '', route: '', price: '', note: '' });
+    } catch (err: any) {
+      toast.error('Помилка: ' + err.message);
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const toggleTask = (index: number) => {
@@ -256,7 +271,7 @@ export default function CRM() {
               </div>
               <div className="p-6 space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-[#4a5c72] uppercase tracking-widest ml-1">Контактна особа</label>
+                  <label className="text-[9px] font-black text-[#4a5c72] uppercase tracking-widest ml-1">Ім'я Клієнта *</label>
                   <input 
                     type="text" 
                     value={newDeal.name}
@@ -264,6 +279,28 @@ export default function CRM() {
                     placeholder="Ім'я та Прізвище" 
                     className="w-full bg-[#121824] border border-white/5 rounded-xl py-3 px-4 font-bold text-white outline-none focus:border-[#7c5cfc] transition-all" 
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-[#4a5c72] uppercase tracking-widest ml-1">Телефон</label>
+                    <input 
+                      type="text" 
+                      value={newDeal.phone}
+                      onChange={(e) => setNewDeal({...newDeal, phone: e.target.value})}
+                      placeholder="+380..." 
+                      className="w-full bg-[#121824] border border-white/5 rounded-xl py-3 px-4 font-bold text-white outline-none focus:border-[#7c5cfc] transition-all" 
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-[#4a5c72] uppercase tracking-widest ml-1">Email (Для доступу)</label>
+                    <input 
+                      type="email" 
+                      value={newDeal.email}
+                      onChange={(e) => setNewDeal({...newDeal, email: e.target.value})}
+                      placeholder="client@mail.com" 
+                      className="w-full bg-[#121824] border border-white/5 rounded-xl py-3 px-4 text-xs font-bold text-white outline-none focus:border-[#7c5cfc] transition-all" 
+                    />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[9px] font-black text-[#4a5c72] uppercase tracking-widest ml-1">Маршрут</label>
@@ -306,9 +343,10 @@ export default function CRM() {
                   <button onClick={() => setShowNewDealModal(false)} className="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[#7a8fa8] hover:text-white transition-all">Скасувати</button>
                   <button 
                     onClick={handleCreateDeal}
-                    className="flex-1 py-3 bg-[#7c5cfc] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-purple-900/20 hover:scale-[1.02] active:scale-95 transition-all"
+                    disabled={isCreating}
+                    className="flex-1 py-3 bg-[#7c5cfc] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-purple-900/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
                   >
-                    Створити
+                    {isCreating ? 'Створення...' : 'Створити Клієнта'}
                   </button>
                 </div>
               </div>

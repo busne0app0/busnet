@@ -44,6 +44,31 @@ const AgentsTab: React.FC = () => {
   const [generatedLinkId, setGeneratedLinkId] = useState('');
   const [isCopied, setIsCopied] = useState(false);
   const [showQR, setShowQR] = useState(false);
+  const [editingComm, setEditingComm] = useState<{uid: string, val: string} | null>(null);
+
+  const updateCommission = async (agentUid: string, val: string) => {
+    if (!user) return;
+    const num = parseFloat(val);
+    if (isNaN(num) || num < 0 || num > 100) {
+      toast.error('Невірне значення комісії');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('user_relationships')
+        .update({ custom_commission_percentage: num })
+        .eq('parent_id', user.uid)
+        .eq('child_id', agentUid);
+      
+      if (error) throw error;
+      setAgents(prev => prev.map(a => a.uid === agentUid ? { ...a, commission_percent: num } : a));
+      setEditingComm(null);
+      toast.success('Комісію оновлено');
+    } catch (err) {
+      console.error(err);
+      toast.error('Помилка оновлення комісії');
+    }
+  };
 
   const generateInviteLink = async () => {
     if (!user) return;
@@ -95,6 +120,11 @@ const AgentsTab: React.FC = () => {
           .select('*')
           .eq('carrier_id', user.uid)
           .eq('status', 'confirmed');
+          
+        const { data: rels } = await supabase
+          .from('user_relationships')
+          .select('child_id, custom_commission_percentage')
+          .eq('parent_id', user.uid);
         
         let totalAgentTickets = 0;
         let totalAgentCommission = 0;
@@ -108,7 +138,8 @@ const AgentsTab: React.FC = () => {
                 }
                 const tix = b.passengers?.length || 1;
                 const rev = (b.totalPrice || 0) / 42;
-                const comm = rev * 0.10;
+                const commPercent = rels?.find(r => r.child_id === b.agentId)?.custom_commission_percentage ?? 10;
+                const comm = rev * (commPercent / 100);
                 
                 agentSales[b.agentId].tickets += tix;
                 agentSales[b.agentId].revenue += rev;
@@ -123,12 +154,15 @@ const AgentsTab: React.FC = () => {
         if (agentsData) {
           const loadedAgents = agentsData.map((d) => {
             const sales = agentSales[d.uid] || { tickets: 0, revenue: 0, commission: 0 };
+            const commPercent = rels?.find(r => r.child_id === d.uid)?.custom_commission_percentage ?? 10;
             return {
+              uid: d.uid,
               id: `AG-${d.uid.slice(0,4).toUpperCase()}`,
               name: d.companyName || d.firstName || 'Агент',
               tickets: sales.tickets,
               revenue: sales.revenue,
               commission: sales.commission,
+              commission_percent: commPercent,
               rating: d.rating !== undefined ? d.rating : 4.8, 
               status: d.status === 'active' ? 'active' : 'review'
             };
@@ -218,7 +252,28 @@ const AgentsTab: React.FC = () => {
               </div>
               <div className="text-right">
                 <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest">КОМІСІЯ</p>
-                <p className="text-sm font-black text-[#10B981] italic">€{agent.commission.toLocaleString()}</p>
+                <div className="flex items-center justify-end gap-2 mt-0.5">
+                  <p className="text-sm font-black text-[#10B981] italic">€{agent.commission.toLocaleString()}</p>
+                  {editingComm?.uid === agent.uid ? (
+                    <div className="flex items-center gap-1">
+                      <input 
+                        type="number" className="w-12 bg-black/50 border border-white/10 rounded px-1 text-xs text-center text-white"
+                        value={editingComm.val} onChange={e => setEditingComm({...editingComm, val: e.target.value})}
+                        onBlur={() => updateCommission(agent.uid, editingComm.val)}
+                        onKeyDown={e => e.key === 'Enter' && updateCommission(agent.uid, editingComm.val)}
+                        autoFocus
+                      />
+                      <span className="text-xs text-[#5A6A85]">%</span>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => setEditingComm({uid: agent.uid, val: String(agent.commission_percent)})}
+                      className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-[9px] text-[#5A6A85] font-bold"
+                    >
+                      {agent.commission_percent}% ✎
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -254,8 +309,28 @@ const AgentsTab: React.FC = () => {
                      <td className="py-5 px-6 font-black text-white italic text-sm">{agent.tickets}</td>
                      <td className="py-5 px-6 font-black text-white italic text-sm">€{agent.revenue.toLocaleString()}</td>
                      <td className="py-5 px-6">
-                        <span className="text-sm font-black text-[#10B981] italic">€{agent.commission.toLocaleString()}</span>
-                        <p className="text-[9px] text-[#5A6A85] font-bold uppercase mt-1 tracking-widest">10% СТАВКА</p>
+                        <div className="flex flex-col gap-1 mt-0.5">
+                          <span className="text-sm font-black text-[#10B981] italic">€{agent.commission.toLocaleString()}</span>
+                          {editingComm?.uid === agent.uid ? (
+                            <div className="flex items-center gap-1">
+                              <input 
+                                type="number" className="w-12 bg-black/50 border border-white/10 rounded px-1 text-[10px] text-center text-white"
+                                value={editingComm.val} onChange={e => setEditingComm({...editingComm, val: e.target.value})}
+                                onBlur={() => updateCommission(agent.uid, editingComm.val)}
+                                onKeyDown={e => e.key === 'Enter' && updateCommission(agent.uid, editingComm.val)}
+                                autoFocus
+                              />
+                              <span className="text-[10px] text-[#5A6A85]">%</span>
+                            </div>
+                          ) : (
+                            <button 
+                              onClick={() => setEditingComm({uid: agent.uid, val: String(agent.commission_percent)})}
+                              className="text-[9px] text-[#5A6A85] font-bold uppercase tracking-widest text-left hover:text-white transition-colors"
+                            >
+                              {agent.commission_percent}% СТАВКА ✎
+                            </button>
+                          )}
+                        </div>
                      </td>
                      <td className="py-5 px-6 text-right rounded-r-[16px]">
                         <span className={`px-3 py-1.5 rounded-[10px] text-[8px] font-black uppercase tracking-widest border ${agent.status === 'active' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>

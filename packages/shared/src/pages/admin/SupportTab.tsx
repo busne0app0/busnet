@@ -278,6 +278,7 @@ export default function SupportTab() {
                     </motion.button>
                   )}
                   <button onClick={() => setSelected(null)} className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-white/30 hover:text-white transition-colors"><X size={14} /></button>
+                  </div>
                 </div>
               </div>
 
