@@ -1,136 +1,89 @@
-/**
- * BusnetChat — Universal AI Support Chat
- * Works for: passenger, carrier, agent, admin
- * Connects to: support_tickets + ticket_messages tables
- */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Send, Bot, User, ShieldAlert, UserCircle,
-  Loader2, RefreshCw, CheckCircle2, AlertCircle,
-  Paperclip, Smile, Zap, X, ChevronDown, MessageSquare, Ticket as TicketIcon, MapPin, Calendar
-} from 'lucide-react';
+import { Send, Bot, User, ShieldAlert, UserCircle, Loader2, RefreshCw, CheckCircle2, X, Zap, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import toast from 'react-hot-toast';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-interface Message {
-  id: string;
-  ticket_id: string;
-  role: 'user' | 'ai' | 'carrier' | 'admin' | 'system';
-  text: string;
-  sender_name: string | null;
-  created_at: string;
-}
+interface Message { id: string; ticket_id: string; role: 'user'|'ai'|'carrier'|'admin'|'system'; text: string; sender_name: string|null; created_at: string; }
+interface Ticket { id: string; user_id: string; assigned_to: 'ai'|'carrier'|'admin'; status: 'open'|'resolved'|'escalated'; booking_id?: string|null; }
 
-interface Ticket {
-  id: string;
-  user_id: string;
-  carrier_id: string | null;
-  trip_id: string | null;
-  agent_id: string | null;
-  booking_id: string | null;
-  assigned_to: 'ai' | 'carrier' | 'admin';
-  status: 'open' | 'resolved' | 'escalated';
-  created_at: string;
-  last_updated: string;
-}
+interface Props { portalRole?: 'passenger'|'carrier'|'agent'|'admin'|'driver'; heightClass?: string; bookingId?: string; }
 
-interface BusnetChatProps {
-  /** Portal role - affects header color and UI */
-  portalRole?: 'passenger' | 'carrier' | 'agent' | 'admin';
-  /** Optional fixed height class, defaults to h-[calc(100vh-180px)] */
-  heightClass?: string;
-  /** Contextual booking ID if opened from a specific ticket */
-  bookingId?: string;
-}
+const ACCENT: Record<string, string> = { passenger: '#7c5cfc', carrier: '#00E5FF', agent: '#10B981', admin: '#f87171', driver: '#F59E0B' };
 
-// ─── Config by role ───────────────────────────────────────────────────────────
-const ROLE_CONFIG = {
-  passenger: { accent: '#7c5cfc', accentDim: 'rgba(124,92,252,0.1)', accentBorder: 'rgba(124,92,252,0.3)', label: 'Пасажирський чат' },
-  carrier:   { accent: '#00E5FF', accentDim: 'rgba(0,229,255,0.1)',  accentBorder: 'rgba(0,229,255,0.3)',  label: 'Підтримка перевізника' },
-  agent:     { accent: '#10B981', accentDim: 'rgba(16,185,129,0.1)', accentBorder: 'rgba(16,185,129,0.3)', label: 'Підтримка агента' },
-  admin:     { accent: '#f87171', accentDim: 'rgba(248,113,113,0.1)', accentBorder: 'rgba(248,113,113,0.3)', label: 'Адмін підтримка' },
+const QUICK: Record<string, string[]> = {
+  passenger: ['Де мій автобус?', 'Хочу повернути квиток', 'Проблема з оплатою', 'Потрібен оператор'],
+  carrier: ['Статус рейсу', 'Питання по агентам', 'Фінансова звітність', 'Зв\'язатися з адміном'],
+  agent: ['Комісія по квитках', 'Додати клієнта', 'Статус бронювання', 'Питання до адміна'],
+  driver: ['Маршрут рейсу', 'Список пасажирів', 'Технічна проблема', 'Виклик диспетчера'],
+  admin: ['Черга ескалацій', 'Активні тікети', 'Статистика AI', 'Критичні скарги'],
 };
 
-function getHeaderInfo(assignedTo?: string, portalRole?: string) {
-  if (assignedTo === 'carrier') return { title: 'Перевізник', subtitle: 'Диспетчер вашого рейсу', icon: UserCircle, color: '#4ade80', bg: '#0d2e18' };
-  if (assignedTo === 'admin')   return { title: 'Адміністратор', subtitle: 'Служба підтримки BUSNET', icon: ShieldAlert, color: '#f87171', bg: '#2e0d0d' };
-  return { title: 'AI Консьєрж', subtitle: 'Автоматична допомога 24/7', icon: Bot, color: '#00c8ff', bg: '#0d1a2e' };
+const FALLBACK: [string, string, boolean][] = [
+  ['людин', 'Переключаю вас на живого оператора. Зачекайте хвилину ⏳', true],
+  ['оператор', 'Зараз підключаю оператора. Будь ласка, зачекайте.', true],
+  ['поверн', 'Для повернення квитка перейдіть у розділ «Мої квитки» та натисніть «Скасувати».', false],
+  ['багаж', 'Стандарт: 1 валіза до 20 кг + ручна поклажа до 5 кг. Понад норму — за тарифом перевізника.', false],
+  ['оплат', 'Статус оплати доступний у вкладці «Квитки». Якщо кошти списано, але квиток не з\'явився — опишіть деталі.', false],
+  ['розклад', 'Актуальний розклад знаходиться на головній сторінці BUSNET у блоці пошуку.', false],
+  ['бонус', 'Ваші бонуси відображаються на головній сторінці кабінету. 10 балів = 1 грн знижки.', false],
+];
+
+function getFallback(text: string): { reply: string; escalate: boolean } {
+  const t = text.toLowerCase();
+  for (const [key, reply, escalate] of FALLBACK) {
+    if (t.includes(key)) return { reply, escalate };
+  }
+  return { reply: 'Дякую за запит! Для швидшої допомоги — натисніть "Потрібен оператор" або опишіть проблему детальніше.', escalate: false };
 }
 
-function getBubbleStyle(role: string) {
-  if (role === 'user')    return 'bg-gradient-to-br from-[#7c5cfc] to-[#5533dd] text-white rounded-br-none ml-auto';
+function getBubble(role: string): string {
+  if (role === 'user')    return 'bg-gradient-to-br from-[#7c5cfc] to-[#5533dd] text-white rounded-br-none ml-auto shadow-lg shadow-purple-900/30';
   if (role === 'carrier') return 'bg-[#0d2e18] border border-[#4ade80]/25 text-white rounded-bl-none';
   if (role === 'admin')   return 'bg-[#2e0d0d] border border-[#f87171]/25 text-white rounded-bl-none';
   return 'bg-white/[0.06] border border-white/10 text-[#e8f4ff] rounded-bl-none';
 }
 
-function getRoleBadge(role: string) {
-  if (role === 'carrier') return { label: 'Перевізник', color: 'text-[#4ade80]' };
-  if (role === 'admin')   return { label: 'Адміністратор', color: 'text-[#f87171]' };
-  return { label: 'AI Консьєрж', color: 'text-[#00c8ff]' };
+function getRoleName(role: string): string {
+  if (role === 'carrier') return 'Перевізник';
+  if (role === 'admin')   return 'Адміністратор BUSNET';
+  return 'AI Консьєрж';
 }
 
-const QUICK_REPLIES = [
-  'Де мій автобус?',
-  'Хочу повернути квиток',
-  'Проблема з оплатою',
-  'Потрібна людина',
-];
-
-const FALLBACK_RESPONSES: Record<string, string> = {
-  квиток: "Ви можете переглянути свої квитки у вкладці 'Квитки'. Для змін чи скасування — скористайтесь кнопками там.",
-  багаж: 'Стандарт: 1 валіза до 20кг + ручна поклажа до 5кг. Додатковий багаж — за тарифом.',
-  бонус: 'Ваш баланс бонусів — на головній сторінці кабінету. 10 балів = 1 грн знижки.',
-  привіт: 'Вітаю! Я ваш AI-помічник BUSNET. Чим можу допомогти?',
-  людин: 'Переводжу вас на оператора. Зачекайте хвилину ⏳',
-  оплат: 'Перевірте статус оплати у вкладці "Квитки". Якщо проблема — опишіть детальніше.',
-  розклад: 'Актуальний розклад рейсів доступний на головній сторінці у пошуку.',
-};
-
-function getFallback(text: string): { reply: string; escalate: boolean } {
-  const t = text.toLowerCase();
-  for (const [key, reply] of Object.entries(FALLBACK_RESPONSES)) {
-    if (t.includes(key)) {
-      return { reply, escalate: key === 'людин' };
-    }
-  }
-  return { reply: 'Дякую за запитання! Якщо хочете поговорити з людиною — натисніть "Покликати оператора".', escalate: false };
+function getRoleColor(role: string): string {
+  if (role === 'carrier') return 'text-[#4ade80]';
+  if (role === 'admin')   return 'text-[#f87171]';
+  return 'text-[#00c8ff]';
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-export default function BusnetChat({ portalRole = 'passenger', heightClass }: BusnetChatProps) {
+export default function BusnetChat({ portalRole = 'passenger', heightClass, bookingId }: Props) {
   const { user } = useAuthStore();
-  const cfg = ROLE_CONFIG[portalRole];
+  const accent = ACCENT[portalRole] || '#7c5cfc';
+  const quickReplies = QUICK[portalRole] || QUICK.passenger;
 
-  const [ticket, setTicket]     = useState<Ticket | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput]       = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [loading, setLoading]   = useState(true);
+  const [ticket, setTicket]       = useState<Ticket | null>(null);
+  const [messages, setMessages]   = useState<Message[]>([]);
+  const [input, setInput]         = useState('');
+  const [isTyping, setIsTyping]   = useState(false);
+  const [loading, setLoading]     = useState(true);
   const [showQuick, setShowQuick] = useState(true);
-  const [bookingContext, setBookingContext] = useState<any>(null);
+  const [rated, setRated]         = useState<Set<string>>(new Set());
+  const endRef    = useRef<HTMLDivElement>(null);
+  const inputRef  = useRef<HTMLInputElement>(null);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef       = useRef<HTMLInputElement>(null);
+  const scroll = useCallback(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), []);
+  useEffect(() => { scroll(); }, [messages, isTyping]);
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
-
-  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
-
-  // ── Init ticket ──────────────────────────────────────────────────────────────
+  // ── Init ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
-    let cleanup: (() => void) | undefined;
+    let chans: any[] = [];
 
-    const init = async () => {
+    (async () => {
       setLoading(true);
 
-      let { data: existing } = await supabase
+      let { data: tkt } = await supabase
         .from('support_tickets')
         .select('*')
         .eq('user_id', user.uid)
@@ -139,343 +92,266 @@ export default function BusnetChat({ portalRole = 'passenger', heightClass }: Bu
         .limit(1)
         .maybeSingle();
 
-      if (!existing) {
+      if (!tkt) {
         const { data } = await supabase
           .from('support_tickets')
-          .insert({ 
-            user_id: user.uid, 
-            carrier_id: null, 
-            trip_id: null, 
-            booking_id: bookingId || null,
-            assigned_to: 'ai', 
-            status: 'open' 
-          })
+          .insert({ user_id: user.uid, assigned_to: 'ai', status: 'open', booking_id: bookingId || null })
           .select().single();
-        existing = data;
-
-        if (existing) {
-          await supabase.from('ticket_messages').insert({
-            ticket_id: existing.id,
-            role: 'ai',
-            text: `Привіт, ${user.firstName || 'друже'}! Я AI Консьєрж BUSNET 🤖\nЗапитайте про розклад, квитки, багаж або будь-що інше — я допоможу!`,
-            sender_name: 'AI Консьєрж',
-          });
+        tkt = data;
+        if (tkt) {
+          const greeting = portalRole === 'passenger'
+            ? `Вітаю, ${user.firstName || 'друже'}! 👋 Я AI Консьєрж BUSNET.\nЗапитайте про квитки, розклад, багаж або поверненнях — я тут 24/7!`
+            : portalRole === 'carrier'
+            ? `Вітаю! Я AI-асистент для перевізників BUSNET. Чим можу допомогти?`
+            : `Вітаю! AI Консьєрж BUSNET до ваших послуг. Чим можу бути корисним?`;
+          await supabase.from('ticket_messages').insert({ ticket_id: tkt.id, role: 'ai', text: greeting, sender_name: 'AI Консьєрж' });
         }
       }
 
-      if (!existing) { setLoading(false); return; }
-
-      setTicket(existing);
+      if (!tkt) { setLoading(false); return; }
+      setTicket(tkt);
 
       const { data: msgs } = await supabase
         .from('ticket_messages')
         .select('*')
-        .eq('ticket_id', existing.id)
+        .eq('ticket_id', tkt.id)
         .order('created_at', { ascending: true });
       setMessages(msgs || []);
-
-      // Fetch booking context if exists
-      const bId = existing.booking_id || bookingId;
-      if (bId) {
-        const { data: bData } = await supabase.from('bookings').select('*').eq('id', bId).single();
-        if (bData) setBookingContext(bData);
-      }
-
       setLoading(false);
 
-      // Realtime
-      const tId = existing.id;
-      const msgCh = supabase.channel(`chat_msgs_${tId}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_messages', filter: `ticket_id=eq.${tId}` }, (p) => {
+      // Realtime subscriptions
+      const msgCh = supabase.channel(`msgs_${tkt.id}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_messages', filter: `ticket_id=eq.${tkt.id}` }, (p) => {
           const m = p.new as Message;
           setMessages(prev => prev.find(x => x.id === m.id) ? prev : [...prev, m]);
         }).subscribe();
 
-      const tktCh = supabase.channel(`chat_ticket_${tId}`)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'support_tickets', filter: `id=eq.${tId}` }, (p) => {
+      const tktCh = supabase.channel(`tkt_${tkt.id}`)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'support_tickets', filter: `id=eq.${tkt.id}` }, (p) => {
           const upd = p.new as Ticket;
           const old = p.old as Ticket;
           setTicket(upd);
           if (old.assigned_to !== upd.assigned_to) {
-            const who = upd.assigned_to === 'carrier' ? '🟢 Перевізник підключився!' : upd.assigned_to === 'admin' ? '🔴 Адміністратор підключився!' : '🤖 AI повернувся';
-            toast(who, { duration: 4000 });
+            const who = upd.assigned_to === 'carrier' ? '🟢 Перевізник підключився до чату!' : upd.assigned_to === 'admin' ? '🔴 Адміністратор підключився!' : '🤖 AI Консьєрж повернувся';
+            toast(who, { duration: 5000 });
           }
         }).subscribe();
 
-      cleanup = () => { supabase.removeChannel(msgCh); supabase.removeChannel(tktCh); };
-    };
+      chans = [msgCh, tktCh];
+    })();
 
-    init();
-    return () => cleanup?.();
-  }, [user]);
+    return () => { chans.forEach(ch => supabase.removeChannel(ch)); };
+  }, [user, portalRole, bookingId]);
 
-  // ── Send ─────────────────────────────────────────────────────────────────────
+  // ── Send ────────────────────────────────────────────────────────────────────
   const send = async (text?: string) => {
     const txt = (text || input).trim();
     if (!txt || isTyping || !ticket || ticket.status === 'resolved') return;
     setInput('');
     setShowQuick(false);
 
-    const temp: Message = {
-      id: `tmp_${Date.now()}`, ticket_id: ticket.id, role: 'user',
-      text: txt, sender_name: user?.firstName || 'Ви', created_at: new Date().toISOString(),
-    };
-    setMessages(prev => [...prev, temp]);
+    const tempId = `tmp_${Date.now()}`;
+    setMessages(prev => [...prev, { id: tempId, ticket_id: ticket.id, role: 'user', text: txt, sender_name: user?.firstName || 'Ви', created_at: new Date().toISOString() }]);
 
     await supabase.from('ticket_messages').insert({ ticket_id: ticket.id, role: 'user', text: txt, sender_name: user?.firstName || 'Пасажир' });
     await supabase.from('support_tickets').update({ last_updated: new Date().toISOString() }).eq('id', ticket.id);
 
     if (ticket.assigned_to === 'ai') {
       setIsTyping(true);
-      await generateAI(txt);
+      await callAI(txt);
       setIsTyping(false);
     }
   };
 
-  const generateAI = async (userText: string) => {
+  const callAI = async (txt: string) => {
     try {
+      const history = messages.slice(-8).filter(m => m.role !== 'system');
       const { data, error } = await supabase.functions.invoke('chat-support', {
-        body: { message: userText, ticketId: ticket!.id, userId: ticket!.user_id, userRole: portalRole },
+        body: { message: txt, ticketId: ticket!.id, userId: ticket!.user_id, userRole: portalRole, history },
       });
-
-      let aiText: string;
-      let escalate = false;
-
-      if (error || !data?.reply) {
-        const fb = getFallback(userText);
-        aiText = fb.reply;
-        escalate = fb.escalate;
-      } else {
-        aiText = data.reply;
-        escalate = data.escalate === true;
-      }
-
-      await supabase.from('ticket_messages').insert({ ticket_id: ticket!.id, role: 'ai', text: aiText, sender_name: 'AI Консьєрж' });
-      const targetRole = portalRole === 'passenger' ? 'carrier' : 'admin';
-      if (escalate) await escalateTicket(targetRole);
+      if (error || !data?.reply) throw new Error('no reply');
+      await supabase.from('ticket_messages').insert({ ticket_id: ticket!.id, role: 'ai', text: data.reply, sender_name: 'AI Консьєрж' });
+      if (data.escalate) await escalate(portalRole === 'passenger' ? 'carrier' : 'admin');
     } catch {
-      await supabase.from('ticket_messages').insert({ ticket_id: ticket!.id, role: 'ai', text: 'Виникла помилка. Переключаю на адміністратора...', sender_name: 'AI Консьєрж' });
-      await escalateTicket('admin');
+      const fb = getFallback(txt);
+      await supabase.from('ticket_messages').insert({ ticket_id: ticket!.id, role: 'ai', text: fb.reply, sender_name: 'AI Консьєрж' });
+      if (fb.escalate) await escalate('carrier');
     }
   };
 
-  const escalateTicket = async (to: 'carrier' | 'admin') => {
+  const escalate = async (to: 'carrier'|'admin') => {
     if (!ticket) return;
-    const label = to === 'carrier' ? 'Перевізника' : 'Адміністратора';
-    await supabase.from('ticket_messages').insert({ ticket_id: ticket.id, role: 'system', text: `Чат передано до ${label}. Зачекайте, оператор підключиться.`, sender_name: null });
+    const who = to === 'carrier' ? 'перевізника' : 'адміністратора BUSNET';
+    await supabase.from('ticket_messages').insert({ ticket_id: ticket.id, role: 'system', text: `Чат передано до ${who}. Середній час відповіді: 3–7 хв. Зачекайте, будь ласка.`, sender_name: null });
     await supabase.from('support_tickets').update({ assigned_to: to, status: 'escalated', last_updated: new Date().toISOString() }).eq('id', ticket.id);
     setTicket(prev => prev ? { ...prev, assigned_to: to, status: 'escalated' } : prev);
   };
 
-  const header = getHeaderInfo(ticket?.assigned_to, portalRole);
-  const IconComp = header.icon;
   const h = heightClass || 'h-[calc(100vh-180px)]';
+  const isAI = ticket?.assigned_to === 'ai';
+  const isResolved = ticket?.status === 'resolved';
 
-  // ── Loading ──────────────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div className={`${h} flex items-center justify-center rounded-[32px] bg-[#080f1a] border border-white/5`}>
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: `${cfg.accentDim}`, border: `1px solid ${cfg.accentBorder}` }}>
-              <Bot size={28} style={{ color: cfg.accent }} />
-            </div>
-            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center bg-[#080f1a] border border-white/10">
-              <Loader2 size={12} className="animate-spin" style={{ color: cfg.accent }} />
-            </div>
+  // Header label
+  const headerLabel = ticket?.assigned_to === 'carrier' ? 'Перевізник' : ticket?.assigned_to === 'admin' ? 'Адміністратор BUSNET' : 'AI Консьєрж';
+  const headerSub   = ticket?.assigned_to === 'carrier' ? 'Диспетчер підключений' : ticket?.assigned_to === 'admin' ? 'Служба підтримки BUSNET' : 'Автоматична допомога 24/7';
+  const headerColor = ticket?.assigned_to === 'carrier' ? '#4ade80' : ticket?.assigned_to === 'admin' ? '#f87171' : accent;
+
+  if (loading) return (
+    <div className={`${h} flex items-center justify-center rounded-[32px] bg-[#080f1a] border border-white/5`}>
+      <div className="flex flex-col items-center gap-4 text-center">
+        <div className="relative w-16 h-16">
+          <div className="absolute inset-0 rounded-2xl border border-white/10 animate-ping opacity-30" style={{ borderColor: accent }} />
+          <div className="w-full h-full rounded-2xl flex items-center justify-center" style={{ background: accent + '15', border: `1px solid ${accent}30` }}>
+            <Zap size={28} style={{ color: accent }} />
           </div>
-          <p className="text-[11px] font-black uppercase tracking-[0.2em]" style={{ color: cfg.accent }}>Підключення до чату...</p>
         </div>
+        <p className="text-[11px] font-black uppercase tracking-[0.2em]" style={{ color: accent }}>Підключення до чату...</p>
       </div>
-    );
-  }
+    </div>
+  );
 
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className={`${h} flex flex-col rounded-[32px] overflow-hidden border border-white/5 shadow-2xl`} style={{ background: '#080f1a' }}>
+    <div className={`${h} flex flex-col rounded-[32px] overflow-hidden border border-white/[0.07] shadow-2xl bg-[#080f1a]`}>
 
       {/* Header */}
-      <div className="px-6 py-4 flex items-center justify-between border-b border-white/5 shrink-0" style={{ background: header.bg }}>
-        <div className="flex items-center gap-4">
+      <div className="px-5 py-4 flex items-center justify-between shrink-0 border-b border-white/5" style={{ background: `${headerColor}08` }}>
+        <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: `${header.color}15`, border: `1px solid ${header.color}30` }}>
-              <IconComp size={22} style={{ color: header.color }} />
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${headerColor}15`, border: `1px solid ${headerColor}30` }}>
+              {ticket?.assigned_to === 'carrier' ? <UserCircle size={20} style={{ color: headerColor }} /> : ticket?.assigned_to === 'admin' ? <ShieldAlert size={20} style={{ color: headerColor }} /> : <Bot size={20} style={{ color: headerColor }} />}
             </div>
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#080f1a] rounded-full flex items-center justify-center">
-              <div className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ background: header.color }} />
-            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#080f1a] animate-pulse" style={{ background: headerColor }} />
           </div>
           <div>
-            <h4 className="text-sm font-black text-white uppercase tracking-wider">{header.title}</h4>
-            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: header.color }}>{header.subtitle}</p>
+            <p className="text-sm font-black text-white uppercase tracking-wider leading-none">{headerLabel}</p>
+            <p className="text-[10px] font-bold mt-1 uppercase tracking-widest" style={{ color: headerColor }}>{headerSub}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {ticket?.assigned_to === 'ai' && ticket?.status !== 'resolved' && (
-            <motion.button
-              whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-              onClick={() => escalateTicket('carrier')}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 text-white/70 hover:border-[#4ade80]/40 hover:text-[#4ade80] hover:bg-[#4ade80]/5 transition-all"
+        <div className="flex items-center gap-2">
+          {isAI && !isResolved && (
+            <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+              onClick={() => escalate('carrier')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 text-white/50 hover:border-[#4ade80]/40 hover:text-[#4ade80] hover:bg-[#4ade80]/5 transition-all"
             >
-              <UserCircle size={13} /> Покликати оператора
+              <User size={12} /> Оператор
             </motion.button>
           )}
-          {ticket?.status === 'resolved' && (
+          {isResolved && (
             <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[#4ade80]/10 text-[#4ade80] border border-[#4ade80]/20">
               <CheckCircle2 size={12} /> Вирішено
             </span>
           )}
-          <div className="text-[10px] font-mono text-white/20 hidden md:block">
-            {ticket?.id.substring(0, 8).toUpperCase()}
-          </div>
+          {ticket && (
+            <span className="text-[9px] font-mono text-white/20 hidden md:block">{ticket.id.slice(0, 8).toUpperCase()}</span>
+          )}
         </div>
       </div>
 
-      {/* Context Panel (Booking Info) */}
-      {bookingContext && (
-        <div className="px-6 py-3 border-b border-white/5 bg-[#050c15]/80 backdrop-blur-md shrink-0 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-[12px] bg-[#7c5cfc]/10 border border-[#7c5cfc]/20 flex items-center justify-center text-[#7c5cfc]">
-              <TicketIcon size={18} />
-            </div>
-            <div>
-              <p className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
-                {bookingContext.route?.from || 'Місто А'} <span className="text-[#5A6A85]">➔</span> {bookingContext.route?.to || 'Місто Б'}
-              </p>
-              <div className="flex items-center gap-3 mt-1">
-                <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest flex items-center gap-1">
-                  <Calendar size={10} /> {bookingContext.date || 'Дата не вказана'}
-                </p>
-                <span className="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/20">
-                  {bookingContext.status || 'АКТИВНИЙ'}
-                </span>
-              </div>
-            </div>
-          </div>
-          <button 
-            onClick={() => toast.success(`Відкриття квитка ${bookingContext.id}...`)}
-            className="px-4 py-2 rounded-xl bg-[#7c5cfc]/10 text-[#7c5cfc] hover:bg-[#7c5cfc] hover:text-white transition-all text-[10px] font-black uppercase tracking-widest border border-[#7c5cfc]/20"
-          >
-            ДЕТАЛІ КВИТКА
-          </button>
-        </div>
-      )}
-
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 scrollbar-hide" style={{ background: 'linear-gradient(to bottom, #080f1a, #050c15)' }}>
+      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4 scrollbar-hide" style={{ background: 'linear-gradient(180deg, #080f1a 0%, #050c15 100%)' }}>
         <AnimatePresence initial={false}>
           {messages.map((m) => {
-            if (m.role === 'system') {
-              return (
-                <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex justify-center">
-                  <span className="px-4 py-1.5 rounded-full bg-black/40 border border-white/5 text-[10px] font-bold tracking-widest text-white/40 flex items-center gap-2">
-                    <RefreshCw size={9} /> {m.text}
-                  </span>
-                </motion.div>
-              );
-            }
+            if (m.role === 'system') return (
+              <motion.div key={m.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex justify-center my-2">
+                <span className="px-4 py-1.5 rounded-full bg-black/40 border border-white/5 text-[10px] font-bold tracking-widest text-white/35 flex items-center gap-1.5">
+                  <RefreshCw size={9} /> {m.text}
+                </span>
+              </motion.div>
+            );
 
             const isUser = m.role === 'user';
-            const badge = !isUser ? getRoleBadge(m.role) : null;
-
             return (
-              <motion.div
-                key={m.id}
-                initial={{ opacity: 0, scale: 0.94, y: 10 }}
+              <motion.div key={m.id}
+                initial={{ opacity: 0, scale: 0.92, y: 8 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ type: 'spring', damping: 24 }}
-                className={`flex flex-col gap-1 ${isUser ? 'items-end' : 'items-start'} max-w-[82%] ${isUser ? 'ml-auto' : ''}`}
+                transition={{ type: 'spring', damping: 22, stiffness: 300 }}
+                className={`flex flex-col gap-1 max-w-[82%] ${isUser ? 'ml-auto items-end' : 'items-start'}`}
               >
-                {badge && (
-                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 ml-1 ${badge.color}`}>{badge.label}</span>
+                {!isUser && (
+                  <span className={`text-[9px] font-black uppercase tracking-widest px-1 ml-1 ${getRoleColor(m.role)}`}>
+                    {getRoleName(m.role)}
+                  </span>
                 )}
-                <div className={`px-4 py-3 rounded-2xl text-[13px] leading-relaxed shadow-xl ${getBubbleStyle(m.role)}`}>
+                <div className={`px-4 py-3 rounded-2xl text-[13px] leading-relaxed ${getBubble(m.role)}`}>
                   <p className="whitespace-pre-wrap font-medium">{m.text}</p>
-                  <div className={`text-[9px] mt-1.5 flex items-center gap-1 ${isUser ? 'justify-end text-white/40' : 'text-white/25'}`}>
-                    {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    {isUser && <CheckCircle2 size={8} />}
+                  <div className={`flex items-center gap-2 mt-1.5 ${isUser ? 'justify-end' : 'justify-between'}`}>
+                    <span className="text-[9px] opacity-40">{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    {!isUser && m.role === 'ai' && !rated.has(m.id) && (
+                      <div className="flex items-center gap-1 opacity-0 hover:opacity-100 transition-opacity group-hover:opacity-100">
+                        <button onClick={() => { setRated(prev => new Set([...prev, m.id])); toast.success('Дякуємо за оцінку!'); }}
+                          className="text-white/20 hover:text-[#4ade80] transition-colors"><ThumbsUp size={10} /></button>
+                        <button onClick={() => { setRated(prev => new Set([...prev, m.id])); toast('Ми врахуємо це!'); }}
+                          className="text-white/20 hover:text-[#f87171] transition-colors"><ThumbsDown size={10} /></button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>
             );
           })}
+        </AnimatePresence>
 
-          {/* Typing indicator */}
+        {/* Typing indicator */}
+        <AnimatePresence>
           {isTyping && (
-            <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[#00c8ff]/10 border border-[#00c8ff]/20 shrink-0">
-                <Bot size={15} className="text-[#00c8ff]" />
+            <motion.div key="typing" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} className="flex items-end gap-2">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: accent + '15', border: `1px solid ${accent}30` }}>
+                <Bot size={14} style={{ color: accent }} />
               </div>
-              <div className="bg-white/[0.06] border border-white/10 px-4 py-3 rounded-2xl rounded-bl-none flex items-center gap-2">
-                <Loader2 size={14} className="animate-spin text-[#00c8ff]" />
-                <span className="text-[11px] text-white/40 font-bold">AI Консьєрж думає...</span>
+              <div className="bg-white/[0.06] border border-white/10 px-4 py-3 rounded-2xl rounded-bl-none flex items-center gap-1.5">
+                {[0, 1, 2].map(i => (
+                  <motion.span key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: accent }}
+                    animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.1, 0.8] }}
+                    transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+                  />
+                ))}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
-        <div ref={messagesEndRef} />
+        <div ref={endRef} />
       </div>
 
       {/* Quick replies */}
       <AnimatePresence>
-        {showQuick && messages.length <= 2 && ticket?.status !== 'resolved' && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-            className="px-6 py-3 border-t border-white/5 flex gap-2 flex-wrap"
-            style={{ background: '#050c15' }}
+        {showQuick && messages.length <= 2 && !isResolved && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+            className="px-5 py-3 border-t border-white/5 flex items-center gap-2 flex-wrap" style={{ background: '#050c15' }}
           >
-            {QUICK_REPLIES.map(q => (
-              <motion.button
-                key={q} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+            {quickReplies.map(q => (
+              <motion.button key={q} whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
                 onClick={() => send(q)}
-                className="px-3 py-1.5 rounded-full text-[10px] font-bold border border-white/10 text-white/50 hover:border-white/30 hover:text-white transition-all"
-              >
-                {q}
-              </motion.button>
+                className="px-3 py-1.5 rounded-full text-[10px] font-bold border border-white/10 text-white/50 hover:text-white hover:border-white/30 transition-all"
+              >{q}</motion.button>
             ))}
-            <button onClick={() => setShowQuick(false)} className="ml-auto text-white/20 hover:text-white/40 transition-colors">
-              <X size={14} />
-            </button>
+            <button onClick={() => setShowQuick(false)} className="ml-auto text-white/20 hover:text-white/40 transition-colors shrink-0"><X size={14} /></button>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Input */}
-      <div className="px-4 py-4 border-t border-white/5 shrink-0" style={{ background: '#050c15' }}>
-        {ticket?.status === 'resolved' ? (
-          <div className="flex items-center justify-center py-3 text-[11px] text-white/30 font-bold uppercase tracking-widest gap-2">
-            <CheckCircle2 size={14} className="text-[#4ade80]" /> Чат закрито · Зверніться повторно
+      <div className="px-4 py-3 border-t border-white/5 shrink-0" style={{ background: '#050c15' }}>
+        {isResolved ? (
+          <div className="flex items-center justify-center py-2 text-[11px] text-white/30 font-bold uppercase tracking-widest gap-2">
+            <CheckCircle2 size={13} className="text-[#4ade80]" /> Чат закрито · Зверніться повторно для нового запиту
           </div>
         ) : (
-          <div
-            className="flex items-center gap-3 rounded-2xl px-4 py-3 border transition-all"
-            style={{ background: '#0d1525', borderColor: 'rgba(255,255,255,0.08)' }}
-          >
-            <button className="text-white/20 hover:text-white/50 transition-colors shrink-0">
-              <Paperclip size={18} />
-            </button>
-            <input
-              ref={inputRef}
-              value={input}
+          <div className="flex items-center gap-3 rounded-2xl px-4 py-2.5 border border-white/8 transition-all focus-within:border-white/20" style={{ background: '#0d1525' }}>
+            <input ref={inputRef} value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
               disabled={isTyping}
-              placeholder={
-                ticket?.assigned_to === 'ai'
-                  ? 'Запитайте AI Консьєржа...'
-                  : `Пишіть ${ticket?.assigned_to === 'carrier' ? 'перевізнику' : 'адміністратору'}...`
-              }
+              placeholder={isAI ? 'Напишіть повідомлення AI Консьєржу...' : `Написати ${ticket?.assigned_to === 'carrier' ? 'перевізнику' : 'адміністратору'}...`}
               className="flex-1 bg-transparent border-none outline-none text-sm text-white placeholder:text-white/20 font-medium disabled:opacity-40"
             />
-            <motion.button
-              whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+            <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}
               onClick={() => send()}
               disabled={!input.trim() || isTyping}
-              className="w-10 h-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-30 shrink-0"
-              style={{ background: input.trim() ? cfg.accent : cfg.accentDim, boxShadow: input.trim() ? `0 0 15px ${cfg.accent}50` : 'none' }}
+              className="w-9 h-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-30 shrink-0"
+              style={{ background: input.trim() ? accent : accent + '20', boxShadow: input.trim() ? `0 0 14px ${accent}50` : 'none' }}
             >
-              <Send size={16} className={input.trim() ? 'text-black' : ''} style={{ color: input.trim() ? '#000' : cfg.accent }} />
+              <Send size={15} style={{ color: input.trim() ? (portalRole === 'passenger' ? '#fff' : '#000') : accent }} />
             </motion.button>
           </div>
         )}
