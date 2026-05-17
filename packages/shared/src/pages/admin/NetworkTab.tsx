@@ -112,7 +112,7 @@ export default function NetworkTab() {
             <div className="w-1.5 h-6 bg-[#00D4FF] shadow-[0_0_10px_rgba(0,212,255,0.5)]" />
             <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white">Мережа Партнерів</h2>
           </div>
-          <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest ml-4">Інтерактивна карта B2B зв'язків</p>
+          <p className="text-[#8899B5] text-[10px] font-black uppercase tracking-widest ml-4">Інтерактивна карта B2B зв'язків</p>
         </div>
         <button onClick={load} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-[10px] font-black uppercase tracking-widest transition-all">
           <RefreshCw size={12} /> Оновити
@@ -174,7 +174,7 @@ export default function NetworkTab() {
                     </div>
                     <div className="text-left">
                       <p className="text-sm font-black text-white uppercase tracking-tight">{carrier.name}</p>
-                      <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest mt-0.5">
+                      <p className="text-[9px] text-[#8899B5] font-black uppercase tracking-widest mt-0.5">
                         {carrier.agents.length} агент{carrier.agents.length !== 1 ? 'ів' : ''} · {carrier.agents.reduce((s, a) => s + a.pax, 0)} пасажирів
                       </p>
                     </div>
@@ -218,7 +218,7 @@ export default function NetworkTab() {
                                 </div>
                                 <div>
                                   <p className="text-xs font-bold text-white uppercase tracking-tight">{agent.name}</p>
-                                  <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest mt-0.5">
+                                  <p className="text-[9px] text-[#8899B5] font-black uppercase tracking-widest mt-0.5">
                                     {agent.pax} пас · ₴{agent.comm.toLocaleString()} комісія
                                   </p>
                                 </div>

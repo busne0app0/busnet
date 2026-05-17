@@ -30,7 +30,7 @@ function QRDisplay({ value }: { value: string }) {
           )}
         </svg>
       </div>
-      <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest text-center">Скануйте QR для переходу</p>
+      <p className="text-[9px] text-[#8899B5] font-black uppercase tracking-widest text-center">Скануйте QR для переходу</p>
     </div>
   );
 }
@@ -188,7 +188,7 @@ const AgentsTab: React.FC = () => {
             <div className="w-1.5 h-6 bg-[#A855F7] shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
             <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white">АГЕНТИ</h2>
           </div>
-          <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest ml-4">Партнерська мережа та ефективність продажів</p>
+          <p className="text-[#8899B5] text-[10px] font-black uppercase tracking-widest ml-4">Партнерська мережа та ефективність продажів</p>
         </div>
         <button 
           onClick={() => {
@@ -212,7 +212,7 @@ const AgentsTab: React.FC = () => {
              <div className="absolute right-0 top-1/2 -translate-y-1/2 p-6 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
                 <stat.icon size={80} style={{ color: stat.color }} strokeWidth={1} />
              </div>
-             <p className="text-[9px] font-black uppercase text-[#5A6A85] tracking-widest z-10">{stat.label}</p>
+             <p className="text-[9px] font-black uppercase text-[#8899B5] tracking-widest z-10">{stat.label}</p>
              <h3 className="text-4xl font-black text-white italic tracking-tighter z-10">{stat.val}</h3>
           </div>
         ))}
@@ -223,7 +223,7 @@ const AgentsTab: React.FC = () => {
         {agents.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3 bg-[#0B1221] rounded-[24px] border border-white/5">
             <Users className="text-[#1A2639]" size={40} />
-            <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest">АГЕНТІВ НЕМАЄ</p>
+            <p className="text-[#8899B5] text-[10px] font-black uppercase tracking-widest">АГЕНТІВ НЕМАЄ</p>
           </div>
         ) : agents.map((agent, idx) => (
           <div key={idx} className="bg-[#0B1221] border border-white/5 rounded-[20px] p-4 space-y-3">
@@ -234,7 +234,7 @@ const AgentsTab: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-white tracking-tight uppercase">{agent.name}</p>
-                  <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest mt-0.5">{agent.id}</p>
+                  <p className="text-[9px] text-[#8899B5] font-black uppercase tracking-widest mt-0.5">{agent.id}</p>
                 </div>
               </div>
               <span className={`px-2.5 py-1 rounded-[10px] text-[8px] font-black uppercase border ${agent.status === 'active' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
@@ -243,15 +243,15 @@ const AgentsTab: React.FC = () => {
             </div>
             <div className="flex justify-between items-end pt-2 border-t border-white/5">
               <div>
-                <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest">КВИТКІВ</p>
+                <p className="text-[9px] text-[#8899B5] font-black uppercase tracking-widest">КВИТКІВ</p>
                 <p className="text-sm font-black text-white italic">{agent.tickets}</p>
               </div>
               <div className="text-center">
-                <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest">ОБІГ</p>
+                <p className="text-[9px] text-[#8899B5] font-black uppercase tracking-widest">ОБІГ</p>
                 <p className="text-sm font-black text-white italic">€{agent.revenue.toLocaleString()}</p>
               </div>
               <div className="text-right">
-                <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest">КОМІСІЯ</p>
+                <p className="text-[9px] text-[#8899B5] font-black uppercase tracking-widest">КОМІСІЯ</p>
                 <div className="flex items-center justify-end gap-2 mt-0.5">
                   <p className="text-sm font-black text-[#10B981] italic">€{agent.commission.toLocaleString()}</p>
                   {editingComm?.uid === agent.uid ? (
@@ -263,12 +263,12 @@ const AgentsTab: React.FC = () => {
                         onKeyDown={e => e.key === 'Enter' && updateCommission(agent.uid, editingComm.val)}
                         autoFocus
                       />
-                      <span className="text-xs text-[#5A6A85]">%</span>
+                      <span className="text-xs text-[#8899B5]">%</span>
                     </div>
                   ) : (
                     <button 
                       onClick={() => setEditingComm({uid: agent.uid, val: String(agent.commission_percent)})}
-                      className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-[9px] text-[#5A6A85] font-bold"
+                      className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-[9px] text-[#8899B5] font-bold"
                     >
                       {agent.commission_percent}% ✎
                     </button>
@@ -285,11 +285,11 @@ const AgentsTab: React.FC = () => {
          <table className="min-w-[800px] w-full text-left border-separate border-spacing-y-2">
             <thead>
                <tr className="bg-[#1A2639]/30">
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest rounded-l-full">АГЕНТ / КОМПАНІЯ</th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">КВИТКІВ</th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">ОБІГ (€)</th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">КОМІСІЯ (€)</th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-widest text-right rounded-r-full">СТАТУС</th>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#8899B5] uppercase tracking-widest rounded-l-full">АГЕНТ / КОМПАНІЯ</th>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#8899B5] uppercase tracking-widest">КВИТКІВ</th>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#8899B5] uppercase tracking-widest">ОБІГ (€)</th>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#8899B5] uppercase tracking-widest">КОМІСІЯ (€)</th>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#8899B5] uppercase tracking-widest text-right rounded-r-full">СТАТУС</th>
                </tr>
             </thead>
             <tbody className="divide-y divide-transparent">
@@ -302,7 +302,7 @@ const AgentsTab: React.FC = () => {
                            </div>
                            <div>
                               <p className="text-sm font-bold text-white tracking-tight uppercase">{agent.name}</p>
-                              <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest mt-0.5">{agent.id}</p>
+                              <p className="text-[9px] text-[#8899B5] font-black uppercase tracking-widest mt-0.5">{agent.id}</p>
                            </div>
                         </div>
                      </td>
@@ -320,12 +320,12 @@ const AgentsTab: React.FC = () => {
                                 onKeyDown={e => e.key === 'Enter' && updateCommission(agent.uid, editingComm.val)}
                                 autoFocus
                               />
-                              <span className="text-[10px] text-[#5A6A85]">%</span>
+                              <span className="text-[10px] text-[#8899B5]">%</span>
                             </div>
                           ) : (
                             <button 
                               onClick={() => setEditingComm({uid: agent.uid, val: String(agent.commission_percent)})}
-                              className="text-[9px] text-[#5A6A85] font-bold uppercase tracking-widest text-left hover:text-white transition-colors"
+                              className="text-[9px] text-[#8899B5] font-bold uppercase tracking-widest text-left hover:text-white transition-colors"
                             >
                               {agent.commission_percent}% СТАВКА ✎
                             </button>
@@ -345,7 +345,7 @@ const AgentsTab: React.FC = () => {
 
       {/* Invite Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 max-md:backdrop-blur-none md:backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 max-md:backdrop-blur-none md:backdrop-blur-sm">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -359,7 +359,7 @@ const AgentsTab: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-white uppercase tracking-wider">ЗАПРОСИТИ АГЕНТА</h3>
-                  <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest mt-0.5">Рекрутинг партнерів</p>
+                  <p className="text-[9px] text-[#8899B5] font-black uppercase tracking-widest mt-0.5">Рекрутинг партнерів</p>
                 </div>
               </div>
               <button 
@@ -427,7 +427,7 @@ const AgentsTab: React.FC = () => {
 
               {/* Quick Share Buttons */}
               <div className="space-y-3">
-                <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest text-center">Швидке надсилання</p>
+                <p className="text-[9px] text-[#8899B5] font-black uppercase tracking-widest text-center">Швидке надсилання</p>
                 <div className="grid grid-cols-2 gap-3">
                   <a 
                     href={`https://t.me/share/url?url=${encodeURIComponent(generatedLink)}&text=${encodeURIComponent('Вітаю! Запрошую стати офіційним агентом з продажу моїх квитків на BUSNET.')}`}

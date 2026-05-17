@@ -167,7 +167,7 @@ export default function SupportTab() {
             <div className="w-2 h-6 rounded-full bg-[#00c8ff] shadow-[0_0_10px_#00c8ff]" />
             <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white">Центр Підтримки</h2>
           </div>
-          <p className="text-[#5a6a85] text-[10px] font-black uppercase tracking-widest ml-5">Управління всіма зверненнями</p>
+          <p className="text-[#8899B5] text-[10px] font-black uppercase tracking-widest ml-5">Управління всіма зверненнями</p>
         </div>
         <div className="flex items-center gap-3">
           {/* AI Autopilot Toggle */}
@@ -198,7 +198,7 @@ export default function SupportTab() {
         <div className="flex flex-col gap-4 min-h-0">
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#3d5670]" size={14} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B85A1]" size={14} />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Пошук..." className="w-full bg-[#0f1520] border border-[#1c2e48] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white outline-none focus:border-[#00c8ff] transition-all" />
             </div>
             <select value={filter} onChange={e => setFilter(e.target.value as any)} className="bg-[#0f1520] border border-[#1c2e48] rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-[#00c8ff] cursor-pointer">
@@ -229,17 +229,17 @@ export default function SupportTab() {
                 className={`w-full text-left p-4 rounded-2xl border transition-all ${selected?.id === t.id ? 'border-[#00c8ff]/40 bg-[#00c8ff]/5' : 'border-[#1c2e48] bg-[#0f1520] hover:border-[#00c8ff]/20'}`}
               >
                 <div className="flex justify-between items-start mb-2">
-                  <span className="text-[9px] font-black text-[#3d5670] uppercase tracking-widest font-mono">{t.id.slice(0, 8).toUpperCase()}</span>
+                  <span className="text-[9px] font-black text-[#6B85A1] uppercase tracking-widest font-mono">{t.id.slice(0, 8).toUpperCase()}</span>
                   <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded border ${statusColor(t.status)}`}>{statusLabel(t.status)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] text-white/50">{assignedLabel(t.assigned_to)}</span>
-                  <span className="text-[9px] text-[#3d5670] flex items-center gap-1"><Clock size={9} /> {new Date(t.last_updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="text-[9px] text-[#6B85A1] flex items-center gap-1"><Clock size={9} /> {new Date(t.last_updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
               </motion.button>
             ))}
             {filtered.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12 text-[#3d5670]">
+              <div className="flex flex-col items-center justify-center py-12 text-[#6B85A1]">
                 <MessageSquare size={32} className="mb-3 opacity-30" />
                 <p className="text-[10px] font-black uppercase tracking-widest">Тікетів не знайдено</p>
               </div>

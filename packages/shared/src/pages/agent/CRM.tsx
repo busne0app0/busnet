@@ -98,20 +98,20 @@ export default function CRM() {
           <div className="text-xs font-bold text-white truncate">{d.name}</div>
           {closed && <div className="text-[10px] font-black text-[#00d97e] mt-0.5">+{d.comm}</div>}
         </div>
-        <button className="text-[#4a5c72] hover:text-white transition-colors">
+        <button className="text-[#7A8FA8] hover:text-white transition-colors">
           <MoreHorizontal size={14} />
         </button>
       </div>
       <div className="space-y-1.5 mb-4">
         <div className="flex items-center gap-2 text-[10px] text-[#7a8fa8] font-bold tracking-tight">
-          <MapPin size={10} className="text-[#4a5c72]" /> {d.route}
+          <MapPin size={10} className="text-[#7A8FA8]" /> {d.route}
         </div>
         <div className="flex items-center gap-2 text-[10px] text-[#7a8fa8] font-bold tracking-tight">
-          <Calendar size={10} className="text-[#4a5c72]" /> {d.date} {d.pax ? `· ${d.pax} пас.` : ''}
+          <Calendar size={10} className="text-[#7A8FA8]" /> {d.date} {d.pax ? `· ${d.pax} пас.` : ''}
         </div>
       </div>
       {d.note && (
-        <div className="bg-black/20 p-2 rounded-lg text-[9px] text-[#4a5c72] leading-relaxed mb-4 italic">
+        <div className="bg-black/20 p-2 rounded-lg text-[9px] text-[#7A8FA8] leading-relaxed mb-4 italic">
           {d.note}
         </div>
       )}
@@ -149,7 +149,7 @@ export default function CRM() {
           <h1 className="font-['Syne'] font-black text-2xl tracking-tighter uppercase italic text-white flex items-center gap-3">
             CRM / Угоди
           </h1>
-          <p className="text-[11px] text-[#4a5c72] uppercase tracking-[0.2em] font-bold mt-1">
+          <p className="text-[11px] text-[#7A8FA8] uppercase tracking-[0.2em] font-bold mt-1">
             Управління клієнтами та воронкою продажів
           </p>
         </div>
@@ -229,13 +229,13 @@ export default function CRM() {
               </button>
               <div className={`flex-1 min-w-0 ${t.done ? 'opacity-40 grayscale line-through' : ''}`}>
                 <div className="text-sm font-bold text-white truncate">{t.text}</div>
-                <div className="text-[10px] text-[#4a5c72] font-black uppercase tracking-widest mt-1 italic">Дедлайн: {t.deadline}</div>
+                <div className="text-[10px] text-[#7A8FA8] font-black uppercase tracking-widest mt-1 italic">Дедлайн: {t.deadline}</div>
               </div>
               <span className={`
                 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-[0.15em] shrink-0
                 ${t.priority === 'urgent' ? 'bg-[#ff3d5a1a] text-[#ff3d5a] border border-[#ff3d5a33]' : ''}
                 ${t.priority === 'high' ? 'bg-[#ff9d001a] text-[#ff9d00] border border-[#ff9d0033]' : ''}
-                ${t.priority === 'normal' ? 'bg-[#121824] text-[#4a5c72] border border-white/10' : ''}
+                ${t.priority === 'normal' ? 'bg-[#121824] text-[#7A8FA8] border border-white/10' : ''}
               `}>
                 {t.priority === 'urgent' ? 'Терміново' : t.priority === 'high' ? 'Важливо' : 'Звичайний'}
               </span>
@@ -267,11 +267,11 @@ export default function CRM() {
             >
               <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
                 <h3 className="font-['Syne'] font-black text-sm uppercase italic tracking-tight">Нова угода</h3>
-                <button onClick={() => setShowNewDealModal(false)} className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-[#4a5c72]"><X size={18} /></button>
+                <button onClick={() => setShowNewDealModal(false)} className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-[#7A8FA8]"><X size={18} /></button>
               </div>
               <div className="p-6 space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-[#4a5c72] uppercase tracking-widest ml-1">Ім'я Клієнта *</label>
+                  <label className="text-[9px] font-black text-[#7A8FA8] uppercase tracking-widest ml-1">Ім'я Клієнта *</label>
                   <input 
                     type="text" 
                     value={newDeal.name}
@@ -282,7 +282,7 @@ export default function CRM() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-[#4a5c72] uppercase tracking-widest ml-1">Телефон</label>
+                    <label className="text-[9px] font-black text-[#7A8FA8] uppercase tracking-widest ml-1">Телефон</label>
                     <input 
                       type="text" 
                       value={newDeal.phone}
@@ -292,7 +292,7 @@ export default function CRM() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-[#4a5c72] uppercase tracking-widest ml-1">Email (Для доступу)</label>
+                    <label className="text-[9px] font-black text-[#7A8FA8] uppercase tracking-widest ml-1">Email (Для доступу)</label>
                     <input 
                       type="email" 
                       value={newDeal.email}
@@ -303,7 +303,7 @@ export default function CRM() {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-[#4a5c72] uppercase tracking-widest ml-1">Маршрут</label>
+                  <label className="text-[9px] font-black text-[#7A8FA8] uppercase tracking-widest ml-1">Маршрут</label>
                   <input 
                     type="text" 
                     value={newDeal.route}
@@ -314,7 +314,7 @@ export default function CRM() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-[#4a5c72] uppercase tracking-widest ml-1">Сума (€)</label>
+                    <label className="text-[9px] font-black text-[#7A8FA8] uppercase tracking-widest ml-1">Сума (€)</label>
                     <input 
                       type="number" 
                       value={newDeal.price}
@@ -324,14 +324,14 @@ export default function CRM() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-[#4a5c72] uppercase tracking-widest ml-1">Джерело</label>
+                    <label className="text-[9px] font-black text-[#7A8FA8] uppercase tracking-widest ml-1">Джерело</label>
                     <select className="w-full bg-[#121824] border border-white/5 rounded-xl py-3 px-4 text-xs font-bold text-white outline-none focus:border-[#7c5cfc]">
                       <option>Месенджер</option><option>Дзвінок</option><option>Сайт</option>
                     </select>
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-[#4a5c72] uppercase tracking-widest ml-1">Примітка</label>
+                  <label className="text-[9px] font-black text-[#7A8FA8] uppercase tracking-widest ml-1">Примітка</label>
                   <textarea 
                     value={newDeal.note}
                     onChange={(e) => setNewDeal({...newDeal, note: e.target.value})}
@@ -376,7 +376,7 @@ export default function CRM() {
                   </div>
                   <div>
                     <h3 className="text-sm font-black text-white uppercase tracking-wider">ЗАПРОСИТИ КЛІЄНТА</h3>
-                    <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest mt-0.5">Генерація реферального лінку</p>
+                    <p className="text-[9px] text-[#8899B5] font-black uppercase tracking-widest mt-0.5">Генерація реферального лінку</p>
                   </div>
                 </div>
                 <button 
@@ -409,7 +409,7 @@ export default function CRM() {
 
                 {/* Quick Share */}
                 <div className="space-y-3">
-                  <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest text-center">Відправити клієнту</p>
+                  <p className="text-[9px] text-[#8899B5] font-black uppercase tracking-widest text-center">Відправити клієнту</p>
                   <div className="grid grid-cols-2 gap-3">
                     <a 
                       href={`https://t.me/share/url?url=${encodeURIComponent(generatedLink)}&text=${encodeURIComponent('Вітаю! Купуйте квитки на автобуси через мого офіційного партнера BUSNET.')}`}
