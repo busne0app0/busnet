@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Map as MapIcon, Navigation, Bus, Clock, 
@@ -12,47 +12,77 @@ import {
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 
+interface LiveTrip {
+  id: string;
+  from: string;
+  to: string;
+  dep: string;
+  totalSeats: number;
+  bookedSeats: number;
+  driver: string;
+  bus: string;
+  speed: string;
+  temp: string;
+  eta: string;
+}
+
 export default function LiveTrips() {
   const { user } = useAuthStore();
-  const [liveTrips, setLiveTrips] = useState<any[]>([]);
+  const [liveTrips, setLiveTrips] = useState<LiveTrip[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchLiveTrips = useCallback(async () => {
+    if (!user?.uid) return;
+    
+    const { data, error } = await supabase
+      .from('trips')
+      .select('*')
+      .eq('carrier_id', user.uid)
+      .in('status', ['active', 'in_progress']);
+    
+    if (error) {
+      console.error('Error fetching trips:', error);
+      setIsLoading(false);
+      return;
+    }
+
+    if (data) {
+      setLiveTrips(data.map(d => ({
+        id: (d.id?.toString().slice(0, 8) || 'ID').toUpperCase(),
+        from: d.departureCity || 'Київ',
+        to: d.arrivalCity || 'Варшава',
+        dep: d.departureTime || '--:--',
+        totalSeats: d.seatsTotal || 50,
+        bookedSeats: d.seatsBooked || 0,
+        driver: d.driverId || 'Не призначений',
+        bus: d.busId || 'ТЗ не вказано',
+        speed: '87 км/год',
+        temp: '+12°C',
+        eta: d.arrivalTime || '--:--'
+      })));
+    }
+    setIsLoading(false);
+  }, [user?.uid]);
 
   useEffect(() => {
-    if (!user) return;
-    
-    const fetchLiveTrips = async () => {
-      const { data, error } = await supabase
-        .from('trips')
-        .select('*')
-        .eq('carrier_id', user.uid)
-        .in('status', ['active', 'in_progress']);
-      
-      if (!error && data) {
-        setLiveTrips(data.map(d => ({
-          id: d.id.slice(0,8).toUpperCase(),
-          from: d.departureCity || 'Київ',
-          to: d.arrivalCity || 'Варшава',
-          dep: d.departureTime || '08:00',
-          totalSeats: d.seatsTotal || 50,
-          bookedSeats: d.seatsBooked || 0,
-          driver: d.driverId || 'Водій',
-          bus: d.busId || 'Автобус',
-          speed: '87 км/год',
-          temp: '+12°C',
-          eta: d.arrivalTime || '18:30'
-        })));
-      }
-    };
-
     fetchLiveTrips();
 
     const channel = supabase.channel('live_trips_updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'trips', filter: `carrier_id=eq.${user.uid}` }, fetchLiveTrips)
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'trips', 
+          filter: `carrier_id=eq.${user?.uid}` 
+        }, 
+        fetchLiveTrips
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.uid, fetchLiveTrips]);
 
   return (
     <div className="space-y-8 pb-12">
@@ -60,21 +90,29 @@ export default function LiveTrips() {
         <div>
           <div className="flex items-center gap-3 mb-1">
             <div className="w-1.5 h-6 bg-[#00E5FF] shadow-[0_0_10px_rgba(0,229,255,0.5)]" />
-            <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white">МОІ РЕЙСИ LIVE</h2>
+            <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white">МОЇ РЕЙСИ LIVE</h2>
           </div>
           <div className="text-[#5a6a85] text-[10px] font-black mt-1 ml-4 uppercase tracking-widest flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Відстеження в реальному часі · {liveTrips.length} активних рейсів
+            {isLoading ? 'Завантаження...' : `Відстеження в реальному часі · ${liveTrips.length} активних рейсів`}
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button className="px-6 py-2.5 bg-[#00E5FF]/10 border border-[#00E5FF]/30 text-[#00E5FF] rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-[#00E5FF]/20 transition-all flex items-center gap-2">
+          <button 
+            onClick={() => { setIsLoading(true); fetchLiveTrips(); }}
+            className="px-6 py-2.5 bg-[#00E5FF]/10 border border-[#00E5FF]/30 text-[#00E5FF] rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-[#00E5FF]/20 transition-all flex items-center gap-2"
+          >
             Оновити дані
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {liveTrips.length === 0 && !isLoading ? (
+        <div className="text-center py-20 bg-[#1a2235] rounded-[32px] border border-dashed border-white/10">
+          <p className="text-[#5a6a85] font-black uppercase tracking-[0.2em]">Активних рейсів не знайдено</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left: Trips List */}
         <div className="lg:col-span-5 space-y-4">
           <div className="flex items-center justify-between mb-2 px-2">
@@ -263,7 +301,8 @@ export default function LiveTrips() {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

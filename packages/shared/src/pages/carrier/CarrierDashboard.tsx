@@ -28,6 +28,7 @@ export default function CarrierDashboard() {
     tripsCount: 0,
     passengers: 0,
     rating: 5.0,
+    reviewsCount: 0,
     chart: [] as { name: string, date: string, rev: number }[],
     activeTripsLive: [] as any[]
   });
@@ -48,16 +49,16 @@ export default function CarrierDashboard() {
   useEffect(() => {
     if (!user) return;
     
-    const fetchDashboardStats = async () => {
+    const fetchBookingsStats = async () => {
       try {
         const now = new Date();
         const since = new Date();
-        since.setDate(now.getDate() - 6);
-        since.setHours(0, 0, 0, 0);
+        since.setUTCDate(now.getUTCDate() - 6);
+        since.setUTCHours(0, 0, 0, 0);
 
         const last7Days = Array.from({ length: 7 }, (_, i) => {
           const d = new Date(since);
-          d.setDate(since.getDate() + i);
+          d.setUTCDate(since.getUTCDate() + i);
           return d.toISOString().split('T')[0];
         });
 
@@ -80,10 +81,7 @@ export default function CarrierDashboard() {
         (bookings || []).forEach(booking => {
           const amount = (booking.total_price || 0);
           totalRevenue7d += amount;
-          let passengers = booking.passengers;
-          if (typeof passengers === 'string') {
-            try { passengers = JSON.parse(passengers); } catch (e) { passengers = []; }
-          }
+          const passengers = booking.passengers;
           totalPassengers += (Array.isArray(passengers) ? passengers.length : 0);
 
           const createdAt = booking.created_at;
@@ -122,7 +120,13 @@ export default function CarrierDashboard() {
           passengers: totalPassengers,
           chart
         }));
+      } catch (err) {
+        console.error('Bookings stats error:', err);
+      }
+    };
 
+    const fetchTripsStats = async () => {
+      try {
         const { data: trips, error: tripsError } = await supabase
           .from('routes')
           .select('*')
@@ -132,7 +136,7 @@ export default function CarrierDashboard() {
         if (tripsError) throw tripsError;
 
         if (trips) {
-          const today = now.toISOString().split('T')[0];
+          const today = new Date().toISOString().split('T')[0];
           const activeToday = trips.filter((t: any) => (t.departure_date || t.departureDate) === today);
 
           setLiveStats(prev => ({ 
@@ -141,7 +145,13 @@ export default function CarrierDashboard() {
             activeTripsLive: activeToday
           }));
         }
-        
+      } catch (err) {
+        console.error('Trips stats error:', err);
+      }
+    };
+
+    const fetchReviewsStats = async () => {
+      try {
         const { data: reviews, error: reviewsError } = await supabase
           .from('reviews')
           .select('rating')
@@ -151,22 +161,21 @@ export default function CarrierDashboard() {
 
         if (reviews && reviews.length > 0) {
           const avg = reviews.reduce((acc, d) => acc + (d.rating || 5), 0) / reviews.length;
-          setLiveStats(prev => ({ ...prev, rating: Number(avg.toFixed(1)) }));
+          setLiveStats(prev => ({ ...prev, rating: Number(avg.toFixed(1)), reviewsCount: reviews.length }));
         }
-
-        setError(null);
-      } catch (err: any) {
-        console.error('Dashboard stats fetch error:', err);
-        setError(`Помилка завантаження даних дашборду. Перевірте з'єднання.`);
+      } catch (err) {
+        console.error('Reviews stats error:', err);
       }
     };
 
-    fetchDashboardStats();
+    fetchBookingsStats();
+    fetchTripsStats();
+    fetchReviewsStats();
     
     const channel = supabase.channel(`carrier_dashboard_stats_${user.uid}_${Date.now()}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `carrier_id=eq.${user.uid}` }, fetchDashboardStats)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'routes', filter: `carrier_id=eq.${user.uid}` }, fetchDashboardStats)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews', filter: `carrier_id=eq.${user.uid}` }, fetchDashboardStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `carrier_id=eq.${user.uid}` }, fetchBookingsStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'routes', filter: `carrier_id=eq.${user.uid}` }, fetchTripsStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews', filter: `carrier_id=eq.${user.uid}` }, fetchReviewsStats)
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -303,17 +312,23 @@ export default function CarrierDashboard() {
             </span>
           </div>
           <div className="text-2xl md:text-4xl font-black text-white group-hover:text-[#00E5FF] transition-colors">{(user as any)?.currency || '€'}{liveStats.revenueTotal.toLocaleString()}</div>
-          <div className="h-12 w-full mt-2">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-              <BarChart data={liveStats.chart.slice(-7)}>
-                <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(0,229,255,0.05)'}} />
-                <Bar dataKey="rev" fill="#00E5FF" radius={[2,2,0,0]}>
-                  {liveStats.chart.slice(-7).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={index === liveStats.chart.slice(-7).length - 1 ? '#00E5FF' : '#1A2639'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-12 w-full mt-2 relative">
+            {liveStats.revenueTotal === 0 ? (
+              <div className="absolute inset-0 flex items-center justify-center text-[9px] text-[#8899B5] uppercase font-bold tracking-widest text-center">
+                Немає даних<br/>за цей період
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <BarChart data={liveStats.chart.slice(-7)}>
+                  <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(0,229,255,0.05)'}} />
+                  <Bar dataKey="rev" fill="#00E5FF" radius={[2,2,0,0]}>
+                    {liveStats.chart.slice(-7).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={index === liveStats.chart.slice(-7).length - 1 ? '#00E5FF' : '#1A2639'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </motion.div>
 
@@ -379,7 +394,7 @@ export default function CarrierDashboard() {
                   <Star key={i} size={14} className={i < Math.round(liveStats.rating) ? 'fill-[#00E5FF] text-[#00E5FF] drop-shadow-[0_0_5px_rgba(0,229,255,0.5)]' : 'text-[#1A2639]'} />
                 ))}
               </div>
-              <span className="text-[9px] text-[#8899B5]">На основі 128 відгуків</span>
+              <span className="text-[9px] text-[#8899B5]">На основі {liveStats.reviewsCount} відгуків</span>
             </div>
           </div>
           <div className="text-[9px] text-[#00E5FF] bg-[#00E5FF]/5 p-2 rounded border border-[#00E5FF]/10 mt-auto flex gap-1.5 items-start">
@@ -414,7 +429,7 @@ export default function CarrierDashboard() {
 
         <button 
           onClick={() => {
-            navigator.clipboard.writeText(`https://busnet.ua/invite/agent/${user?.uid}`);
+            navigator.clipboard.writeText(`https://busnet.ua/invite/agent/${(user as any)?.referral_code || user?.uid}`);
             toast.success('Посилання для запрошення агентів скопійовано!');
           }}
           className="w-full md:w-auto px-8 py-4 bg-[#7c5cfc] text-white text-[11px] font-black uppercase tracking-widest rounded-full hover:bg-[#6b4ae8] hover:scale-105 hover:shadow-[0_0_20px_rgba(124,92,252,0.6)] transition-all flex items-center justify-center gap-3 shrink-0 z-10"
@@ -478,19 +493,11 @@ export default function CarrierDashboard() {
                           const dayName = dayMap[d];
                           const isActive = ((route as any).outbound?.days || []).includes(dayName);
                           
-                          // Different colors for active days to match design
-                          const activeColors = [
-                            'bg-[#1A2639] text-[#8899B5]', // Н (grey)
-                            'bg-[#00E5FF] text-black shadow-[0_0_8px_rgba(0,229,255,0.4)]', // П (cyan)
-                            'bg-amber-500 text-black shadow-[0_0_8px_rgba(245,158,11,0.4)]', // В (orange)
-                            'bg-[#00E5FF] text-black shadow-[0_0_8px_rgba(0,229,255,0.4)]', // С (cyan)
-                            'bg-fuchsia-500 text-black shadow-[0_0_8px_rgba(217,70,239,0.4)]', // Ч (pink)
-                            'bg-[#0EA5E9] text-black shadow-[0_0_8px_rgba(14,165,233,0.4)]', // П (blue)
-                            'bg-[#00E5FF] text-black shadow-[0_0_8px_rgba(0,229,255,0.4)]'  // С (cyan)
-                          ];
+                          // Consistent accent color for active days
+                          const activeColor = 'bg-[#00E5FF] text-black shadow-[0_0_8px_rgba(0,229,255,0.4)]';
 
                           return (
-                            <div key={d} className={`w-7 h-7 rounded-md flex items-center justify-center text-[9px] font-black transition-colors ${isActive ? activeColors[d] : 'bg-[#1A2639] text-[#5A6A85]'}`}>
+                            <div key={d} className={`w-7 h-7 rounded-md flex items-center justify-center text-[9px] font-black transition-colors ${isActive ? activeColor : 'bg-[#1A2639] text-[#5A6A85]'}`}>
                               {['Н','П','В','С','Ч','П','С'][d]}
                             </div>
                           );

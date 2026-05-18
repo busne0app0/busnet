@@ -9,13 +9,59 @@ import {
   Plus, MoreHorizontal, MessageSquare, 
   Calendar, MapPin, Users, Briefcase,
   CheckCircle2, Clock, Check, X,
-  DollarSign, User, Link as LinkIcon, Copy, Send as SendIcon, MessageCircle
+  DollarSign, User, Link as LinkIcon, Copy, Send as SendIcon, MessageCircle, FileUp, Megaphone
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { CRM_DEALS, TASKS as INITIAL_TASKS } from './constants';
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
+
+const DealCard = ({ d, closed = false, onNavigate }: { d: any, closed?: boolean, onNavigate: (path: string) => void }) => (
+  <div className="bg-[#121824] border border-white/5 rounded-2xl p-4 group hover:border-white/10 transition-all cursor-pointer">
+    <div className="flex items-center gap-3 mb-3">
+      <div className="w-8 h-8 rounded-lg bg-[#7c5cfc] flex items-center justify-center font-bold text-white text-[10px] shrink-0">
+        {d.name[0]}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-bold text-white truncate">{d.name}</div>
+        {closed && <div className="text-[10px] font-black text-[#00d97e] mt-0.5">+{d.comm}</div>}
+      </div>
+      <button className="text-[#7A8FA8] hover:text-white transition-colors">
+        <MoreHorizontal size={14} />
+      </button>
+    </div>
+    <div className="space-y-1.5 mb-4">
+      <div className="flex items-center gap-2 text-[10px] text-[#7a8fa8] font-bold tracking-tight">
+        <MapPin size={10} className="text-[#7A8FA8]" /> {d.route}
+      </div>
+      <div className="flex items-center gap-2 text-[10px] text-[#7a8fa8] font-bold tracking-tight">
+        <Calendar size={10} className="text-[#7A8FA8]" /> {d.date} {d.pax ? `· ${d.pax} пас.` : ''}
+      </div>
+    </div>
+    {d.note && (
+      <div className="bg-black/20 p-2 rounded-lg text-[9px] text-[#7A8FA8] leading-relaxed mb-4 italic">
+        {d.note}
+      </div>
+    )}
+    {!closed && (
+      <div className="flex gap-2">
+        <button 
+          onClick={(e) => { e.stopPropagation(); onNavigate('/book'); }} 
+          className="flex-1 py-1.5 bg-[#00d97e1a] text-[#00d97e] border border-[#00d97e26] rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-[#00d97e2e] transition-all"
+        >
+          Забронювати
+        </button>
+        <button 
+          onClick={(e) => { e.stopPropagation(); toast.success(`Чат з ${d.name}`); onNavigate('/chat'); }} 
+          className="flex-1 py-1.5 bg-[#7c5cfc1a] text-[#a28afd] border border-[#7c5cfc26] rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-[#7c5cfc2e] transition-all"
+        >
+          Написати
+        </button>
+      </div>
+    )}
+  </div>
+);
 
 export default function CRM() {
   const { user } = useAuthStore();
@@ -26,6 +72,9 @@ export default function CRM() {
   const [isCreating, setIsCreating] = useState(false);
   const [generatedLink, setGeneratedLink] = useState('');
   const [isCopied, setIsCopied] = useState(false);
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [broadcastData, setBroadcastData] = useState({ subject: '', message: '' });
+  const [isSending, setIsSending] = useState(false);
   const navigate = useNavigate();
 
   const generateInviteLink = async () => {
@@ -41,7 +90,7 @@ export default function CRM() {
       setGeneratedLink(`https://busnet.ua/invite/passenger/${data.id}`);
     } catch (err) {
       console.error('Error generating link', err);
-      setGeneratedLink(`https://busnet.ua/invite/passenger/${user.uid}`);
+      toast.error('Не вдалося згенерувати лінк');
     }
   };
 
@@ -50,6 +99,59 @@ export default function CRM() {
     setIsCopied(true);
     toast.success('Лінк скопійовано!');
     setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleCsvImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split('\n').filter(line => line.trim() !== '');
+        
+        const parseCSVLine = (line: string) => {
+          const result = [];
+          let current = '';
+          let inQuotes = false;
+          for (let i = 0; i < line.length; i++) {
+            if (line[i] === '"') inQuotes = !inQuotes;
+            else if (line[i] === ',' && !inQuotes) { result.push(current); current = ''; }
+            else current += line[i];
+          }
+          result.push(current);
+          return result;
+        };
+
+        // Skip header line
+        const clients = lines.slice(1).map(line => {
+          const [name, phone, email, note] = parseCSVLine(line);
+          return {
+            agent_id: user.uid,
+            name: name?.trim() || '',
+            phone: phone?.trim() || '',
+            email: email?.trim() || '',
+            note: note?.trim() || '' // Saving note if needed
+          };
+        }).filter(c => c.name);
+        
+        if (clients.length === 0) {
+          toast.error('CSV файл порожній або неправильного формату');
+          return;
+        }
+
+        const { error } = await supabase.from('agent_clients').insert(clients);
+        if (error) throw error;
+        
+        toast.success(`Успішно імпортовано ${clients.length} клієнтів`);
+      } catch (err: any) {
+        toast.error('Помилка імпорту: ' + err.message);
+      } finally {
+        if (e.target) e.target.value = '';
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleCreateDeal = async () => {
@@ -73,6 +175,36 @@ export default function CRM() {
     }
   };
 
+  const handleSendBroadcast = async () => {
+    if (!broadcastData.subject || !broadcastData.message) {
+      toast.error('Введіть тему та повідомлення');
+      return;
+    }
+    setIsSending(true);
+    try {
+      const { data: clients } = await supabase.from('agent_clients').select('email').eq('agent_id', user?.uid).not('email', 'is', null);
+      if (!clients || clients.length === 0) {
+        toast.error('Немає клієнтів з email');
+        return;
+      }
+      
+      const emails = clients.map(c => c.email);
+      
+      const { error } = await supabase.functions.invoke('send-email', {
+        body: { to: emails, subject: broadcastData.subject, body: broadcastData.message, templateId: 'default' }
+      });
+      if (error) throw error;
+      
+      toast.success(`Розсилку надіслано ${emails.length} клієнтам!`);
+      setShowBroadcastModal(false);
+      setBroadcastData({ subject: '', message: '' });
+    } catch (err: any) {
+      toast.error('Помилка розсилки: ' + err.message);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const toggleTask = (index: number) => {
     const newTasks = [...tasks];
     newTasks[index].done = !newTasks[index].done;
@@ -88,58 +220,6 @@ export default function CRM() {
     toast.error('Завдання видалено');
   };
 
-  const DealCard = ({ d, closed = false }: { d: any, closed?: boolean }) => (
-    <div className="bg-[#121824] border border-white/5 rounded-2xl p-4 group hover:border-white/10 transition-all cursor-pointer">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-8 h-8 rounded-lg bg-[#7c5cfc] flex items-center justify-center font-bold text-white text-[10px] shrink-0">
-          {d.name[0]}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-xs font-bold text-white truncate">{d.name}</div>
-          {closed && <div className="text-[10px] font-black text-[#00d97e] mt-0.5">+{d.comm}</div>}
-        </div>
-        <button className="text-[#7A8FA8] hover:text-white transition-colors">
-          <MoreHorizontal size={14} />
-        </button>
-      </div>
-      <div className="space-y-1.5 mb-4">
-        <div className="flex items-center gap-2 text-[10px] text-[#7a8fa8] font-bold tracking-tight">
-          <MapPin size={10} className="text-[#7A8FA8]" /> {d.route}
-        </div>
-        <div className="flex items-center gap-2 text-[10px] text-[#7a8fa8] font-bold tracking-tight">
-          <Calendar size={10} className="text-[#7A8FA8]" /> {d.date} {d.pax ? `· ${d.pax} пас.` : ''}
-        </div>
-      </div>
-      {d.note && (
-        <div className="bg-black/20 p-2 rounded-lg text-[9px] text-[#7A8FA8] leading-relaxed mb-4 italic">
-          {d.note}
-        </div>
-      )}
-      {!closed && (
-        <div className="flex gap-2">
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate('/book');
-            }} 
-            className="flex-1 py-1.5 bg-[#00d97e1a] text-[#00d97e] border border-[#00d97e26] rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-[#00d97e2e] transition-all"
-          >
-            Забронювати
-          </button>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              toast.success(`Чат з ${d.name}`);
-              navigate('/chat');
-            }} 
-            className="flex-1 py-1.5 bg-[#7c5cfc1a] text-[#a28afd] border border-[#7c5cfc26] rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-[#7c5cfc2e] transition-all"
-          >
-            Написати
-          </button>
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div className="space-y-8 max-w-[1280px] mx-auto animate-in fade-in duration-500 pb-20">
@@ -154,6 +234,16 @@ export default function CRM() {
           </p>
         </div>
         <div className="flex gap-3">
+          <button 
+            onClick={() => setShowBroadcastModal(true)}
+            className="px-4 py-2 bg-[#ff9d00]/10 text-[#ff9d00] border border-[#ff9d00]/30 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#ff9d00]/20 transition-all flex items-center gap-2"
+          >
+            <Megaphone size={14} /> Розсилка
+          </button>
+          <label className="px-4 py-2 bg-white/5 text-[#7A8FA8] border border-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all flex items-center gap-2 cursor-pointer">
+            <FileUp size={14} /> Імпорт CSV
+            <input type="file" accept=".csv" className="hidden" onChange={handleCsvImport} />
+          </label>
           <button 
             onClick={() => {
               setShowInviteModal(true);
@@ -180,7 +270,7 @@ export default function CRM() {
             <span className="bg-[#ff9d001a] text-[#ff9d00] px-2 py-0.5 rounded-full text-[10px] font-black">3</span>
           </div>
           <div className="bg-[#151c28] border border-white/5 rounded-[32px] p-4 space-y-3 min-h-[400px]">
-            {CRM_DEALS.new.map((d, i) => <DealCard key={i} d={d} />)}
+            {CRM_DEALS.new.map((d, i) => <DealCard key={i} d={d} onNavigate={navigate} />)}
           </div>
         </div>
         <div className="space-y-4">
@@ -189,7 +279,7 @@ export default function CRM() {
             <span className="bg-[#7c5cfc1a] text-[#a28afd] px-2 py-0.5 rounded-full text-[10px] font-black">5</span>
           </div>
           <div className="bg-[#151c28] border border-white/5 rounded-[32px] p-4 space-y-3 min-h-[400px]">
-            {CRM_DEALS.inProgress.map((d, i) => <DealCard key={i} d={d} />)}
+            {CRM_DEALS.inProgress.map((d, i) => <DealCard key={i} d={d} onNavigate={navigate} />)}
           </div>
         </div>
         <div className="space-y-4">
@@ -198,7 +288,7 @@ export default function CRM() {
             <span className="bg-[#00d97e1a] text-[#00d97e] px-2 py-0.5 rounded-full text-[10px] font-black">14</span>
           </div>
           <div className="bg-[#151c28] border border-white/5 rounded-[32px] p-4 space-y-3 min-h-[400px]">
-            {CRM_DEALS.closed.map((d, i) => <DealCard key={i} d={d} closed />)}
+            {CRM_DEALS.closed.map((d, i) => <DealCard key={i} d={d} closed onNavigate={navigate} />)}
           </div>
         </div>
       </div>
@@ -428,6 +518,74 @@ export default function CRM() {
                       <span className="text-[10px] font-black uppercase tracking-widest">Viber</span>
                     </a>
                   </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Broadcast Modal */}
+      <AnimatePresence>
+        {showBroadcastModal && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+              className="w-full max-w-md bg-[#0B1221] border border-[#ff9d00]/30 rounded-[32px] overflow-hidden shadow-[0_0_30px_rgba(255,157,0,0.15)] relative"
+            >
+              <div className="absolute top-0 left-1/4 w-1/2 h-20 bg-[#ff9d00] opacity-10 blur-[50px] pointer-events-none" />
+
+              <div className="p-6 border-b border-white/5 bg-[#1A2639]/30 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-[12px] bg-[#ff9d00]/10 border border-[#ff9d00]/20 flex items-center justify-center text-[#ff9d00]">
+                    <Megaphone size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white uppercase tracking-wider">МАСОВА РОЗСИЛКА</h3>
+                    <p className="text-[9px] text-[#8899B5] font-black uppercase tracking-widest mt-0.5">Відправити всім клієнтам</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowBroadcastModal(false)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 text-white/50 hover:bg-white/10 hover:text-white transition-all"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-[#7A8FA8] uppercase tracking-widest ml-1">Тема листа</label>
+                  <input 
+                    type="text" 
+                    value={broadcastData.subject}
+                    onChange={(e) => setBroadcastData({...broadcastData, subject: e.target.value})}
+                    placeholder="Напр. Знижка 15% на святкові рейси!" 
+                    className="w-full bg-[#121824] border border-white/5 rounded-xl py-3 px-4 font-bold text-white outline-none focus:border-[#ff9d00] transition-all" 
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-[#7A8FA8] uppercase tracking-widest ml-1">Повідомлення</label>
+                  <textarea 
+                    value={broadcastData.message}
+                    onChange={(e) => setBroadcastData({...broadcastData, message: e.target.value})}
+                    placeholder="Введіть текст розсилки..." 
+                    className="w-full bg-[#121824] border border-white/5 rounded-xl py-3 px-4 font-bold text-white outline-none focus:border-[#ff9d00] transition-all min-h-[120px]" 
+                  />
+                </div>
+                
+                <div className="pt-4 flex gap-3">
+                  <button onClick={() => setShowBroadcastModal(false)} className="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[#7a8fa8] hover:text-white transition-all">Скасувати</button>
+                  <button 
+                    onClick={handleSendBroadcast}
+                    disabled={isSending}
+                    className="flex-1 py-3 bg-[#ff9d00] text-black rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#ff9d00]/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {isSending ? 'Відправка...' : 'Відправити всім'}
+                  </button>
                 </div>
               </div>
             </motion.div>

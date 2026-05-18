@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search, Filter, Calendar, Bus, User,
+  Search, Filter, Calendar, Bus, User, Plus,
   Eye, Edit, XCircle, Map, Loader2, X,
   MapPin, Clock, Coins, ArrowRight, CheckCircle2,
   AlertCircle, ChevronDown, ChevronUp
@@ -16,11 +16,11 @@ import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@busnet/shared/supabase/config';
 
-const STATUS_MAP: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  active:    { label: 'Активний',     color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
-  pending:   { label: 'На модерації', color: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-500/30' },
-  completed: { label: 'Завершено',    color: 'text-cyan-400',    bg: 'bg-cyan-500/10',    border: 'border-cyan-500/30' },
-  cancelled: { label: 'Скасовано',    color: 'text-rose-400',    bg: 'bg-rose-500/10',    border: 'border-rose-500/30' },
+const STATUS_MAP: Record<string, { label: string; color: string; bg: string; border: string; glow: string }> = {
+  active:    { label: '● Активний',   color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', glow: 'shadow-[0_0_12px_rgba(52,211,153,0.15)]' },
+  pending:   { label: '⌛ Модерація', color: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-500/30', glow: 'shadow-[0_0_12px_rgba(251,191,36,0.15)]' },
+  completed: { label: '✓ Архів',     color: 'text-cyan-400',    bg: 'bg-cyan-500/10',    border: 'border-cyan-500/30', glow: 'shadow-[0_0_12px_rgba(34,211,238,0.15)]' },
+  cancelled: { label: '✕ Скасовано',  color: 'text-rose-400',    bg: 'bg-rose-500/10',    border: 'border-rose-500/30', glow: 'shadow-[0_0_12px_rgba(244,63,94,0.15)]' },
 };
 
 // ─── View Modal ───────────────────────────────────────────────────────────────
@@ -51,7 +51,7 @@ function RouteViewModal({ route, onClose, onEdit }: { route: any; onClose: () =>
           <div className="p-6 border-b border-white/5 flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-1 flex-wrap">
-                <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${status.bg} ${status.color} ${status.border}`}>
+                <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${status.bg} ${status.color} ${status.border} ${status.glow || ''}`}>
                   {status.label}
                 </span>
                 <span className="text-[10px] text-[#5a6a85] font-mono">
@@ -203,23 +203,25 @@ export default function Schedule() {
     // Save current route data to localStorage so NewTrip can load it
     const raw = rawRoutes.find(r => r.id === trip.routeId);
     if (raw) {
+      const clonedRaw = JSON.parse(JSON.stringify(raw));
       const draftData = {
-        routeName: raw.name || '',
-        operator: raw.operator || '',
-        seats: raw.seats || 50,
-        amenities: raw.amenities || ['wifi', 'ac'],
-        isTransfer: raw.is_transfer || false,
-        transferType: raw.transfer_type || 'direct',
-        transferCity: raw.transfer_city || '',
-        currency: raw.currency || 'ГРН',
-        discounts: raw.discounts || { child04: false, child412: false },
-        customDiscounts: raw.custom_discounts || [],
-        rules: raw.rules || [],
-        customRules: raw.custom_rules || [],
-        outbound: raw.outbound || { stops: [], days: [] },
-        inbound: raw.inbound || { stops: [], days: [] },
+        __version: 4,
+        routeName: clonedRaw.name || '',
+        operator: clonedRaw.operator || '',
+        seats: clonedRaw.seats || 50,
+        amenities: clonedRaw.amenities || ['wifi', 'ac'],
+        isTransfer: clonedRaw.is_transfer || false,
+        transferType: clonedRaw.transfer_type || 'direct',
+        transferCity: clonedRaw.transfer_city || '',
+        currency: clonedRaw.currency || 'ГРН',
+        discounts: clonedRaw.discounts || { child04: false, child412: false },
+        customDiscounts: clonedRaw.custom_discounts || [],
+        rules: clonedRaw.rules || [],
+        customRules: clonedRaw.custom_rules || [],
+        outbound: clonedRaw.outbound || { stops: [], days: [] },
+        inbound: clonedRaw.inbound || { stops: [], days: [] },
         // Store editing route ID
-        _editingRouteId: raw.id,
+        _editingRouteId: clonedRaw.id,
       };
       localStorage.setItem('busnet_trip_draft', JSON.stringify(draftData));
       localStorage.setItem('busnet_current_step', '1');
@@ -232,9 +234,10 @@ export default function Schedule() {
 
   const filteredTrips = trips.filter(trip => {
     const routeName = trip.name || '';
+    const tripId = trip.id || trip.routeId || '';
     const matchesSearch =
       routeName.toLowerCase().includes(search.toLowerCase()) ||
-      trip.id.toLowerCase().includes(search.toLowerCase());
+      tripId.toLowerCase().includes(search.toLowerCase());
     const matchesTab = activeTab === 'all' || trip.status === activeTab;
     return matchesSearch && matchesTab;
   });
@@ -258,7 +261,7 @@ export default function Schedule() {
             }}
             className="px-6 py-2.5 bg-[#ff6b35] hover:bg-[#ff6b35]/90 text-white rounded-full text-[11px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(255,107,53,0.3)] transition-all flex items-center gap-2"
           >
-            <span className="text-lg leading-none">+</span> НОВИЙ РЕЙС
+            <Plus size={16} /> НОВИЙ РЕЙС
           </button>
         </div>
       </div>
@@ -299,12 +302,13 @@ export default function Schedule() {
         </div>
         <div className="flex items-center gap-2 w-full md:w-auto">
           <div className="relative">
-            <select className="appearance-none bg-[#1A2639] border border-transparent rounded-full py-2.5 pl-6 pr-10 text-[10px] font-black uppercase tracking-widest text-[#5a6a85] outline-none hover:bg-white/5 transition-all cursor-pointer">
+            <select disabled title="В розробці" className="appearance-none bg-[#1A2639] border border-transparent rounded-full py-2.5 pl-6 pr-10 text-[10px] font-black uppercase tracking-widest text-[#5a6a85] outline-none hover:bg-white/5 transition-all cursor-not-allowed opacity-50">
+              {/* TODO: connect directions filter */}
               <option>Всі напрямки</option>
               <option>UA → EU</option>
               <option>EU → UA</option>
             </select>
-            <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#5a6a85] pointer-events-none" />
+            <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#5a6a85] pointer-events-none opacity-50" />
           </div>
           <button className="p-2.5 bg-[#ff6b35]/10 border border-[#ff6b35]/20 text-[#ff6b35] rounded-full hover:bg-[#ff6b35]/20 hover:shadow-[0_0_10px_rgba(255,107,53,0.3)] transition-all">
             <Filter size={16} />
@@ -378,7 +382,7 @@ export default function Schedule() {
                           <Calendar size={16} className="text-[#5a6a85]" />
                           <div className="space-y-0.5">
                             <p className="text-[11px] font-black text-white tracking-widest uppercase">
-                              —
+                              {trip.departureDate ? new Date(trip.departureDate).toLocaleDateString() : 'Регулярний'}
                             </p>
                             <p className="text-[9px] font-black text-[#8899b5] uppercase tracking-widest">
                               {trip.departureTime || '20:00'}
@@ -406,7 +410,7 @@ export default function Schedule() {
                         <div className="flex flex-col gap-1.5 min-w-[100px]">
                           <div className="w-full h-1 bg-[#1A2639] rounded-full overflow-hidden">
                             <div
-                              className={`h-full transition-all duration-1000 ${fill > 80 ? 'bg-emerald-500' : fill > 50 ? 'bg-cyan-500' : 'bg-amber-500'}`}
+                              className="h-full transition-all duration-1000 bg-gradient-to-r from-amber-500 via-cyan-500 to-emerald-500"
                               style={{ width: `${fill}%` }}
                             />
                           </div>
@@ -421,14 +425,14 @@ export default function Schedule() {
                         <div className="flex items-center gap-1.5">
                           <Coins size={14} className="text-emerald-400" />
                           <span className="text-[11px] font-black text-emerald-400 tracking-widest">
-                            €{(((trip.seatsBooked ?? 0) * (trip.price ?? 0))).toLocaleString()}
+                            €{(((trip.seatsBooked ?? 0) * (trip.price ?? (trip as any)._raw?.outbound?.stops?.[(trip as any)._raw?.outbound?.stops?.length - 1]?.price ?? 0))).toLocaleString()}
                           </span>
                         </div>
                       </td>
 
                       {/* Status */}
                       <td className="px-6 py-5">
-                        <span className={`px-3 py-1.5 rounded-full border text-[8px] font-black uppercase tracking-widest whitespace-nowrap ${status.bg} ${status.color} ${status.border}`}>
+                        <span className={`px-3 py-1.5 rounded-full border text-[8px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${status.bg} ${status.color} ${status.border} ${status.glow || ''}`}>
                           {status.label}
                         </span>
                       </td>
@@ -456,7 +460,7 @@ export default function Schedule() {
 
                           {/* 🗺 Live (Book icon in screenshot?) */}
                           <button
-                            onClick={() => navigate('/livetrips')}
+                            onClick={() => navigate('/livetrips?route=' + (trip.routeId || trip.id))}
                             title="Live трекінг"
                             className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-all shadow-[0_0_10px_rgba(16,185,129,0)] hover:shadow-[0_0_10px_rgba(16,185,129,0.3)]"
                           >

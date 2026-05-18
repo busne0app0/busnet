@@ -3,12 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   Search, Ticket, ShieldCheck, 
   BrainCircuit, ChevronRight, Zap 
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
 export default function OnboardingWidget() {
@@ -70,6 +69,14 @@ export default function OnboardingWidget() {
                   : 'bg-black/20 border-white/5 hover:border-white/10'}
               `}
               onClick={() => setActiveStep(step.id)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setActiveStep(step.id);
+                }
+              }}
             >
               <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-[#111520] border border-white/10 flex items-center justify-center font-syne font-black text-[10px] italic text-[#ff6b35]">
                 0{step.id}
@@ -94,8 +101,8 @@ export default function OnboardingWidget() {
           ))}
         </div>
 
-        <div className="mt-10 flex items-center justify-between">
-           <div className="flex items-center gap-4">
+        <div className="mt-10 flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-4">
+           <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
               <div className="flex -space-x-3">
                  {[1, 2, 3].map(i => (
                     <div key={i} className="w-8 h-8 rounded-full border-2 border-[#1a2235] bg-gradient-to-br from-slate-700 to-slate-900" />

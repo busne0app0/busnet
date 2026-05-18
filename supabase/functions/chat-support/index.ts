@@ -1,105 +1,140 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
-const AI_GATEWAY_URL = "https://ai-gateway.vercel.sh/v1/chat/completions";
-const AI_MODEL = "openai/gpt-4o";
-
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const ROLE_PROMPTS: Record<string, string> = {
-  passenger: `Ти — AI Консьєрж BUSNET. Відповідай ТІЛЬКИ українською. Будь коротким (2-4 речення), теплим і корисним.
-Ти спілкуєшся з ПАСАЖИРОМ. Допомагай з квитками, багажем (20кг + ручна 5кг), поверненнями, розкладом.
-Бонуси: 10 балів = 1 грн знижки.
-ВАЖЛИВО: Ніколи не обіцяй повернення коштів без уточнення правил перевізника.
-Якщо пасажир просить живу людину, оператора, або питання складне — додай у кінець: {"escalate":true}`,
+// Simple in-memory rate limiter (resets on cold start)
+const rateLimits = new Map<string, { count: number; resetAt: number }>();
+function checkRateLimit(key: string, maxPerMinute: number): boolean {
+  const now = Date.now();
+  const entry = rateLimits.get(key);
+  if (!entry || now > entry.resetAt) {
+    rateLimits.set(key, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  if (entry.count >= maxPerMinute) return false;
+  entry.count++;
+  return true;
+}
 
-  carrier: `Ти — AI Консьєрж BUSNET. Відповідай ТІЛЬКИ українською. Будь чітким і професійним.
-Ти спілкуєшся з ПЕРЕВІЗНИКОМ (компанією або диспетчером). Допомагай з рейсами, агентами, документами, фінансами.
-Перевізник — твій B2B-партнер, звертайся поважно. 
-Якщо питання потребує ескалації до адміністрації BUSNET — додай: {"escalate":true}`,
-
-  agent: `Ти — AI Консьєрж BUSNET. Відповідай ТІЛЬКИ українською. Будь конкретним і діловим.
-Ти спілкуєшся з АГЕНТОМ (партнером-посередником). Допомагай з продажами, комісіями, клієнтами, бронюваннями.
-Якщо питання потребує втручання адміністратора — додай: {"escalate":true}`,
-
-  driver: `Ти — AI Консьєрж BUSNET. Відповідай ДУЖЕ коротко (1-2 речення), простою мовою.
-Ти спілкуєшся з ВОДІЄМ. Допомагай з маршрутом, зупинками, пасажирами, документами.
-Проблема технічна або потребує диспетчера — додай: {"escalate":true}`,
-
-  admin: `Ти — внутрішній AI-асистент BUSNET для адміністраторів. Відповідай технічно точно.
-Допомагай з аналітикою, конфліктами, ескалаціями, налаштуваннями системи.`,
-};
-
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const body = await req.json();
-    const { message, ticketId, userId, userRole = "passenger", history = [], bookingContext } = body;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('Missing Auth Header');
 
-    if (!message?.trim()) {
-      return new Response(JSON.stringify({ error: "No message" }), { status: 400, headers: CORS });
+    const userClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+      global: { headers: { Authorization: authHeader } }
+    });
+    const { data: { user }, error: authErr } = await userClient.auth.getUser();
+    if (authErr || !user) throw new Error('Unauthorized');
+
+    // Rate limit: max 5 messages per minute per user
+    if (!checkRateLimit(`msg_${user.id}`, 5)) {
+      return new Response(JSON.stringify({ error: 'Забагато запитів. Зачекайте хвилину.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 429,
+      });
     }
 
-    const apiKey = Deno.env.get("AI_GATEWAY_API_KEY");
-    if (!apiKey) {
-      return new Response(JSON.stringify({ reply: "Сервіс тимчасово недоступний. Спробуйте пізніше.", escalate: false }), { headers: { ...CORS, "Content-Type": "application/json" } });
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const { message, ticketId, userId, userRole, history } = await req.json();
+    if (!message || !ticketId) throw new Error('Missing message or ticketId');
+
+    // Fetch AI toggle status
+    const { data: settings } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'ai_autopilot_enabled')
+      .single();
+
+    const aiEnabled = settings?.value !== 'false';
+    if (!aiEnabled) {
+      // AI is off — escalate immediately to admin
+      await supabase.from('ticket_messages').insert({
+        ticket_id: ticketId,
+        role: 'system',
+        text: 'AI-асистент тимчасово відключено. Ваш запит передано до оператора.',
+        sender_name: null
+      });
+      await supabase.from('support_tickets').update({
+        assigned_to: 'admin',
+        status: 'escalated',
+        last_updated: new Date().toISOString()
+      }).eq('id', ticketId);
+      return new Response(JSON.stringify({ reply: null, escalate: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    const systemPrompt = ROLE_PROMPTS[userRole] || ROLE_PROMPTS.passenger;
+    // Fetch ticket context
+    const { data: ticket } = await supabase
+      .from('support_tickets')
+      .select('booking_id, chat_type, carrier_id')
+      .eq('id', ticketId)
+      .single();
 
-    // Build messages array with history (last 6 messages for context)
-    const recentHistory = (history || []).slice(-6).map((h: any) => ({
-      role: h.role === "user" ? "user" : "assistant",
-      content: h.text,
-    }));
+    // Build system prompt with context
+    const rolePrompts: Record<string, string> = {
+      passenger: 'Ти — AI Консьєрж BUSNET. Допомагаєш пасажирам з квитками, розкладом, поверненнями. Відповідай лише по темі транспорту.',
+      carrier: 'Ти — AI-асистент для перевізників BUSNET. Допомагаєш з управлінням рейсами, агентами та звітністю.',
+      agent: 'Ти — AI-помічник для агентів BUSNET. Допомагаєш з комісіями, бронюваннями клієнтів та реферальними лінками.',
+      driver: 'Ти — AI-диспетчер для водіїв BUSNET. Надаєш маршрути, списки пасажирів, технічну допомогу.',
+      admin: 'Ти — внутрішній AI-інструмент для адміністраторів BUSNET. Допомагаєш з аналітикою та ескалаціями.',
+    };
 
-    // Add booking context if available
-    let userContent = message;
-    if (bookingContext) {
-      userContent = `[Контекст квитка: ${bookingContext.from || ''} → ${bookingContext.to || ''}, дата: ${bookingContext.date || ''}, статус: ${bookingContext.status || ''}]\n\n${message}`;
-    }
+    const systemPrompt = (rolePrompts[userRole] || rolePrompts.passenger) +
+      (ticket?.booking_id ? `\nКонтекст: квиток #${ticket.booking_id}.` : '') +
+      '\nЯкщо не можеш допомогти — запропонуй оператора.';
 
-    const aiResponse = await fetch(AI_GATEWAY_URL, {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: AI_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...recentHistory,
-          { role: "user", content: userContent },
-        ],
-        max_tokens: 350,
-        temperature: 0.65,
-      }),
+    const apiKey = Deno.env.get('OPENAI_API_KEY') ?? Deno.env.get('AI_GATEWAY_KEY') ?? '';
+    const apiUrl = Deno.env.get('AI_GATEWAY_URL') ?? 'https://api.openai.com/v1/chat/completions';
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...((history || []).slice(-8).map((m: any) => ({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: m.text
+      }))),
+      { role: 'user', content: message }
+    ];
+
+    const aiRes = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'gpt-4o-mini', messages, max_tokens: 500, temperature: 0.7 })
     });
 
-    if (!aiResponse.ok) {
-      return new Response(JSON.stringify({
-        reply: "Вибачте, AI тимчасово недоступний. Переключаю на оператора.",
-        escalate: true,
-      }), { status: 200, headers: { ...CORS, "Content-Type": "application/json" } });
-    }
+    if (!aiRes.ok) throw new Error(`AI API error: ${aiRes.status}`);
+    const aiData = await aiRes.json();
+    const reply = aiData.choices?.[0]?.message?.content?.trim() ?? '';
 
-    const aiData = await aiResponse.json();
-    const rawReply: string = aiData.choices?.[0]?.message?.content || "";
+    // Detect escalation signals in Ukrainian + English
+    const escalateKeywords = ['оператор', 'людина', 'адмін', 'operator', 'human', 'agent'];
+    const escalate = escalateKeywords.some(k => reply.toLowerCase().includes(k) || message.toLowerCase().includes(k));
 
-    const escalate = rawReply.includes('"escalate":true') || rawReply.includes('"escalate": true');
-    const reply = rawReply.replace(/\{[^}]*"escalate"[^}]*\}/g, "").trim();
+    // Log to audit
+    await supabase.from('audit_logs').insert({
+      actor_id: user.id,
+      action: 'AI_RESPONSE',
+      target: ticketId,
+      meta: { userRole, escalate, tokens: aiData.usage?.total_tokens ?? 0 }
+    });
 
     return new Response(JSON.stringify({ reply, escalate }), {
-      headers: { ...CORS, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
-  } catch (err) {
-    console.error("chat-support error:", err);
-    return new Response(JSON.stringify({
-      reply: "Виникла помилка з'єднання. Переключаю на адміністратора.",
-      escalate: true,
-    }), { status: 200, headers: { ...CORS, "Content-Type": "application/json" } });
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400
+    });
   }
 });

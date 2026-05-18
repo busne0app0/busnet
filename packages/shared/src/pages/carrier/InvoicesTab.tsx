@@ -5,9 +5,18 @@ import { toast } from 'react-hot-toast';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { supabase } from '@busnet/shared/supabase/config';
 
+interface Invoice {
+  id: string;
+  period: string;
+  amount: number;
+  status: 'paid' | 'pending' | 'overdue';
+  date: string;
+  items: number;
+}
+
 const InvoicesTab: React.FC = () => {
   const { user } = useAuthStore();
-  const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -33,7 +42,7 @@ const InvoicesTab: React.FC = () => {
     fetchInvoices();
   }, [user]);
 
-  const handleDownloadInvoice = (inv: any) => {
+  const handleDownloadInvoice = (inv: Invoice) => {
     // Generate a simple HTML template and open it in a new window to print/save as PDF
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -41,66 +50,63 @@ const InvoicesTab: React.FC = () => {
       return;
     }
 
+    const currentYear = new Date().getFullYear();
+
     const htmlContent = `
       <html>
         <head>
-          <title>Invoice ${inv.id}</title>
+          <title>Invoice_${inv.id}</title>
           <style>
-            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; color: #333; }
-            .header { border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 40px; }
-            .header h1 { margin: 0; color: #111; text-transform: uppercase; }
-            .details { display: flex; justify-content: space-between; margin-bottom: 40px; }
-            .amount { font-size: 24px; font-weight: bold; margin-top: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 40px; }
-            th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-            th { text-transform: uppercase; font-size: 12px; color: #666; }
-            .footer { margin-top: 60px; font-size: 12px; color: #999; text-align: center; }
+            @media print { @page { margin: 20mm; } }
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.5; color: #1a202c; padding: 40px; }
+            .badge { padding: 4px 12px; border-radius: 99px; font-size: 10px; font-weight: bold; background: #e6fffa; color: #38b2ac; display: inline-block; }
           </style>
         </head>
         <body>
-          <div class="header">
-            <h1>INVOICE</h1>
-            <p><strong>ID:</strong> ${inv.id}</p>
-            <p><strong>Date:</strong> ${inv.date}</p>
-          </div>
-          <div class="details">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
-              <h3>Bill To:</h3>
-              <p>Carrier ID: ${user?.uid || 'Unknown'}</p>
-              <p>${user?.email || 'Unknown'}</p>
+              <h1 style="margin: 0; font-size: 2rem; letter-spacing: -0.05em; text-transform: uppercase;">BUSNET<span style="color: #A855F7;">DOCS</span></h1>
+              <p style="color: #718096; font-size: 12px; margin-top: 4px;">Generated on ${new Date().toLocaleDateString()}</p>
             </div>
-            <div>
-              <h3>From:</h3>
-              <p>Busnet Services LLC</p>
-              <p>help@busnet.com</p>
+            <div style="text-align: right">
+              <div class="badge">PAID / СПЛАЧЕНО</div>
             </div>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th>Quantity</th>
-                <th>Rate</th>
-                <th>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Platform Commission (${inv.period})</td>
-                <td>${inv.items}</td>
-                <td>-</td>
-                <td>€${inv.amount.toLocaleString()}</td>
-              </tr>
-            </tbody>
+          
+          <div style="margin-top: 3rem; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+             <div>
+               <p style="font-size: 10px; font-weight: bold; color: #a0aec0; text-transform: uppercase; margin-bottom: 4px;">Відправник</p>
+               <p style="margin:0;"><strong>Busnet Services LLC</strong><br/>Accounting Dept.<br/>support@busnet.ua</p>
+             </div>
+             <div style="text-align: left;">
+               <p style="font-size: 10px; font-weight: bold; color: #a0aec0; text-transform: uppercase; margin-bottom: 4px;">Отримувач (Перевізник)</p>
+               <p style="margin:0;"><strong>${(user as any)?.user_metadata?.companyName || 'Carrier Name'}</strong><br/>ID: ${user?.uid || 'Unknown'}<br/>${user?.email || 'Unknown'}</p>
+             </div>
+          </div>
+
+          <table style="width: 100%; margin-top: 3rem; border-collapse: collapse;">
+            <tr style="border-bottom: 2px solid #edf2f7;">
+              <th style="text-align: left; padding: 1rem 0; font-size: 12px; text-transform: uppercase; color: #718096;">Опис послуг</th>
+              <th style="text-align: right; padding: 1rem 0; font-size: 12px; text-transform: uppercase; color: #718096;">Кількість</th>
+              <th style="text-align: right; padding: 1rem 0; font-size: 12px; text-transform: uppercase; color: #718096;">Сума</th>
+            </tr>
+            <tr>
+              <td style="padding: 1rem 0;">Комісійна винагорода платформи за період <strong>${inv.period}</strong></td>
+              <td style="text-align: right;">${inv.items} квит.</td>
+              <td style="text-align: right;"><strong>€${inv.amount.toLocaleString()}</strong></td>
+            </tr>
           </table>
-          <div class="amount">
-            <p>Total Due: €${inv.amount.toLocaleString()}</p>
+
+          <div style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid #edf2f7; text-align: right;">
+            <p style="font-size: 1.25rem; margin:0;">Разом до сплати: <span style="font-weight: 900;">€${inv.amount.toLocaleString()}</span></p>
           </div>
-          <div class="footer">
-            <p>Thank you for your business. Generated securely by Busnet.</p>
-          </div>
+
           <script>
-            window.onload = function() { window.print(); }
+            window.onload = () => {
+              setTimeout(() => {
+                window.print();
+              }, 500);
+            }
           </script>
         </body>
       </html>
@@ -123,7 +129,7 @@ const InvoicesTab: React.FC = () => {
     const htmlContent = `
       <html>
         <head>
-          <title>Invoices Archive 2026</title>
+          <title>Invoices Archive ${new Date().getFullYear()}</title>
           <style>
             body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; color: #333; }
             .invoice { page-break-after: always; margin-bottom: 50px; border-bottom: 2px dashed #ccc; padding-bottom: 50px; }
@@ -188,7 +194,7 @@ const InvoicesTab: React.FC = () => {
       <div className="bg-[#0B1221] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl min-h-[400px]">
          <div className="p-6 md:px-8 border-b border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
             <h3 className="text-[12px] font-black uppercase tracking-widest text-[#5A6A85] flex items-center gap-3">
-               <Calendar size={16} /> АРХІВ ЗА 2026 РІК
+               <Calendar size={16} /> АРХІВ ЗА {new Date().getFullYear()} РІК
             </h3>
             <div className="flex gap-4">
                <button 
@@ -212,7 +218,7 @@ const InvoicesTab: React.FC = () => {
                </thead>
                <tbody className="divide-y divide-white/5">
                   {invoices.map((inv, idx) => (
-                     <tr key={idx} className="group hover:bg-[#1A2639]/30 transition-all cursor-pointer">
+                     <tr key={idx} onClick={() => handleDownloadInvoice(inv)} className="group hover:bg-[#1A2639]/30 transition-all cursor-pointer">
                         <td className="py-6 px-8">
                            <div className="flex items-center gap-4">
                               <div className="w-10 h-10 rounded-[12px] bg-[#A855F7]/10 border border-[#A855F7]/20 flex items-center justify-center text-[#A855F7]">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Ticket, Search, Filter, Calendar, MapPin, User, CheckCircle2, Clock, XCircle, ChevronDown, Loader2, MoreVertical, X } from 'lucide-react';
@@ -28,7 +28,7 @@ const BookingsTab: React.FC = () => {
   const [updating, setUpdating] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
@@ -64,7 +64,7 @@ const BookingsTab: React.FC = () => {
           (booking.created_at ? new Date(booking.created_at).toLocaleDateString('uk-UA') : 'N/A'),
         time: booking.departure_time || 'N/A',
         seats: booking.seats || booking.passengers?.length || 0,
-        totalPrice: booking.total_price || 0,
+        totalPrice: booking.total_price ? Number(booking.total_price) : 0,
         status: booking.status || 'pending',
         createdAt: booking.created_at
       }));
@@ -75,11 +75,27 @@ const BookingsTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchBookings();
-  }, [user]);
+
+    if (!user) return;
+
+    const channel = supabase.channel('bookings_realtime')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'bookings' 
+      }, () => {
+        fetchBookings();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchBookings, user]);
 
   const handleUpdateStatus = async (bookingId: string, newStatus: Booking['status']) => {
     setUpdating(bookingId);
@@ -203,7 +219,7 @@ const BookingsTab: React.FC = () => {
               </p>
             </div>
             <div className="flex justify-between items-center pt-2 border-t border-white/5">
-              <span className="text-[11px] font-black text-[#00E5FF]">€{b.totalPrice} · {b.seats} місць</span>
+              <span className="text-[11px] font-black text-[#00E5FF]">€{b.totalPrice.toLocaleString()} · {b.seats} місць</span>
               {b.status === 'pending' && (
                 <div className="flex gap-2">
                   <button onClick={() => handleUpdateStatus(b.id, 'confirmed')} disabled={updating === b.id} className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-50">Підтв</button>

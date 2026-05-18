@@ -52,27 +52,34 @@ ALTER TABLE public.direct_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.agent_clients ENABLE ROW LEVEL SECURITY;
 
 -- Policies for user_relationships
+DROP POLICY IF EXISTS "Users can view their relationships" ON public.user_relationships;
 CREATE POLICY "Users can view their relationships" ON public.user_relationships
   FOR SELECT USING (auth.uid() = parent_id OR auth.uid() = child_id);
 
 -- Policies for referral_links
+DROP POLICY IF EXISTS "Users can manage their referral links" ON public.referral_links;
 CREATE POLICY "Users can manage their referral links" ON public.referral_links
   FOR ALL USING (auth.uid() = owner_id);
 
+DROP POLICY IF EXISTS "Anyone can view active referral links" ON public.referral_links;
 CREATE POLICY "Anyone can view active referral links" ON public.referral_links
   FOR SELECT USING (status = 'active');
 
 -- Policies for direct_messages
+DROP POLICY IF EXISTS "Users can view their direct messages" ON public.direct_messages;
 CREATE POLICY "Users can view their direct messages" ON public.direct_messages
   FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
 
+DROP POLICY IF EXISTS "Users can send direct messages" ON public.direct_messages;
 CREATE POLICY "Users can send direct messages" ON public.direct_messages
   FOR INSERT WITH CHECK (auth.uid() = sender_id);
 
 -- Policies for agent_clients
+DROP POLICY IF EXISTS "Agents can manage their clients" ON public.agent_clients;
 CREATE POLICY "Agents can manage their clients" ON public.agent_clients
   FOR ALL USING (auth.uid() = agent_id);
 
 -- Expand Support Tickets Policy
+DROP POLICY IF EXISTS "Agents can view their referral chats" ON public.support_tickets;
 CREATE POLICY "Agents can view their referral chats" ON public.support_tickets
   FOR SELECT USING (auth.uid() = agent_id);

@@ -35,8 +35,8 @@ CREATE INDEX IF NOT EXISTS idx_support_tickets_assigned   ON public.support_tick
 -- ============================================================
 -- 5. Enable Realtime for both tables
 -- ============================================================
-ALTER PUBLICATION supabase_realtime ADD TABLE public.support_tickets;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.ticket_messages;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE public.support_tickets;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE public.ticket_messages;
 
 -- ============================================================
 -- 6. Row Level Security
@@ -45,42 +45,39 @@ ALTER TABLE public.support_tickets  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ticket_messages  ENABLE ROW LEVEL SECURITY;
 
 -- Passenger: can see only their own tickets
-CREATE POLICY "passenger_select_own_ticket"
-  ON public.support_tickets FOR SELECT
+DROP POLICY IF EXISTS "passenger_select_own_ticket" ON public.support_tickets;
+CREATE POLICY "passenger_select_own_ticket" ON public.support_tickets FOR SELECT
   USING (user_id = auth.uid()::text);
 
 -- Passenger: can create their own ticket
-CREATE POLICY "passenger_insert_own_ticket"
-  ON public.support_tickets FOR INSERT
+DROP POLICY IF EXISTS "passenger_insert_own_ticket" ON public.support_tickets;
+CREATE POLICY "passenger_insert_own_ticket" ON public.support_tickets FOR INSERT
   WITH CHECK (user_id = auth.uid()::text);
 
 -- Passenger: can update their own ticket
-CREATE POLICY "passenger_update_own_ticket"
-  ON public.support_tickets FOR UPDATE
+DROP POLICY IF EXISTS "passenger_update_own_ticket" ON public.support_tickets;
+CREATE POLICY "passenger_update_own_ticket" ON public.support_tickets FOR UPDATE
   USING (user_id = auth.uid()::text);
 
 -- Carrier: can see & update tickets assigned to them
-CREATE POLICY "carrier_select_assigned_ticket"
-  ON public.support_tickets FOR SELECT
+DROP POLICY IF EXISTS "carrier_select_assigned_ticket" ON public.support_tickets;
+CREATE POLICY "carrier_select_assigned_ticket" ON public.support_tickets FOR SELECT
   USING (carrier_id = auth.uid()::text);
 
-CREATE POLICY "carrier_update_assigned_ticket"
-  ON public.support_tickets FOR UPDATE
+DROP POLICY IF EXISTS "carrier_update_assigned_ticket" ON public.support_tickets;
+CREATE POLICY "carrier_update_assigned_ticket" ON public.support_tickets FOR UPDATE
   USING (carrier_id = auth.uid()::text);
 
 -- Admin: full access
-CREATE POLICY "admin_full_access_tickets"
-  ON public.support_tickets FOR ALL
+DROP POLICY IF EXISTS "admin_full_access_tickets" ON public.support_tickets;
+CREATE POLICY "admin_full_access_tickets" ON public.support_tickets FOR ALL
   USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role = 'admin'
-    )
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
   );
 
 -- ticket_messages: anyone in the ticket can read
-CREATE POLICY "ticket_participant_select_messages"
-  ON public.ticket_messages FOR SELECT
+DROP POLICY IF EXISTS "ticket_participant_select_messages" ON public.ticket_messages;
+CREATE POLICY "ticket_participant_select_messages" ON public.ticket_messages FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM public.support_tickets t
@@ -88,14 +85,14 @@ CREATE POLICY "ticket_participant_select_messages"
         AND (
           t.user_id    = auth.uid()::text OR
           t.carrier_id = auth.uid()::text OR
-          EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+          (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
         )
     )
   );
 
 -- Passenger can insert user messages
-CREATE POLICY "passenger_insert_message"
-  ON public.ticket_messages FOR INSERT
+DROP POLICY IF EXISTS "passenger_insert_message" ON public.ticket_messages;
+CREATE POLICY "passenger_insert_message" ON public.ticket_messages FOR INSERT
   WITH CHECK (
     role = 'user' AND
     EXISTS (
@@ -106,8 +103,8 @@ CREATE POLICY "passenger_insert_message"
   );
 
 -- Carrier can insert carrier messages
-CREATE POLICY "carrier_insert_message"
-  ON public.ticket_messages FOR INSERT
+DROP POLICY IF EXISTS "carrier_insert_message" ON public.ticket_messages;
+CREATE POLICY "carrier_insert_message" ON public.ticket_messages FOR INSERT
   WITH CHECK (
     role = 'carrier' AND
     EXISTS (
@@ -118,13 +115,10 @@ CREATE POLICY "carrier_insert_message"
   );
 
 -- Admin can insert any messages
-CREATE POLICY "admin_insert_message"
-  ON public.ticket_messages FOR INSERT
+DROP POLICY IF EXISTS "admin_insert_message" ON public.ticket_messages;
+CREATE POLICY "admin_insert_message" ON public.ticket_messages FOR INSERT
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role = 'admin'
-    )
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
   );
 
 -- ============================================================

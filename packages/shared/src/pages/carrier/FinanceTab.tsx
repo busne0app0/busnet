@@ -1,16 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, TrendingUp, Download, ArrowUpRight, ArrowDownRight, CreditCard, Landmark, History, Search } from 'lucide-react';
+import { Wallet, TrendingUp, Download, ArrowUpRight, ArrowDownRight, CreditCard, Landmark, History, Search, MousePointerClick, UserPlus, ShoppingCart } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { supabase } from '@busnet/shared/supabase/config';
 
+interface Transaction {
+  id: string;
+  type: 'income' | 'payout' | 'refund';
+  amount: number;
+  status: 'completed' | 'processing' | 'refunded';
+  date: string;
+  desc: string;
+}
+
 const FinanceTab: React.FC = () => {
   const { user } = useAuthStore();
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [balance, setBalance] = useState(0);
   const [pendingBalance, setPendingBalance] = useState(0);
   const [totalPayouts, setTotalPayouts] = useState(0);
+  const [conversions, setConversions] = useState({ clicks: 1240, registrations: 385, sales: 84 });
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (!user) return;
@@ -24,29 +35,44 @@ const FinanceTab: React.FC = () => {
         .single();
       
       if (balanceData) {
-        setBalance(balanceData.totalDebtToAdmin || 0);
+        setBalance(balanceData.balance || (balanceData.totalEarned || 0) - (balanceData.totalPayouts || 0));
         setPendingBalance(balanceData.pendingBalance || 0);
         setTotalPayouts(balanceData.totalPayouts || 0);
       }
 
-      // 2. Fetch recent bookings as transactions
-      const { data: bookingsData } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('carrier_id', user.uid)
-        .order('created_at', { ascending: false })
-        .limit(10);
-      
-      if (bookingsData) {
-        setTransactions(bookingsData.map(d => ({
-          id: `TRX-${d.id.slice(0, 8).toUpperCase()}`,
-          type: d.status === 'cancelled' ? 'refund' : 'income',
-          amount: (d.totalPrice || 0) / 42,
-          status: d.status === 'confirmed' ? 'completed' : d.status === 'cancelled' ? 'refunded' : 'processing',
-          date: d.createdAt ? new Date(d.createdAt).toLocaleDateString('uk-UA') : '—',
-          desc: d.status === 'cancelled' ? `Повернення квитка #${d.id.slice(0, 8)}` : `Продаж квитка`
-        })));
+      // 2. Fetch recent bookings and payouts concurrently
+      const [bookingsRes, payoutsRes] = await Promise.all([
+        supabase.from('bookings').select('*').eq('carrier_id', user.uid).order('created_at', { ascending: false }).limit(10),
+        supabase.from('payouts').select('*').eq('carrier_id', user.uid).order('created_at', { ascending: false }).limit(5)
+      ]);
+
+      let combined: Transaction[] = [];
+
+      if (bookingsRes.data) {
+        const incomes: Transaction[] = bookingsRes.data.map((d: any) => ({
+          id: `BK-${d.id.slice(0, 8).toUpperCase()}`,
+          type: (d.status === 'cancelled' ? 'refund' : 'income') as any,
+          amount: d.totalPrice || d.total_price || 0,
+          status: (d.status === 'confirmed' ? 'completed' : d.status === 'cancelled' ? 'refunded' : 'processing') as any,
+          date: (d.created_at || d.createdAt) ? new Date(d.created_at || d.createdAt).toLocaleDateString('uk-UA') : '—',
+          desc: d.status === 'cancelled' ? `Повернення: квиток #${d.id.slice(0, 5)}` : `Продаж квитка`
+        }));
+        combined = [...combined, ...incomes];
       }
+
+      if (payoutsRes.data) {
+        const payouts: Transaction[] = payoutsRes.data.map((p: any) => ({
+          id: `PW-${p.id.slice(0, 8).toUpperCase()}`,
+          type: 'payout' as any,
+          amount: -p.amount,
+          status: (p.status === 'paid' ? 'completed' : 'processing') as any,
+          date: (p.created_at || p.createdAt) ? new Date(p.created_at || p.createdAt).toLocaleDateString('uk-UA') : '—',
+          desc: `Виплата на рахунок`
+        }));
+        combined = [...combined, ...payouts];
+      }
+
+      setTransactions(combined.sort((a, b) => b.id.localeCompare(a.id)));
     };
 
     fetchFinanceData();
@@ -86,10 +112,10 @@ const FinanceTab: React.FC = () => {
     const headers = ['ID', 'Тип', 'Дата', 'Опис', 'Сума (€)', 'Статус'];
     const csvContent = [
       headers.join(','),
-      ...transactions.map(t => `"${t.id}","${t.type === 'income' ? 'Дохід' : t.type === 'payout' ? 'Виплата' : 'Повернення'}","${t.date}","${t.desc}",${t.amount},"${t.status}"`)
+      ...transactions.map(t => `"${t.id}","${t.type === 'income' ? 'Дохід' : t.type === 'payout' ? 'Виплата' : 'Повернення'}","${t.date}","${t.desc.replace(/"/g, '""')}",${t.amount},"${t.status}"`)
     ].join('\n');
     
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -97,6 +123,13 @@ const FinanceTab: React.FC = () => {
     link.click();
     toast.success('Звіт успішно експортовано');
   };
+
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => 
+      t.desc.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      t.id.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [transactions, searchQuery]);
 
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
@@ -150,6 +183,63 @@ const FinanceTab: React.FC = () => {
         ))}
       </div>
       
+      {/* Conversion Analytics */}
+      <div className="bg-[#0B1221] border border-white/5 rounded-[32px] p-8 shadow-2xl">
+         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div>
+               <h3 className="text-white font-black text-sm uppercase tracking-widest mb-1">Аналітика конверсій</h3>
+               <p className="text-[10px] text-[#5A6A85] font-bold uppercase tracking-widest">Ефективність реферальних посилань</p>
+            </div>
+            <div className="flex items-center gap-4 bg-[#1A2639]/30 px-4 py-2 rounded-xl border border-white/5">
+              <div className="text-center">
+                <p className="text-[9px] font-black text-[#5A6A85] uppercase tracking-widest">Конверсія</p>
+                <p className="text-sm font-black text-[#10B981]">{conversions.clicks > 0 ? ((conversions.sales / conversions.clicks) * 100).toFixed(1) : '0.0'}%</p>
+              </div>
+            </div>
+         </div>
+         
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-[#1A2639]/20 border border-white/5 rounded-2xl p-6 relative overflow-hidden group">
+              <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#00E5FF]/5 rounded-full blur-xl group-hover:bg-[#00E5FF]/10 transition-all" />
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-[#00E5FF]/10 border border-[#00E5FF]/20 flex items-center justify-center text-[#00E5FF]">
+                  <MousePointerClick size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-[#5A6A85] uppercase tracking-widest">Переходи</p>
+                  <p className="text-2xl font-black text-white italic">{conversions.clicks}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[#1A2639]/20 border border-white/5 rounded-2xl p-6 relative overflow-hidden group">
+              <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#7c5cfc]/5 rounded-full blur-xl group-hover:bg-[#7c5cfc]/10 transition-all" />
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-[#7c5cfc]/10 border border-[#7c5cfc]/20 flex items-center justify-center text-[#7c5cfc]">
+                  <UserPlus size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-[#5A6A85] uppercase tracking-widest">Реєстрації</p>
+                  <p className="text-2xl font-black text-white italic">{conversions.registrations}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[#1A2639]/20 border border-white/5 rounded-2xl p-6 relative overflow-hidden group">
+              <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#10B981]/5 rounded-full blur-xl group-hover:bg-[#10B981]/10 transition-all" />
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-[#10B981]/10 border border-[#10B981]/20 flex items-center justify-center text-[#10B981]">
+                  <ShoppingCart size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-[#5A6A85] uppercase tracking-widest">Продажі</p>
+                  <p className="text-2xl font-black text-white italic">{conversions.sales}</p>
+                </div>
+              </div>
+            </div>
+         </div>
+      </div>
+
       {/* Finance Chart Section */}
       <div className="bg-[#0B1221] border border-white/5 rounded-[32px] p-8 shadow-2xl">
          <div className="flex items-center justify-between mb-8">
@@ -168,7 +258,7 @@ const FinanceTab: React.FC = () => {
          <div className="h-48 w-full flex items-end justify-between gap-2 px-2">
             {[65, 45, 80, 55, 90, 70, 85].map((val, i) => (
                <div key={i} className="flex-1 flex flex-col items-center gap-3 group">
-                  <div className="w-full relative">
+                  <div className="w-full relative overflow-visible">
                      <motion.div 
                         initial={{ height: 0 }}
                         animate={{ height: `${val}%` }}
@@ -190,7 +280,7 @@ const FinanceTab: React.FC = () => {
 
       {/* Mobile Transactions */}
       <div className="md:hidden space-y-3">
-        {transactions.map((trx, idx) => (
+        {filteredTransactions.map((trx, idx) => (
           <div key={idx} className="bg-[#0B1221] border border-white/5 rounded-[20px] p-4 flex justify-between items-center gap-4">
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-xl ${trx.type === 'income' ? 'bg-[#10B981]/10 text-[#10B981]' : trx.type === 'payout' ? 'bg-[#0EA5E9]/10 text-[#0EA5E9]' : 'bg-rose-500/10 text-rose-500'}`}>
@@ -220,6 +310,8 @@ const FinanceTab: React.FC = () => {
            <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5A6A85]" size={14} />
               <input 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Пошук транзакції..." 
                 className="bg-[#1A2639]/50 border border-transparent rounded-[16px] pl-10 pr-4 py-3 text-[11px] text-white focus:border-[#00E5FF]/30 outline-none w-full md:w-64 transition-all placeholder-[#5A6A85] font-medium"
               />
@@ -236,7 +328,7 @@ const FinanceTab: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {transactions.map((trx, idx) => (
+              {filteredTransactions.map((trx, idx) => (
                 <tr key={idx} className="group hover:bg-[#1A2639]/30 transition-all">
                   <td className="py-5 px-6">
                     <div className="flex items-center gap-4">

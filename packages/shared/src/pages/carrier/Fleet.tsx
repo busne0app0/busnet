@@ -14,12 +14,24 @@ import { useFleet, Bus } from '@busnet/shared/hooks/useFleet';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { toast } from 'react-hot-toast';
 
+const AMENITIES = [
+  { id: 'wifi', label: 'Wi-Fi', icon: <Wifi size={14} /> },
+  { id: 'usb', label: 'USB', icon: <Battery size={14} /> },
+  { id: 'ac', label: 'Клімат', icon: <Wind size={14} /> },
+  { id: 'wc', label: 'Туалет', icon: <Info size={14} /> },
+  { id: 'coffee', label: 'Кава', icon: <Coffee size={14} /> },
+  { id: 'tv', label: 'ТБ', icon: <Tv size={14} /> }
+];
+
 export default function Fleet() {
   const { user } = useAuthStore();
   const { buses, loading, fetchFleet, addBus, updateBus, deleteBus } = useFleet();
   
   const [isAddingModalOpen, setIsAddingModalOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  
+  const [busToDelete, setBusToDelete] = useState<{id: string, model: string} | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -33,7 +45,8 @@ export default function Fleet() {
     if (user) {
       fetchFleet(user.uid);
     }
-  }, [user, fetchFleet]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const toggleAmenity = (id: string) => {
     setFormData(prev => ({
@@ -69,15 +82,23 @@ export default function Fleet() {
     }
   };
 
-  const handleDeleteBus = async (id: string, model: string) => {
-    if (!user || !confirm(`Видалити ${model} з автопарку?`)) return;
+  const confirmDeleteBus = async () => {
+    if (!user || !busToDelete) return;
+    setIsDeleting(true);
     const toastId = toast.loading('Видалення...');
     try {
-      await deleteBus(id, user.uid);
+      await deleteBus(busToDelete.id, user.uid);
       toast.success('Транспортний засіб видалено', { id: toastId });
+      setBusToDelete(null);
     } catch (error) {
       toast.error('Помилка при видаленні', { id: toastId });
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDeleteBus = (id: string, model: string) => {
+    setBusToDelete({ id, model });
   };
 
   const handleToggleStatus = async (bus: Bus) => {
@@ -113,6 +134,52 @@ export default function Fleet() {
           ДОДАТИ АВТОБУС
         </button>
       </div>
+
+      {/* DELETE CONFIRM MODAL */}
+      <AnimatePresence>
+        {busToDelete && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !isDeleting && setBusToDelete(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-sm bg-[#1a2235] border border-white/10 rounded-[32px] p-8 relative z-10 shadow-2xl text-center"
+            >
+              <div className="w-16 h-16 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto mb-4">
+                <AlertCircle size={32} />
+              </div>
+              <h3 className="text-xl font-black italic uppercase text-white mb-2">Видалити автобус?</h3>
+              <p className="text-[11px] text-[#5a6a85] font-bold mb-8">
+                Ви дійсно хочете видалити <strong>{busToDelete.model}</strong>? Цю дію неможливо скасувати.
+              </p>
+              
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setBusToDelete(null)}
+                  disabled={isDeleting}
+                  className="flex-1 py-3 bg-white/5 text-[#8899b5] rounded-xl text-xs font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all disabled:opacity-50"
+                >
+                  Скасувати
+                </button>
+                <button 
+                  onClick={confirmDeleteBus}
+                  disabled={isDeleting}
+                  className="flex-1 py-3 bg-rose-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-rose-600 transition-all disabled:opacity-50 flex justify-center items-center gap-2"
+                >
+                  {isDeleting ? <Loader2 size={16} className="animate-spin" /> : 'Видалити'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* AMENITIES MODAL */}
       <AnimatePresence>
@@ -178,14 +245,7 @@ export default function Fleet() {
                  <div className="space-y-2 pt-2">
                     <label className="text-[10px] text-[#5a6a85] font-black uppercase tracking-widest">Зручності</label>
                     <div className="flex flex-wrap gap-2">
-                       {[
-                         { id: 'wifi', label: 'Wi-Fi' },
-                         { id: 'usb', label: 'USB' },
-                         { id: 'ac', label: 'Клімат' },
-                         { id: 'wc', label: 'Туалет' },
-                         { id: 'coffee', label: 'Кава' },
-                         { id: 'tv', label: 'Мультимедіа' }
-                       ].map(amenity => {
+                       {AMENITIES.map(amenity => {
                          const isSelected = formData.amenities.includes(amenity.id);
                          return (
                            <button
@@ -268,8 +328,8 @@ export default function Fleet() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {[
                   { l: 'Місць', v: bus.capacity },
-                  { l: 'Клас', v: 'Комфорт' },
-                  { l: 'Пробіг', v: `124,000 км` },
+                  { l: 'Клас', v: bus.capacity > 50 ? 'Туристичний' : 'Комфорт' },
+                  { l: 'Пробіг', v: `— км` },
                   { l: 'Статус', v: bus.status === 'active' ? 'Готовий' : 'В черзі' },
                 ].map((item, i) => (
                   <div key={i} className="space-y-0.5">
@@ -281,13 +341,16 @@ export default function Fleet() {
 
               <div className="flex items-center gap-3 pt-4 border-t border-white/[0.02]">
                 <div className="px-3 py-1 rounded-lg bg-black/20 text-[#5a6a85] text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
-                   <Wrench size={10} /> Наступне ТО: <span className="text-white">{bus.lastMaintenance || '—'}</span>
+                   <Wrench size={10} /> Остання перевірка: <span className="text-white">
+                     {bus.lastMaintenance ? new Date(bus.lastMaintenance).toLocaleDateString('uk-UA') : 'Не вказано'}
+                   </span>
                 </div>
-                <div className="flex items-center gap-4 ml-auto text-[#5a6a85]">
-                   <Wifi size={14} />
-                   <Battery size={14} />
-                   <Wind size={14} />
-                   <Tv size={14} />
+                <div className="flex items-center gap-3 ml-auto text-[#5a6a85]">
+                   {AMENITIES.filter(a => bus.amenities?.includes(a.id)).map(a => (
+                     <div key={a.id} className="hover:text-[#ff6b35] transition-colors" title={a.label}>
+                       {a.icon}
+                     </div>
+                   ))}
                 </div>
               </div>
             </div>

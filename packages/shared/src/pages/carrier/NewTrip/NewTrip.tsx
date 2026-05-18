@@ -137,11 +137,13 @@ const DAY_NAME_TO_CODE: Record<string, string> = {
   'пн': 'ПН', 'вт': 'ВТ', 'ср': 'СР', 'чт': 'ЧТ', 'пт': 'ПТ', 'сб': 'СБ', 'нд': 'НД'
 };
 
+interface Carrier { uid: string; companyName?: string; email: string; }
+
 export default function NewTrip() {
   const { user, activeRole } = useAuthStore();
   const navigate = useNavigate();
 
-  const [carriers, setCarriers] = useState<any[]>([]);
+  const [carriers, setCarriers] = useState<Carrier[]>([]);
 
   useEffect(() => {
     if (activeRole === 'admin') {
@@ -282,10 +284,10 @@ export default function NewTrip() {
 
         if (!line1 || !line2) continue;
 
-        const outMatch = line1.match(/(\d{2}:\d{2})\s+([\w']+)/i);
+        const outMatch = line1.match(/(\d{2}:\d{2})\s+([а-яА-ЯёЁіІїЇєЄґҐ\w']+)/ui);
         const city = line2;
         const address = line3?.replace(/[()]/g, '') || '';
-        const inMatch = line4?.match(/(\d{2}:\d{2})\s+([\w']+)/i);
+        const inMatch = line4?.match(/(\d{2}:\d{2})\s+([а-яА-ЯёЁіІїЇєЄґҐ\w']+)/ui);
 
         if (outMatch) {
           const dayCode = DAY_NAME_TO_CODE[outMatch[2].toLowerCase()];
@@ -491,7 +493,10 @@ export default function NewTrip() {
       for (let j = i + 1; j < trip.outbound.stops.length; j++) {
         const from = trip.outbound.stops[i].city;
         const to = trip.outbound.stops[j].city;
-        if (from && to) segments.push({ from, to, price: priceMemory[to.toLowerCase()] || 0, currency: 'ГРН', key: to.toLowerCase() });
+        if (from && to) {
+          const key = `${from}-${to}`.toLowerCase();
+          segments.push({ from, to, price: priceMemory[key] || 0, currency: 'ГРН', key });
+        }
       }
     }
     return segments;
@@ -861,7 +866,7 @@ export default function NewTrip() {
                 </div>
 
                 <div className="bg-[#0B1221] rounded-2xl p-6 border border-white/10">
-                   <div className="space-y-3">
+                   <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10">
                       {allSegments.map((segment, idx) => (
                         <div key={idx} className="flex items-center justify-between bg-[#050B14] p-4 rounded-xl border border-white/5 group hover:border-white/20 transition-all">
                            <div className="flex items-center gap-4">
@@ -949,7 +954,7 @@ export default function NewTrip() {
                   </div>
                  )}
 
-                 <div id="full-preview-area" className="bg-[#0B1221] p-8 rounded-2xl border border-white/10 space-y-10">
+                 <div id="full-preview-area" className="bg-[#0B1221] p-8 rounded-2xl border border-white/10 space-y-10" style={{ backgroundColor: '#0B1221' }}>
                     <div className="flex justify-between items-start pb-6 border-b border-white/5">
                        <div>
                           <p className="text-[9px] text-[#00E5FF] font-black uppercase tracking-[0.3em] mb-2">Маршрутний лист</p>
@@ -1032,12 +1037,19 @@ export default function NewTrip() {
           </div>
 
           <button 
-            onClick={nextStep} 
+            onClick={() => {
+              if (conflicts.some(c => c.severity === 'error')) {
+                toast.error('Виправте критичні помилки перед продовженням');
+                return;
+              }
+              nextStep();
+            }} 
             className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
               currentStep === 7 
                 ? 'bg-[#00E5FF] text-[#050B14] hover:shadow-[0_0_15px_rgba(0,229,255,0.4)]' 
                 : 'bg-white/10 text-white hover:bg-white/20'
-            }`}
+            } ${conflicts.some(c => c.severity === 'error') ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={conflicts.some(c => c.severity === 'error')}
           >
             {currentStep === 7 ? 'Зберегти' : 'Далі'} <ChevronRight size={14} />
           </button>

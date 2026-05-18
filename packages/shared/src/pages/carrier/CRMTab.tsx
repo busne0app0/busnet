@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Users, Search, Mail, Phone, MapPin, Star, Filter, ArrowUpRight, Loader2, MessageSquare, Ban, ChevronDown, X, Copy } from 'lucide-react';
@@ -23,6 +23,8 @@ const CRMTab: React.FC = () => {
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortField, setSortField] = useState<'name' | 'tripsCount' | 'totalSpent'>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Fetching logic: In a real app, we'd query bookings for carrierId, 
   // then extract unique passengers. For now, we simulate or fetch from a 'carrier_passengers' collection if it exists.
@@ -33,14 +35,14 @@ const CRMTab: React.FC = () => {
       if (!user) return;
       setLoading(true);
       try {
-        // Get bookings for this carrier's trips
+        // Get bookings for this carrier's routes
         const { data: bookings, error } = await supabase
           .from('bookings')
           .select(`
             *,
-            trips!inner(carrier_id)
+            routes!inner(id, carrier_id)
           `)
-          .eq('trips.carrier_id', user.uid);
+          .eq('routes.carrier_id', user.uid);
 
         if (error) throw error;
 
@@ -53,6 +55,8 @@ const CRMTab: React.FC = () => {
           }
           
           if (!Array.isArray(pList)) pList = [];
+
+          const totalPrice = Number(booking.total_price || booking.totalPrice || 0);
 
           pList.forEach((p: any) => {
             const name = p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Passenger';
@@ -67,12 +71,12 @@ const CRMTab: React.FC = () => {
                 tripsCount: 1,
                 lastTrip: booking.created_at ? new Date(booking.created_at).toLocaleDateString('uk-UA') : 'Recently',
                 rating: 4.5 + Math.random() * 0.5,
-                totalSpent: booking.total_price || 0
+                totalSpent: totalPrice
               });
             } else {
               const existing = passengersMap.get(passengerKey)!;
               existing.tripsCount += 1;
-              existing.totalSpent += (booking.total_price || 0);
+              existing.totalSpent += totalPrice;
             }
           });
         });
@@ -92,6 +96,22 @@ const CRMTab: React.FC = () => {
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     p.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = (bVal as string).toLowerCase();
+      }
+
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filtered, sortField, sortDirection]);
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -120,7 +140,7 @@ const CRMTab: React.FC = () => {
 
   const handleBlock = (name: string) => {
     if (window.confirm(`Ви впевнені, що хочете заблокувати пасажира ${name}?`)) {
-       // Ideally we update the Supabase 'carrier_blacklist' here
+       setPassengers(prev => prev.filter(p => p.name !== name));
        toast.error(`Пасажир ${name} доданий в чорний список`);
     }
   };
@@ -234,21 +254,69 @@ const CRMTab: React.FC = () => {
             <table className="min-w-[800px] w-full text-left h-full">
               <thead>
                 <tr className="bg-transparent border-b border-white/5">
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em] cursor-pointer hover:text-white transition-colors">
-                    <div className="flex items-center gap-1">Пасажир <ChevronDown size={10} /></div>
+                  <th 
+                    onClick={() => {
+                      if (sortField === 'name') {
+                        setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setSortField('name');
+                        setSortDirection('asc');
+                      }
+                    }}
+                    className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em] cursor-pointer hover:text-white transition-colors select-none"
+                  >
+                    <div className="flex items-center gap-1">
+                      Пасажир 
+                      <ChevronDown 
+                        size={10} 
+                        className={`transition-transform duration-200 ${sortField === 'name' ? (sortDirection === 'desc' ? 'rotate-180 text-[#00E5FF]' : 'text-[#00E5FF]') : 'opacity-40'}`} 
+                      />
+                    </div>
                   </th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em]">Контакти</th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em] cursor-pointer hover:text-white transition-colors">
-                    <div className="flex items-center gap-1">Поїздок <ChevronDown size={10} /></div>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em] select-none">Контакти</th>
+                  <th 
+                    onClick={() => {
+                      if (sortField === 'tripsCount') {
+                        setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setSortField('tripsCount');
+                        setSortDirection('desc');
+                      }
+                    }}
+                    className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em] cursor-pointer hover:text-white transition-colors select-none"
+                  >
+                    <div className="flex items-center gap-1">
+                      Поїздок 
+                      <ChevronDown 
+                        size={10} 
+                        className={`transition-transform duration-200 ${sortField === 'tripsCount' ? (sortDirection === 'desc' ? 'rotate-180 text-[#00E5FF]' : 'text-[#00E5FF]') : 'opacity-40'}`} 
+                      />
+                    </div>
                   </th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em] cursor-pointer hover:text-white transition-colors">
-                    <div className="flex items-center gap-1">LTV <ChevronDown size={10} /></div>
+                  <th 
+                    onClick={() => {
+                      if (sortField === 'totalSpent') {
+                        setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setSortField('totalSpent');
+                        setSortDirection('desc');
+                      }
+                    }}
+                    className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em] cursor-pointer hover:text-white transition-colors select-none"
+                  >
+                    <div className="flex items-center gap-1">
+                      LTV 
+                      <ChevronDown 
+                        size={10} 
+                        className={`transition-transform duration-200 ${sortField === 'totalSpent' ? (sortDirection === 'desc' ? 'rotate-180 text-[#00E5FF]' : 'text-[#00E5FF]') : 'opacity-40'}`} 
+                      />
+                    </div>
                   </th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em] text-right">Дії</th>
+                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em] text-right select-none">Дії</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {filtered.map((p, idx) => (
+                {sorted.map((p, idx) => (
                   <motion.tr 
                     key={idx}
                     initial={{ opacity: 0, x: -10 }}
@@ -258,8 +326,13 @@ const CRMTab: React.FC = () => {
                   >
                     <td className="py-5 px-6">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-[10px] bg-[#00E5FF]/10 border border-[#00E5FF]/20 flex items-center justify-center text-[#00E5FF] font-bold text-xs uppercase">
-                          {p.name.split(' ').map(n => n[0]).join('')}
+                        <div className="relative">
+                          <div className="w-9 h-9 rounded-[10px] bg-[#00E5FF]/10 border border-[#00E5FF]/20 flex items-center justify-center text-[#00E5FF] font-bold text-xs uppercase">
+                            {p.name.split(' ').map(n => n[0]).join('')}
+                          </div>
+                          {p.tripsCount > 5 && (
+                            <div className="absolute -right-1 -top-1 w-2.5 h-2.5 bg-[#00E5FF] rounded-full border-2 border-[#0B1221] shadow-[0_0_8px_#00E5FF]" />
+                          )}
                         </div>
                         <div>
                           <p className="text-sm font-bold text-white tracking-tight group-hover:text-[#00E5FF] transition-colors">{p.name}</p>
@@ -288,31 +361,31 @@ const CRMTab: React.FC = () => {
                     </td>
                     <td className="py-5 px-6">
                       <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-[#1A2639] border border-white/5">
-                        <span className="text-xs font-black text-white">{p.tripsCount}</span>
-                        <span className="text-[9px] font-bold text-[#5A6A85] uppercase">Поїздок</span>
+                        <span className="text-xs font-black text-white font-mono tabular-nums">{p.tripsCount}</span>
+                        <span className="text-[10px] font-bold text-[#8899B5] uppercase">Поїздок</span>
                       </div>
-                      <p className="text-[9px] text-[#5A6A85] mt-1 uppercase font-black tracking-widest">Остання: {p.lastTrip}</p>
+                      <p className="text-[10px] text-[#5A6A85] mt-1 uppercase font-black tracking-widest font-mono tabular-nums">Остання: {p.lastTrip}</p>
                     </td>
                     <td className="py-5 px-6">
-                      <span className="text-sm font-black text-[#00E5FF] italic">€{p.totalSpent.toLocaleString()}</span>
+                      <span className="text-sm font-black text-[#00E5FF] italic font-mono tabular-nums">€{p.totalSpent.toLocaleString()}</span>
                     </td>
                     <td className="py-5 px-6 text-right">
                       <div className="flex items-center justify-end gap-2 text-[#5A6A85]">
                         <button 
                           onClick={() => window.location.href = `mailto:${p.email}`}
-                          className="p-2 rounded-lg bg-[#1A2639] hover:text-[#00E5FF] transition-all border border-transparent hover:border-[#00E5FF]/20"
+                          className="p-2 rounded-lg bg-[#1A2639] hover:text-[#00E5FF] transition-all border border-transparent hover:border-[#00E5FF]/20 active:scale-95"
                           title="Написати"
                         >
                           <MessageSquare size={16} />
                         </button>
                         <button 
                           onClick={() => handleBlock(p.name)}
-                          className="p-2 rounded-lg bg-[#1A2639] hover:text-rose-400 transition-all border border-transparent hover:border-rose-500/20"
+                          className="p-2 rounded-lg bg-[#1A2639] hover:text-rose-400 transition-all border border-transparent hover:border-rose-500/20 active:scale-95"
                           title="Заблокувати"
                         >
                           <Ban size={16} />
                         </button>
-                        <button className="p-2 rounded-lg bg-[#1A2639] hover:text-white transition-all border border-transparent hover:border-white/20">
+                        <button className="p-2 rounded-lg bg-[#1A2639] hover:text-white transition-all border border-transparent hover:border-white/20 active:scale-95">
                           <ArrowUpRight size={16} />
                         </button>
                       </div>

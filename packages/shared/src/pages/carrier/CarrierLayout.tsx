@@ -16,6 +16,7 @@ import { toast } from 'react-hot-toast';
 const MENU_CATEGORIES = [
   {
     id: 'dashboard',
+    mobileLabel: 'Головна',
     icon: LayoutGrid,
     color: 'text-[#00E5FF]',
     glowClass: 'group-hover:shadow-[0_0_15px_rgba(0,229,255,0.6)] group-hover:border-[#00E5FF]/50',
@@ -24,6 +25,7 @@ const MENU_CATEGORIES = [
   },
   {
     id: 'transport',
+    mobileLabel: 'Рейси',
     icon: Bus,
     color: 'text-[#0EA5E9]',
     glowClass: 'group-hover:shadow-[0_0_15px_rgba(14,165,233,0.6)] group-hover:border-[#0EA5E9]/50',
@@ -38,6 +40,7 @@ const MENU_CATEGORIES = [
   },
   {
     id: 'finance',
+    mobileLabel: 'Фінанси',
     icon: Wallet,
     color: 'text-[#FBBF24]',
     glowClass: 'group-hover:shadow-[0_0_15px_rgba(251,191,36,0.6)] group-hover:border-[#FBBF24]/50',
@@ -49,6 +52,7 @@ const MENU_CATEGORIES = [
   },
   {
     id: 'analytics',
+    mobileLabel: 'Звіти',
     icon: BarChart3,
     color: 'text-[#E879F9]',
     glowClass: 'group-hover:shadow-[0_0_15px_rgba(232,121,249,0.6)] group-hover:border-[#E879F9]/50',
@@ -60,6 +64,7 @@ const MENU_CATEGORIES = [
   },
   {
     id: 'communication',
+    mobileLabel: 'Чат',
     icon: MessageSquare,
     color: 'text-[#A855F7]',
     glowClass: 'group-hover:shadow-[0_0_15px_rgba(168,85,247,0.6)] group-hover:border-[#A855F7]/50',
@@ -70,6 +75,7 @@ const MENU_CATEGORIES = [
   },
   {
     id: 'profile',
+    mobileLabel: 'Профіль',
     icon: Settings,
     color: 'text-[#10B981]',
     glowClass: 'group-hover:shadow-[0_0_15px_rgba(16,185,129,0.6)] group-hover:border-[#10B981]/50',
@@ -81,13 +87,9 @@ const MENU_CATEGORIES = [
   }
 ];
 
-export default function CarrierLayout() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { logout, user } = useAuthStore();
+const FloatingClock = () => {
   const [clock, setClock] = useState('');
-  const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
-
+  
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
@@ -95,6 +97,19 @@ export default function CarrierLayout() {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  return (
+    <div className="hidden md:block absolute bottom-6 right-8 z-10 text-[#8899B5] font-mono text-[11px] tracking-widest pointer-events-none">
+      {clock}
+    </div>
+  );
+};
+
+export default function CarrierLayout() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { logout, user } = useAuthStore();
+  const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
 
   const carrierName = user?.companyName || user?.firstName || 'Перевізник';
   const carrierInitials = carrierName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -107,15 +122,13 @@ export default function CarrierLayout() {
       }} />
 
       {/* Floating Clock - Moved to bottom right to avoid overlapping top buttons */}
-      <div className="hidden md:block absolute bottom-6 right-8 z-10 text-[#8899B5] font-mono text-[11px] tracking-widest pointer-events-none">
-        {clock}
-      </div>
+      <FloatingClock />
 
       {/* Floating Sidebar (Desktop) */}
       <aside className="hidden md:flex relative z-50 w-[90px] h-[calc(100vh-48px)] my-6 ml-6 flex-col items-center py-6 rounded-[32px] bg-[#0B1221]/80 backdrop-blur-xl border border-white/10 shadow-[0_0_30px_rgba(0,229,255,0.05)] before:absolute before:inset-0 before:rounded-[32px] before:border before:border-transparent before:[background:linear-gradient(to_bottom,rgba(0,229,255,0.3),rgba(232,121,249,0.1),transparent) border-box] before:[mask-composite:exclude] before:[mask:linear-gradient(white_0_0)_padding-box,_linear-gradient(white_0_0)]">
         
         {/* Top Logo */}
-        <div className="flex flex-col items-center gap-1 mb-6 cursor-pointer" onClick={() => window.location.href = '/'}>
+        <div className="flex flex-col items-center gap-1 mb-6 cursor-pointer" onClick={() => navigate('/')}>
           <div className="w-12 h-10 border border-[#00E5FF]/40 rounded-xl flex items-center justify-center text-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.2)] group-hover:shadow-[0_0_25px_rgba(0,229,255,0.4)] transition-all">
             <Bus size={20} />
           </div>
@@ -167,6 +180,7 @@ export default function CarrierLayout() {
                 )}
 
                 <button
+                  aria-label={cat.mobileLabel}
                   onClick={() => cat.path && navigate(cat.path)}
                   className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 border ${
                     isActive 
@@ -185,7 +199,7 @@ export default function CarrierLayout() {
                       animate={{ opacity: 1, x: 0, scale: 1 }}
                       exit={{ opacity: 0, x: -10, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
-                      className={`absolute left-[70px] top-0 w-[200px] bg-[#0B1221]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-2 z-50 flex flex-col gap-1 shadow-[0_0_20px_${cat.color.replace('text-[', '').replace(']', '')}40]`}
+                      className={`absolute left-[70px] top-0 w-[200px] bg-[#0B1221]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-2 z-50 flex flex-col gap-1 shadow-[0_0_20px_${cat.color.replace('text-[', '').replace(']', '')}40] before:absolute before:-left-[20px] before:top-0 before:w-[20px] before:h-full before:bg-transparent`}
                     >
                       {/* Arrow pointing left */}
                       <div className={`absolute top-5 -left-[6px] w-3 h-3 bg-[#0B1221] border-l border-b border-white/10 rotate-45`} />
@@ -217,7 +231,7 @@ export default function CarrierLayout() {
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -10 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute left-[70px] top-1/2 -translate-y-1/2 whitespace-nowrap bg-[#0B1221]/90 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-xl text-xs font-bold tracking-widest text-white z-50 shadow-xl"
+                      className="absolute left-[70px] top-1/2 -translate-y-1/2 whitespace-nowrap bg-[#0B1221]/90 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-xl text-xs font-bold tracking-widest text-white z-50 shadow-xl before:absolute before:-left-[20px] before:top-0 before:w-[20px] before:h-full before:bg-transparent"
                     >
                       <div className="absolute top-1/2 -translate-y-1/2 -left-[5px] w-2.5 h-2.5 bg-[#0B1221] border-l border-b border-white/10 rotate-45" />
                       ДАШБОРД
@@ -252,6 +266,7 @@ export default function CarrierLayout() {
           return (
             <button
               key={cat.id}
+              aria-label={cat.mobileLabel}
               onClick={() => {
                 if (cat.path) navigate(cat.path);
                 else if (cat.subItems.length > 0) navigate(cat.subItems[0].path);
@@ -262,7 +277,7 @@ export default function CarrierLayout() {
             >
               <cat.icon size={20} className={isActive ? `drop-shadow-[0_0_8px_currentColor]` : ''} />
               <span className="text-[8px] mt-1 font-black uppercase tracking-widest">
-                {cat.id === 'dashboard' ? 'Головна' : cat.id === 'transport' ? 'Рейси' : cat.id === 'finance' ? 'Фінанси' : cat.id === 'analytics' ? 'Звіти' : cat.id === 'communication' ? 'Чат' : 'Профіль'}
+                {cat.mobileLabel}
               </span>
             </button>
           );
