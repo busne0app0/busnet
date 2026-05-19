@@ -147,7 +147,7 @@ CREATE POLICY "carrier_update_assigned_ticket" ON public.support_tickets FOR UPD
 
 DROP POLICY IF EXISTS "agent_select_referral_ticket" ON public.support_tickets;
 CREATE POLICY "agent_select_referral_ticket" ON public.support_tickets FOR SELECT
-  USING (agent_id = auth.uid());
+  USING (agent_id::text = auth.uid()::text);
 
 DROP POLICY IF EXISTS "admin_full_access_tickets" ON public.support_tickets;
 CREATE POLICY "admin_full_access_tickets" ON public.support_tickets FOR ALL
@@ -161,11 +161,11 @@ CREATE POLICY "ticket_participant_select_messages" ON public.ticket_messages FOR
   USING (
     EXISTS (
       SELECT 1 FROM public.support_tickets t
-      WHERE t.id = ticket_messages.ticket_id
+      WHERE t.id::text = ticket_messages.ticket_id::text
         AND (
           t.user_id    = auth.uid()::text OR
           t.carrier_id = auth.uid()::text OR
-          t.agent_id   = auth.uid() OR
+          t.agent_id::text = auth.uid()::text OR
           (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
         )
     )
@@ -177,7 +177,7 @@ CREATE POLICY "passenger_insert_message" ON public.ticket_messages FOR INSERT
     role = 'user' AND
     EXISTS (
       SELECT 1 FROM public.support_tickets t
-      WHERE t.id = ticket_messages.ticket_id
+      WHERE t.id::text = ticket_messages.ticket_id::text
         AND t.user_id = auth.uid()::text
     )
   );
@@ -188,7 +188,7 @@ CREATE POLICY "carrier_insert_message" ON public.ticket_messages FOR INSERT
     role = 'carrier' AND
     EXISTS (
       SELECT 1 FROM public.support_tickets t
-      WHERE t.id = ticket_messages.ticket_id
+      WHERE t.id::text = ticket_messages.ticket_id::text
         AND t.carrier_id = auth.uid()::text
     )
   );
@@ -324,7 +324,7 @@ CREATE OR REPLACE VIEW public.carrier_open_tickets AS
     t.last_updated,
     (
       SELECT m.text FROM public.ticket_messages m
-      WHERE m.ticket_id = t.id
+      WHERE m.ticket_id::text = t.id::text
       ORDER BY m.created_at DESC
       LIMIT 1
     ) AS last_message
