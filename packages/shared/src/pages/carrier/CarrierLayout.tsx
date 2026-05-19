@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { toast } from 'react-hot-toast';
+import BusnetNexus from '../../components/common/BusnetNexus';
 
 const MENU_CATEGORIES = [
   {
@@ -283,6 +284,9 @@ export default function CarrierLayout() {
           );
         })}
       </nav>
+
+      {/* Global Interactive Command Center */}
+      <BusnetNexus />
     </div>
   );
 }
