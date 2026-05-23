@@ -429,7 +429,7 @@ const DocsTab: React.FC = () => {
                         </div>
                       </td>
                       <td className="py-4 px-6 text-right rounded-r-[20px]">
-                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                           <a
                             href={docItem.downloadUrl}
                             target="_blank"

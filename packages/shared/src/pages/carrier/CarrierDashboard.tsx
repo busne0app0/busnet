@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Activity, Clock, Users, ArrowUpRight, Bus, Wallet, Star, Info, Plus, Handshake, Link,
@@ -27,13 +27,41 @@ export default function CarrierDashboard() {
     revenueTotal: 0,     
     tripsCount: 0,
     passengers: 0,
+    passengersThisMonth: 0,
     rating: 5.0,
     reviewsCount: 0,
     chart: [] as { name: string, date: string, rev: number }[],
+    passengerChart: [] as { name: string, v: number }[],
     activeTripsLive: [] as any[]
   });
 
   const [deletingRouteId, setDeletingRouteId] = useState<string | null>(null);
+
+  const ratingBadge = useMemo(() => {
+    const rating = liveStats.rating;
+    if (rating < 3.0) return { text: 'ПОТРЕБУЄ УВАГИ', color: 'bg-rose-500/10 text-rose-400 border border-rose-500/30 text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(244,63,94,0.2)]' };
+    if (rating < 4.0) return { text: 'ДОБРЕ', color: 'bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.2)]' };
+    return { text: 'СУПЕР-НАДІЙНИЙ', color: 'bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/30 text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(0,229,255,0.2)]' };
+  }, [liveStats.rating]);
+
+  const aiRecommendation = useMemo(() => {
+    if (routes.length === 0) {
+      return {
+        dashboard: "AI Рекомендація: Створіть перший маршрут, щоб запустити аналіз Busnet AI",
+        rating: "AI-рекомендація: Залучіть більше пасажирів для збору перших відгуків."
+      };
+    }
+    const mostPopular = routes[0]?.name || 'основному маршруті';
+    const hasManyRoutes = routes.length > 1;
+    const alternative = hasManyRoutes ? routes[1]?.name : '';
+    
+    return {
+      dashboard: hasManyRoutes 
+        ? `AI Рекомендація: Збільшити частоту на "${mostPopular}" за рахунок зменшення інтервалів на "${alternative}" (+22% доходу прогнозовано)`
+        : `AI Рекомендація: Додайте рейс на вихідні для "${mostPopular}", прогнозується ріст попиту на 18%`,
+      rating: `AI-рекомендація: Зверніть увагу на відгуки для "${mostPopular}" для підвищення лояльності.`
+    };
+  }, [routes]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
@@ -75,33 +103,50 @@ export default function CarrierDashboard() {
         let totalRevenue7d = 0;
         let totalPassengers = 0;
         const dailyRevMap: Record<string, number> = {};
+        const dailyPassengersMap: Record<string, number> = {};
 
-        last7Days.forEach(date => dailyRevMap[date] = 0);
+        last7Days.forEach(date => {
+          dailyRevMap[date] = 0;
+          dailyPassengersMap[date] = 0;
+        });
 
         (bookings || []).forEach(booking => {
           const amount = (booking.total_price || 0);
           totalRevenue7d += amount;
           const passengers = booking.passengers;
-          totalPassengers += (Array.isArray(passengers) ? passengers.length : 0);
+          const passengersCount = Array.isArray(passengers) ? passengers.length : 0;
+          totalPassengers += passengersCount;
 
           const createdAt = booking.created_at;
           if (createdAt) {
             const dateKey = typeof createdAt === 'string' ? createdAt.split('T')[0] : new Date(createdAt).toISOString().split('T')[0];
             if (dailyRevMap[dateKey] !== undefined) {
               dailyRevMap[dateKey] += amount;
+              dailyPassengersMap[dateKey] += passengersCount;
             }
           }
         });
 
         const { data: allBookings, error: allBookingsError } = await supabase
           .from('bookings')
-          .select('total_price')
+          .select('total_price, passengers, created_at')
           .eq('carrier_id', user!.uid)
           .eq('status', 'confirmed');
 
         if (allBookingsError) throw allBookingsError;
 
         const revenueTotal = (allBookings || []).reduce((acc, b) => acc + (b.total_price || 0), 0);
+
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        let passengersThisMonth = 0;
+        (allBookings || []).forEach(booking => {
+          const bookingDate = new Date(booking.created_at || (booking as any).createdAt);
+          if (bookingDate.getMonth() === currentMonth && bookingDate.getFullYear() === currentYear) {
+            const passengers = booking.passengers;
+            passengersThisMonth += (Array.isArray(passengers) ? passengers.length : 0);
+          }
+        });
 
         const dayLabels = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
         const chart = last7Days.map(dateStr => {
@@ -113,12 +158,22 @@ export default function CarrierDashboard() {
           };
         });
 
+        const passengerChart = last7Days.map(dateStr => {
+          const date = new Date(dateStr);
+          return {
+            name: dayLabels[date.getDay()],
+            v: dailyPassengersMap[dateStr] || 0
+          };
+        });
+
         setLiveStats(prev => ({
           ...prev,
           revenue: Math.round(totalRevenue7d),
           revenueTotal: Math.round(revenueTotal),
           passengers: totalPassengers,
-          chart
+          passengersThisMonth,
+          chart,
+          passengerChart
         }));
       } catch (err) {
         console.error('Bookings stats error:', err);
@@ -240,7 +295,7 @@ export default function CarrierDashboard() {
             Дашборд перевізника
           </h2>
           <p className="text-[11px] text-[#8899B5] uppercase tracking-widest font-medium flex items-center gap-2">
-            {user?.companyName || 'AI TRANS'} · Травень 2026 · Активний акаунт 
+            {user?.companyName || 'AI TRANS'} · Травень 2026 · Акаунт 
             <span className="text-[#00E5FF] bg-[#00E5FF]/10 px-2 py-0.5 rounded border border-[#00E5FF]/20">
               [Оптимізовано AI]
             </span>
@@ -250,7 +305,9 @@ export default function CarrierDashboard() {
           onClick={() => navigate('/newtrip')}
           className="px-6 py-2.5 bg-gradient-to-r from-[#00E5FF]/20 to-[#00E5FF]/10 border border-[#00E5FF]/50 text-[#00E5FF] hover:bg-[#00E5FF]/30 rounded-full text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(0,229,255,0.2)] hover:shadow-[0_0_25px_rgba(0,229,255,0.4)]"
         >
-          <Plus size={16} /> <span className="hidden md:inline-block">Створити маршрут</span>
+          <Plus size={16} /> 
+          <span className="hidden sm:inline-block">Створити маршрут</span>
+          <span className="inline-block sm:hidden">Створити</span>
         </button>
       </div>
 
@@ -277,7 +334,7 @@ export default function CarrierDashboard() {
               Live-streaming трафіку, гео локаційні, предикативні AI оптимізації і маршрутування
             </p>
             <p className="text-[#00E5FF] text-[10px] font-bold bg-[#00E5FF]/10 inline-block px-2 py-1 rounded">
-              AI Рекомендація: Збільшити частоту на маршруті №14 за рахунок №18 (+20% доходу прогнозовано)
+              {aiRecommendation.dashboard}
             </p>
           </div>
         </div>
@@ -297,7 +354,7 @@ export default function CarrierDashboard() {
       </div>
 
       {/* 4 Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Card 1: Revenue */}
         <motion.div 
@@ -311,7 +368,7 @@ export default function CarrierDashboard() {
               <TrendingUp size={10} /> +18%
             </span>
           </div>
-          <div className="text-2xl md:text-4xl font-black text-white group-hover:text-[#00E5FF] transition-colors">{(user as any)?.currency || '€'}{liveStats.revenueTotal.toLocaleString()}</div>
+          <div className="text-2xl md:text-4xl font-black text-white group-hover:text-[#00E5FF] transition-colors">{(user as any)?.currency || '€'}{liveStats.revenueTotal.toLocaleString('uk-UA')}</div>
           <div className="h-12 w-full mt-2 relative">
             {liveStats.revenueTotal === 0 ? (
               <div className="absolute inset-0 flex items-center justify-center text-[9px] text-[#8899B5] uppercase font-bold tracking-widest text-center">
@@ -344,7 +401,7 @@ export default function CarrierDashboard() {
             <div className="relative w-16 h-16 flex items-center justify-center text-[#00E5FF]">
               <svg className="w-full h-full transform -rotate-90 absolute" viewBox="0 0 36 36">
                 <path className="text-[#1A2639]" strokeDasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
-                <path className="text-[#00E5FF]" strokeDasharray="65, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                <path className="text-[#00E5FF]" strokeDasharray={`${liveStats.tripsCount > 0 ? Math.min(100, Math.round((liveStats.tripsCount / 15) * 100)) : 0}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
               </svg>
               <Activity className="z-10 animate-pulse" size={20} />
             </div>
@@ -363,16 +420,18 @@ export default function CarrierDashboard() {
           </div>
           <div className="flex justify-between items-end mb-2">
             <span className="text-3xl font-black text-white">{liveStats.passengers}</span>
-            <span className="text-[#8899B5] text-[9px] font-bold bg-[#1A2639]/50 px-2 py-0.5 rounded">Усього за травень: 1,450</span>
+            <span className="text-[#8899B5] text-[9px] font-bold bg-[#1A2639]/50 px-2 py-0.5 rounded">Усього за цей місяць: {liveStats.passengersThisMonth.toLocaleString('uk-UA')}</span>
           </div>
           <div className="h-12 w-full mt-auto">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-              <BarChart data={[
-                {v: 20},{v: 40},{v: 30},{v: 80},{v: 100},{v: 60},{v: 40},{v: 20},{v: 10},{v: 5}
-              ]}>
-                <Bar dataKey="v" fill="#0EA5E9" radius={[2,2,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {liveStats.passengers === 0 ? (
+              <div className="h-full flex items-center justify-center text-[9px] text-[#8899B5] uppercase font-bold tracking-widest">Немає даних</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <BarChart data={liveStats.passengerChart}>
+                  <Bar dataKey="v" fill="#0EA5E9" radius={[2,2,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </motion.div>
 
@@ -384,7 +443,7 @@ export default function CarrierDashboard() {
         >
           <div className="flex justify-between items-start">
             <span className="text-[#8899B5] text-[11px] uppercase font-bold tracking-widest">Рейтинг ({liveStats.rating.toFixed(1)})</span>
-            <span className="bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/30 text-[9px] font-black px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(0,229,255,0.2)]">СУПЕР-НАДІЙНИЙ</span>
+            <span className={ratingBadge.color}>{ratingBadge.text}</span>
           </div>
           <div className="flex items-center gap-3 mt-2">
             <span className="text-5xl font-black text-white">{liveStats.rating.toFixed(1)}</span>
@@ -399,7 +458,7 @@ export default function CarrierDashboard() {
           </div>
           <div className="text-[9px] text-[#00E5FF] bg-[#00E5FF]/5 p-2 rounded border border-[#00E5FF]/10 mt-auto flex gap-1.5 items-start">
             <Info size={12} className="shrink-0" />
-            <span className="leading-tight">AI-рекомендація: Збільшити кількість рейсів на вихідні.</span>
+            <span className="leading-tight">{aiRecommendation.rating}</span>
           </div>
         </motion.div>
 
@@ -413,11 +472,11 @@ export default function CarrierDashboard() {
         {/* Glow effect */}
         <div className="absolute top-0 left-1/4 w-1/2 h-full bg-[#7c5cfc] opacity-20 blur-[100px] pointer-events-none" />
         
-        <div className="flex items-center gap-5 z-10">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 z-10 w-full">
           <div className="w-14 h-14 rounded-[16px] bg-[#0B1221]/80 backdrop-blur-md border border-[#7c5cfc]/50 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(124,92,252,0.4)] text-[#7c5cfc]">
             <Handshake size={28} />
           </div>
-          <div>
+          <div className="text-center sm:text-left min-w-0">
             <h3 className="text-xl md:text-2xl font-black text-white italic tracking-tighter uppercase mb-1">
               Розвиток Мережі
             </h3>

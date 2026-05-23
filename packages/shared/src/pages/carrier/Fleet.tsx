@@ -329,7 +329,7 @@ export default function Fleet() {
                 {[
                   { l: 'Місць', v: bus.capacity },
                   { l: 'Клас', v: bus.capacity > 50 ? 'Туристичний' : 'Комфорт' },
-                  { l: 'Пробіг', v: `— км` },
+                  { l: 'Пробіг', v: (bus as any).mileage ? `${Number((bus as any).mileage).toLocaleString('uk-UA')} км` : '— км' },
                   { l: 'Статус', v: bus.status === 'active' ? 'Готовий' : 'В черзі' },
                 ].map((item, i) => (
                   <div key={i} className="space-y-0.5">
@@ -356,20 +356,20 @@ export default function Fleet() {
             </div>
 
             <div className="flex lg:flex-col gap-2 shrink-0">
-               <button className="flex-1 lg:flex-none p-3 bg-white/[0.03] border border-white/5 text-[#8899b5] rounded-2xl hover:text-white hover:bg-white/[0.07] transition-all">
+               <button className="flex-1 lg:flex-none p-3 bg-white/[0.03] border border-white/5 text-[#8899b5] rounded-2xl hover:text-white hover:bg-white/[0.07] transition-all min-w-[44px] min-h-[44px] flex items-center justify-center">
                   <Edit3 size={18} />
                </button>
                <button 
                  onClick={() => handleToggleStatus(bus)}
                  title={bus.status === 'active' ? 'Відправити на ТО' : 'Повернути в роботу'}
-                 className="flex-1 lg:flex-none p-3 bg-white/[0.03] border border-white/5 text-[#8899b5] rounded-2xl hover:text-cyan-400 hover:bg-cyan-500/10 transition-all font-bold"
+                 className="flex-1 lg:flex-none p-3 bg-white/[0.03] border border-white/5 text-[#8899b5] rounded-2xl hover:text-cyan-400 hover:bg-cyan-500/10 transition-all font-bold min-w-[44px] min-h-[44px] flex items-center justify-center"
                >
                   <Wrench size={18} />
                </button>
                <button 
                  onClick={() => handleDeleteBus(bus.id, bus.model)}
                  title="Видалити"
-                 className="flex-1 lg:flex-none p-3 bg-rose-500/5 border border-rose-500/10 text-rose-500 rounded-2xl hover:bg-rose-500/10 transition-all"
+                 className="flex-1 lg:flex-none p-3 bg-rose-500/5 border border-rose-500/10 text-rose-500 rounded-2xl hover:bg-rose-500/10 transition-all min-w-[44px] min-h-[44px] flex items-center justify-center"
                >
                   <Trash2 size={18} />
                </button>

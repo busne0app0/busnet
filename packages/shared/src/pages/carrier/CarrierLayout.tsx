@@ -13,6 +13,7 @@ import {
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { toast } from 'react-hot-toast';
 import BusnetNexus from '../../components/common/BusnetNexus';
+import { supabase } from '@busnet/shared/supabase/config';
 
 const MENU_CATEGORIES = [
   {
@@ -111,6 +112,22 @@ export default function CarrierLayout() {
   const location = useLocation();
   const { logout, user } = useAuthStore();
   const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchLogo = async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('logoUrl')
+        .eq('uid', user.uid)
+        .single();
+      if (!error && data?.logoUrl) {
+        setLogoUrl(data.logoUrl);
+      }
+    };
+    fetchLogo();
+  }, [user]);
 
   const carrierName = user?.companyName || user?.firstName || 'Перевізник';
   const carrierInitials = carrierName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -142,17 +159,58 @@ export default function CarrierLayout() {
         {/* Avatar with Upload */}
         <div className="relative mb-8 group cursor-pointer">
           <label className="cursor-pointer block relative">
-            <input type="file" accept="image/*" className="hidden" onChange={(e) => {
-              if (e.target.files?.[0]) {
-                const toastId = toast.loading('Завантаження логотипу...');
-                setTimeout(() => toast.success('Логотип успішно оновлено (Демо)', { id: toastId }), 1500);
+            <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file || !user) return;
+              
+              if (!file.type.startsWith('image/')) {
+                toast.error('Оберіть файл зображення (JPG, PNG, SVG)');
+                return;
+              }
+              if (file.size > 2 * 1024 * 1024) {
+                toast.error('Розмір файлу не повинен перевищувати 2 МБ');
+                return;
+              }
+
+              const toastId = toast.loading('Завантаження логотипу...');
+              try {
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${user.uid}-${Math.random()}.${fileExt}`;
+                const filePath = `logos/${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                  .from('avatars')
+                  .upload(filePath, file);
+
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = supabase.storage
+                  .from('avatars')
+                  .getPublicUrl(filePath);
+
+                const { error: updateError } = await supabase
+                  .from('users')
+                  .update({ logoUrl: publicUrl })
+                  .eq('uid', user.uid);
+                
+                if (updateError) throw updateError;
+
+                setLogoUrl(publicUrl);
+                toast.success('Логотип успішно оновлено!', { id: toastId });
+              } catch (err: any) {
+                console.error(err);
+                toast.error('Помилка при завантаженні логотипу', { id: toastId });
               }
             }} />
             <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#00E5FF]/20 to-[#E879F9]/20 border border-white/10 flex items-center justify-center shadow-[0_0_20px_rgba(0,229,255,0.1)] group-hover:shadow-[0_0_25px_rgba(0,229,255,0.3)] transition-all overflow-hidden relative">
-              <span className="text-white font-black text-lg tracking-tighter">{carrierInitials}</span>
+              {logoUrl ? (
+                <img src={logoUrl} alt="Company Logo" className="w-full h-full object-cover animate-in fade-in duration-300" />
+              ) : (
+                <span className="text-white font-black text-lg tracking-tighter">{carrierInitials}</span>
+              )}
               {/* Overlay on hover */}
-              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                <span className="text-[8px] text-white font-bold uppercase tracking-widest text-center">Завантажити<br/>Логотип</span>
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-center">
+                <span className="text-[8px] text-white font-bold uppercase tracking-widest text-center leading-normal">Завантажити<br/>Логотип</span>
               </div>
             </div>
           </label>
@@ -261,7 +319,10 @@ export default function CarrierLayout() {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0B1221]/90 backdrop-blur-xl border-t border-white/15 px-2 py-3 flex justify-between items-center pb-safe">
+      <nav 
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0B1221]/90 backdrop-blur-xl border-t border-white/15 px-2 py-3 flex justify-between items-center"
+        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+      >
         {MENU_CATEGORIES.map((cat) => {
           const isActive = cat.path === location.pathname || cat.subItems.some(sub => location.pathname.startsWith(sub.path));
           return (

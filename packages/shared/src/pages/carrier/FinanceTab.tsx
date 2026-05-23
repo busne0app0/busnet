@@ -22,11 +22,11 @@ const FinanceTab: React.FC = () => {
   const [totalPayouts, setTotalPayouts] = useState(0);
   const [conversions, setConversions] = useState({ clicks: 1240, registrations: 385, sales: 84 });
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchFinanceData = async () => {
     if (!user) return;
-    
-    const fetchFinanceData = async () => {
+    try {
       // 1. Fetch balance
       const { data: balanceData } = await supabase
         .from('balances')
@@ -42,8 +42,8 @@ const FinanceTab: React.FC = () => {
 
       // 2. Fetch recent bookings and payouts concurrently
       const [bookingsRes, payoutsRes] = await Promise.all([
-        supabase.from('bookings').select('*').eq('carrier_id', user.uid).order('created_at', { ascending: false }).limit(10),
-        supabase.from('payouts').select('*').eq('carrier_id', user.uid).order('created_at', { ascending: false }).limit(5)
+        supabase.from('bookings').select('*').eq('carrier_id', user.uid).order('created_at', { ascending: false }).limit(20),
+        supabase.from('payouts').select('*').eq('carrier_id', user.uid).order('created_at', { ascending: false }).limit(10)
       ]);
 
       let combined: Transaction[] = [];
@@ -73,35 +73,83 @@ const FinanceTab: React.FC = () => {
       }
 
       setTransactions(combined.sort((a, b) => b.id.localeCompare(a.id)));
-    };
 
+      // 3. Fetch conversions from analytics or estimate
+      const { data: analyticsData } = await supabase
+        .from('analytics')
+        .select('*')
+        .eq('carrier_id', user.uid)
+        .single();
+      
+      if (analyticsData) {
+        setConversions({
+          clicks: analyticsData.clicks || 0,
+          registrations: analyticsData.registrations || 0,
+          sales: analyticsData.sales || 0
+        });
+      } else {
+        // Якщо немає таблиці analytics — рахуємо з реальних бронювань
+        const salesCount = bookingsRes.data ? bookingsRes.data.filter((b: any) => b.status === 'confirmed').length : 0;
+        const totalCount = bookingsRes.data?.length || 0;
+        setConversions({
+          clicks: totalCount * 12,
+          registrations: totalCount,
+          sales: salesCount
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching finance data:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchFinanceData();
 
-    const balanceChannel = supabase.channel('carrier_balance')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'balances', filter: `id=eq.${user.uid}` }, fetchFinanceData)
+    const balanceChannel = supabase.channel('carrier_balance_change')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'balances', filter: `id=eq.${user?.uid}` }, fetchFinanceData)
       .subscribe();
 
-    const bookingsChannel = supabase.channel('carrier_transactions')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `carrier_id=eq.${user.uid}` }, fetchFinanceData)
+    const bookingsChannel = supabase.channel('carrier_transactions_change')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `carrier_id=eq.${user?.uid}` }, fetchFinanceData)
+      .subscribe();
+
+    const payoutsChannel = supabase.channel('carrier_payouts_change')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payouts', filter: `carrier_id=eq.${user?.uid}` }, fetchFinanceData)
       .subscribe();
 
     return () => {
       supabase.removeChannel(balanceChannel);
       supabase.removeChannel(bookingsChannel);
+      supabase.removeChannel(payoutsChannel);
     };
   }, [user]);
 
-  const handleRequestPayout = () => {
+  const handleRequestPayout = async () => {
     if (balance <= 0) {
       toast.error('Недостатньо коштів для виплати');
       return;
     }
     const toastId = toast.loading('Створення запиту на виплату...');
-    setTimeout(() => {
-      // In a real app we would insert into a payouts table:
-      // await supabase.from('payouts').insert({ carrier_id: user.uid, amount: balance });
+    try {
+      const { error } = await supabase
+        .from('payouts')
+        .insert({
+          carrier_id: user?.uid,
+          amount: balance,
+          status: 'processing',
+          created_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
       toast.success('Запит на виплату надіслано в фінансовий відділ', { id: toastId });
-    }, 1500);
+      fetchFinanceData();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Не вдалося створити запит на виплату', { id: toastId });
+    }
   };
 
   const handleExportCSV = () => {
@@ -130,6 +178,49 @@ const FinanceTab: React.FC = () => {
       t.id.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [transactions, searchQuery]);
+
+  const dailyEarnings = useMemo(() => {
+    const days = ['НД', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ'];
+    const result = Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      return {
+        name: days[d.getDay()],
+        dateStr: d.toDateString(),
+        amount: 0,
+      };
+    });
+
+    transactions.forEach(t => {
+      if (t.type === 'income' && t.status === 'completed') {
+        const parts = t.date.split('.');
+        if (parts.length === 3) {
+          const trDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          const trDateStr = trDate.toDateString();
+          const match = result.find(r => r.dateStr === trDateStr);
+          if (match) {
+            match.amount += t.amount;
+          }
+        }
+      }
+    });
+
+    const totalAmount = result.reduce((sum, r) => sum + r.amount, 0);
+    if (totalAmount === 0) {
+      // Немає реальних транзакцій — відображаємо порожній графік
+      return result.map((r) => ({
+        ...r,
+        amount: 0,
+        percent: 0,
+      }));
+    }
+
+    const maxAmount = Math.max(...result.map(r => r.amount), 1);
+    return result.map(r => ({
+      ...r,
+      percent: Math.min(100, Math.max(10, (r.amount / maxAmount) * 100)),
+    }));
+  }, [transactions]);
 
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
@@ -256,68 +347,94 @@ const FinanceTab: React.FC = () => {
          </div>
          
          <div className="h-48 w-full flex items-end justify-between gap-2 px-2">
-            {[65, 45, 80, 55, 90, 70, 85].map((val, i) => (
-               <div key={i} className="flex-1 flex flex-col items-center gap-3 group">
-                  <div className="w-full relative overflow-visible">
+            {dailyEarnings.map((val, i) => (
+               <div key={i} className="flex-1 flex flex-col items-center gap-3 group h-full justify-end">
+                  <div className="w-full relative overflow-visible flex items-end justify-center h-full">
                      <motion.div 
                         initial={{ height: 0 }}
-                        animate={{ height: `${val}%` }}
+                        animate={{ height: `${val.percent}%` }}
                         transition={{ duration: 1, delay: i * 0.1 }}
-                        className="w-full bg-gradient-to-t from-[#00E5FF]/20 to-[#00E5FF] rounded-t-xl relative group-hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all"
+                        className="w-full max-w-[24px] bg-gradient-to-t from-[#00E5FF]/20 to-[#00E5FF] rounded-t-xl relative group-hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all"
                      >
-                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-white text-black text-[9px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                           €{(val * 12).toLocaleString()}
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-white text-black text-[9px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 shadow-md">
+                           €{val.amount.toLocaleString('en-US', {minimumFractionDigits: 2})}
                         </div>
                      </motion.div>
                   </div>
-                  <span className="text-[8px] font-black text-[#5A6A85] uppercase">
-                     {['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'НД'][i]}
+                  <span className="text-[8px] font-black text-[#5A6A85] uppercase tracking-wider">
+                     {val.name}
                   </span>
                </div>
             ))}
          </div>
       </div>
 
-      {/* Mobile Transactions */}
-      <div className="md:hidden space-y-3">
-        {filteredTransactions.map((trx, idx) => (
-          <div key={idx} className="bg-[#0B1221] border border-white/5 rounded-[20px] p-4 flex justify-between items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-xl ${trx.type === 'income' ? 'bg-[#10B981]/10 text-[#10B981]' : trx.type === 'payout' ? 'bg-[#0EA5E9]/10 text-[#0EA5E9]' : 'bg-rose-500/10 text-rose-500'}`}>
-                {trx.type === 'income' ? <ArrowDownRight size={16} /> : trx.type === 'payout' ? <Landmark size={16} /> : <ArrowUpRight size={16} />}
-              </div>
-              <div>
-                <p className="text-xs font-black text-white italic uppercase">{trx.type === 'income' ? 'Дохід' : trx.type === 'payout' ? 'Виплата' : 'Повернення'}</p>
-                <p className="text-[9px] text-[#5A6A85] font-bold uppercase">{trx.date}</p>
-                <span className={`text-[8px] font-black uppercase tracking-widest mt-1 inline-block ${trx.status === 'completed' ? 'text-[#10B981]' : 'text-amber-500'}`}>
-                  {trx.status === 'completed' ? 'ЗАВЕРШЕНО' : 'В ОБРОБЦІ'}
-                </span>
-              </div>
-            </div>
-            <span className={`text-sm font-black italic tracking-tighter shrink-0 ${trx.amount > 0 ? 'text-[#10B981]' : 'text-rose-500'}`}>
-              {trx.amount > 0 ? '+' : ''}€{trx.amount.toLocaleString()}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* Desktop Table */}
-      <div className="hidden md:block bg-[#0B1221] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl min-h-[400px]">
-        <div className="p-6 border-b border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
-           <h3 className="text-[12px] font-black uppercase tracking-widest text-white flex items-center gap-3">
-              <History size={16} className="text-[#00E5FF]" /> ОСТАННЯ АКТИВНІСТЬ
+      {/* Transactions Section */}
+      <div className="bg-[#0B1221] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-6 border-b border-white/5">
+           <h3 className="text-sm font-black uppercase tracking-widest text-white flex items-center gap-3">
+              <History size={16} className="text-[#00E5FF] shadow-[0_0_10px_rgba(0,229,255,0.4)]" /> ОСТАННЯ АКТИВНІСТЬ
            </h3>
-           <div className="relative">
+           <div className="relative w-full sm:w-64">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5A6A85]" size={14} />
               <input 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Пошук транзакції..." 
-                className="bg-[#1A2639]/50 border border-transparent rounded-[16px] pl-10 pr-4 py-3 text-[11px] text-white focus:border-[#00E5FF]/30 outline-none w-full md:w-64 transition-all placeholder-[#5A6A85] font-medium"
+                className="bg-[#1A2639]/50 border border-transparent rounded-[16px] pl-10 pr-4 py-3 text-xs text-white focus:border-[#00E5FF]/30 outline-none w-full transition-all placeholder-[#5A6A85] font-medium"
               />
            </div>
         </div>
-        <div className="overflow-x-auto scrollbar-hide h-full">
+
+        {/* Mobile Transactions List */}
+        <div className="md:hidden space-y-4">
+          {filteredTransactions.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-xs font-black text-[#5A6A85] uppercase tracking-widest">Транзакцій не знайдено</p>
+            </div>
+          ) : (
+            filteredTransactions.map((trx, idx) => (
+              <motion.div 
+                whileTap={{ scale: 0.98 }}
+                key={idx} 
+                className="bg-[#1A2639]/20 border border-white/5 rounded-[24px] p-5 flex flex-col gap-4 relative overflow-hidden group hover:border-[#00E5FF]/20 transition-all duration-300"
+              >
+                {/* Visual Glow Indicator */}
+                <div className={`absolute top-0 left-0 w-1.5 h-full ${trx.type === 'income' ? 'bg-[#10B981]' : trx.type === 'payout' ? 'bg-[#0EA5E9]' : 'bg-rose-500'}`} />
+
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2.5 rounded-xl ${trx.type === 'income' ? 'bg-[#10B981]/10 text-[#10B981]' : trx.type === 'payout' ? 'bg-[#0EA5E9]/10 text-[#0EA5E9]' : 'bg-rose-500/10 text-rose-500'}`}>
+                      {trx.type === 'income' ? <ArrowDownRight size={16} /> : trx.type === 'payout' ? <Landmark size={16} /> : <ArrowUpRight size={16} />}
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-white italic uppercase tracking-wider">{trx.type === 'income' ? 'Дохід' : trx.type === 'payout' ? 'Виплата' : 'Повернення'}</p>
+                      <p className="text-[9px] text-[#5A6A85] font-bold uppercase mt-0.5">{trx.date}</p>
+                    </div>
+                  </div>
+                  <span className={`text-base font-black italic tracking-tighter ${trx.amount > 0 ? 'text-[#10B981] drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]' : 'text-rose-500'}`}>
+                    {trx.amount > 0 ? '+' : ''}€{Math.abs(trx.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-1.5 pl-1">
+                  <p className="text-[11px] font-bold text-[#8899B5]">{trx.desc}</p>
+                  <p className="text-[8px] font-black text-[#5A6A85] tracking-widest">{trx.id}</p>
+                </div>
+
+                <div className="flex justify-between items-center pt-3 border-t border-white/5">
+                  <span className="text-[8px] font-black text-[#5A6A85] uppercase tracking-widest">Статус платіжки:</span>
+                  <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border ${trx.status === 'completed' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                    {trx.status === 'completed' ? 'ЗАВЕРШЕНО' : 'В ОБРОБЦІ'}
+                  </span>
+                </div>
+              </motion.div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop Transactions Table */}
+        <div className="hidden md:block overflow-x-auto scrollbar-hide">
           <table className="min-w-[800px] w-full text-left">
             <thead>
               <tr className="bg-transparent border-b border-white/5">
@@ -328,35 +445,43 @@ const FinanceTab: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filteredTransactions.map((trx, idx) => (
-                <tr key={idx} className="group hover:bg-[#1A2639]/30 transition-all">
-                  <td className="py-5 px-6">
-                    <div className="flex items-center gap-4">
-                      <div className={`p-2 rounded-[10px] ${trx.type === 'income' ? 'bg-[#10B981]/10 text-[#10B981]' : trx.type === 'payout' ? 'bg-[#0EA5E9]/10 text-[#0EA5E9]' : 'bg-rose-500/10 text-rose-500'}`}>
-                        {trx.type === 'income' ? <ArrowDownRight size={16} /> : trx.type === 'payout' ? <Landmark size={16} /> : <ArrowUpRight size={16} />}
-                      </div>
-                      <div>
-                        <p className="text-xs font-black text-white italic uppercase tracking-widest">{trx.type === 'income' ? 'Дохід' : trx.type === 'payout' ? 'Виплата' : 'Повернення'}</p>
-                        <p className="text-[9px] text-[#5A6A85] font-bold uppercase mt-0.5">{trx.date}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-5 px-6">
-                    <p className="text-[11px] font-bold text-[#8899B5]">{trx.desc}</p>
-                    <p className="text-[9px] text-[#5A6A85] mt-0.5 font-bold italic line-clamp-1">{trx.id}</p>
-                  </td>
-                  <td className="py-5 px-6">
-                    <span className={`px-3 py-1.5 rounded-[10px] text-[8px] font-black uppercase tracking-widest border ${trx.status === 'completed' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
-                      {trx.status === 'completed' ? 'ЗАВЕРШЕНО' : 'В ОБРОБЦІ'}
-                    </span>
-                  </td>
-                  <td className="py-5 px-6 text-right">
-                    <span className={`text-sm font-black italic tracking-tighter ${trx.amount > 0 ? 'text-[#10B981]' : 'text-rose-500'}`}>
-                      {trx.amount > 0 ? '+' : ''}€{trx.amount.toLocaleString()}
-                    </span>
+              {filteredTransactions.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-12 text-center text-xs font-black text-[#5A6A85] uppercase tracking-widest">
+                    Транзакцій не знайдено
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredTransactions.map((trx, idx) => (
+                  <tr key={idx} className="group hover:bg-[#1A2639]/30 transition-all duration-200">
+                    <td className="py-5 px-6">
+                      <div className="flex items-center gap-4">
+                        <div className={`p-2 rounded-[10px] ${trx.type === 'income' ? 'bg-[#10B981]/10 text-[#10B981]' : trx.type === 'payout' ? 'bg-[#0EA5E9]/10 text-[#0EA5E9]' : 'bg-rose-500/10 text-rose-500'}`}>
+                          {trx.type === 'income' ? <ArrowDownRight size={16} /> : trx.type === 'payout' ? <Landmark size={16} /> : <ArrowUpRight size={16} />}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-white italic uppercase tracking-widest">{trx.type === 'income' ? 'Дохід' : trx.type === 'payout' ? 'Виплата' : 'Повернення'}</p>
+                          <p className="text-[9px] text-[#5A6A85] font-bold uppercase mt-0.5">{trx.date}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-5 px-6">
+                      <p className="text-[11px] font-bold text-[#8899B5]">{trx.desc}</p>
+                      <p className="text-[9px] text-[#5A6A85] mt-0.5 font-bold italic line-clamp-1">{trx.id}</p>
+                    </td>
+                    <td className="py-5 px-6">
+                      <span className={`px-3 py-1.5 rounded-[10px] text-[8px] font-black uppercase tracking-widest border ${trx.status === 'completed' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                        {trx.status === 'completed' ? 'ЗАВЕРШЕНО' : 'В ОБРОБЦІ'}
+                      </span>
+                    </td>
+                    <td className="py-5 px-6 text-right">
+                      <span className={`text-sm font-black italic tracking-tighter ${trx.amount > 0 ? 'text-[#10B981] drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]' : 'text-rose-500'}`}>
+                        {trx.amount > 0 ? '+' : ''}€{Math.abs(trx.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

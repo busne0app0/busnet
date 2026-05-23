@@ -337,14 +337,14 @@ const NotificationsTab: React.FC = () => {
                        {!n.read && (
                          <button 
                            onClick={() => handleMarkAsRead(n.id, n.type)}
-                           className="px-5 py-2.5 rounded-xl bg-white/5 text-[9px] font-black uppercase tracking-widest text-white border border-white/5 hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100 shadow-lg active:scale-95 font-bold"
+                           className="px-5 py-2.5 rounded-xl bg-white/5 text-[9px] font-black uppercase tracking-widest text-white border border-white/5 hover:bg-white/10 transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100 shadow-lg active:scale-95 font-bold"
                          >
                             Ознайомлений
                          </button>
                        )}
                        <button 
                          onClick={() => handleMarkSingleDelete(n.id)}
-                         className="px-5 py-2.5 rounded-xl bg-rose-500/10 text-[9px] font-black uppercase tracking-widest text-rose-400 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 shadow-lg active:scale-95 font-bold"
+                         className="px-5 py-2.5 rounded-xl bg-rose-500/10 text-[9px] font-black uppercase tracking-widest text-rose-400 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100 shadow-lg active:scale-95 font-bold"
                        >
                           Видалити
                        </button>

@@ -14,6 +14,62 @@ import { useDrivers, Driver } from '@busnet/shared/hooks/useDrivers';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { toast } from 'react-hot-toast';
 
+const getExperience = (driver: any) => {
+  // Використовуємо tripsCount з бази, якщо є — інакше показуємо НОВИЙ з 0 рейсів
+  const trips = typeof (driver as any).tripsCount === 'number' ? (driver as any).tripsCount : 0;
+  
+  if (trips === 0) return { label: 'НОВИЙ', sub: '0 РЕЙСІВ', badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
+  if (trips < 15) return { label: 'МОЛОДШИЙ', sub: `${trips} РЕЙСІВ`, badge: 'bg-blue-500/10 text-blue-400 border-blue-500/20' };
+  if (trips < 50) return { label: 'ДОСВІДЧЕНИЙ', sub: `${trips} РЕЙСІВ`, badge: 'bg-violet-500/10 text-violet-400 border-violet-500/20' };
+  return { label: 'ПРОФЕСІОНАЛ', sub: `${trips} РЕЙСІВ`, badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20' };
+};
+
+// Скелетон-картка водія для стану завантаження
+const DriverSkeletonCard = () => (
+  <div className="bg-[#1A2639]/20 border border-white/5 rounded-[24px] p-5 flex flex-col gap-4 animate-pulse">
+    <div className="flex justify-between items-start gap-4">
+      <div className="flex items-center gap-3">
+        <div className="w-12 h-12 rounded-full bg-white/5" />
+        <div className="space-y-2">
+          <div className="h-3 w-28 bg-white/5 rounded-full" />
+          <div className="h-2 w-20 bg-white/5 rounded-full" />
+        </div>
+      </div>
+      <div className="h-6 w-12 bg-white/5 rounded-full" />
+    </div>
+    <div className="h-14 bg-white/5 rounded-xl" />
+    <div className="flex justify-between items-center pt-3 border-t border-white/5">
+      <div className="h-6 w-24 bg-white/5 rounded-full" />
+      <div className="flex gap-2">
+        <div className="w-10 h-10 bg-white/5 rounded-xl" />
+        <div className="w-10 h-10 bg-white/5 rounded-xl" />
+        <div className="w-10 h-10 bg-white/5 rounded-xl" />
+      </div>
+    </div>
+  </div>
+);
+
+// Скелетон рядок таблиці
+const DriverSkeletonRow = () => (
+  <tr className="animate-pulse">
+    <td className="px-6 py-4 rounded-l-[16px]">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-white/5" />
+        <div className="space-y-2">
+          <div className="h-3 w-28 bg-white/5 rounded-full" />
+          <div className="h-2 w-20 bg-white/5 rounded-full" />
+        </div>
+      </div>
+    </td>
+    <td className="px-6 py-4"><div className="h-3 w-20 bg-white/5 rounded-full" /></td>
+    <td className="px-6 py-4"><div className="h-3 w-24 bg-white/5 rounded-full" /></td>
+    <td className="px-6 py-4"><div className="h-6 w-12 bg-white/5 rounded-full" /></td>
+    <td className="px-6 py-4"><div className="h-6 w-20 bg-white/5 rounded-full" /></td>
+    <td className="px-6 py-4 rounded-r-[16px]"><div className="h-8 w-24 bg-white/5 rounded-full ml-auto" /></td>
+  </tr>
+);
+
+
 export default function Drivers() {
   const { user } = useAuthStore();
   const { drivers, loading, fetchDrivers, addDriver, updateDriver, deleteDriver } = useDrivers();
@@ -30,7 +86,7 @@ export default function Drivers() {
     licenseNumber: ''
   });
 
-  // Мемоизированный запрос данных
+  // Мемоизированний запрос даних
   const loadDrivers = useCallback(() => {
     if (user?.uid) fetchDrivers(user.uid);
   }, [user?.uid, fetchDrivers]);
@@ -168,7 +224,7 @@ export default function Drivers() {
                     <input required value={formData.licenseNumber} onChange={e => setFormData({...formData, licenseNumber: e.target.value})} className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0EA5E9] outline-none transition-colors uppercase" placeholder="ДЕ №123456" />
                  </div>
                  <button disabled={isAdding} type="submit" className="w-full mt-6 py-4 bg-[#0EA5E9] text-white rounded-full text-[11px] font-black uppercase tracking-widest flex justify-center items-center gap-2 hover:shadow-[0_0_20px_rgba(14,165,233,0.4)] transition-all disabled:opacity-50">
-                   {isAdding ? <Loader2 size={16} className="animate-spin" /> : 'ЗБЕРЕГТИ ВОДІЯ'}
+                    {isAdding ? <Loader2 size={16} className="animate-spin" /> : 'ЗБЕРЕГТИ ВОДІЯ'}
                  </button>
               </form>
             </motion.div>
@@ -192,8 +248,101 @@ export default function Drivers() {
         ))}
       </div>
 
-      {/* TABLE */}
-      <div className="overflow-x-auto scrollbar-hide">
+      {/* MOBILE CARDS VIEW */}
+      <div className="md:hidden space-y-4">
+        {loading ? (
+          [1,2,3].map(i => <DriverSkeletonCard key={i} />)
+        ) : drivers.length === 0 ? (
+          <div className="py-20 text-center">
+            <Search size={48} className="text-[#5a6a85] mx-auto mb-4 opacity-20" />
+            <p className="text-[#5a6a85] text-xs font-black uppercase tracking-widest">Водіїв не знайдено</p>
+          </div>
+        ) : (
+          drivers.map((driver) => {
+            const exp = getExperience(driver);
+            return (
+              <motion.div 
+                key={driver.id} 
+                whileTap={{ scale: 0.98 }}
+                className="bg-[#1A2639]/20 border border-white/5 rounded-[24px] p-5 flex flex-col gap-4 relative overflow-hidden group hover:border-[#0EA5E9]/20 transition-all duration-300"
+              >
+                {/* Visual Status Indicator strip */}
+                <div className={`absolute top-0 left-0 w-1.5 h-full ${
+                  driver.status === 'active' ? 'bg-[#10B981]' :
+                  driver.status === 'resting' ? 'bg-amber-500' :
+                  'bg-rose-500'
+                }`} />
+
+                <div className="flex justify-between items-start gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-[#0EA5E9]/10 border border-[#0EA5E9]/20 flex items-center justify-center text-[#0EA5E9] font-black text-sm uppercase">
+                      {driver.firstName.charAt(0)}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-white tracking-wider uppercase">{driver.firstName} {driver.lastName}</h4>
+                      <p className="text-[10px] text-[#5a6a85] font-semibold mt-0.5">{driver.phone}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FBBF24]/10 border border-[#FBBF24]/20 w-fit">
+                    <Star size={10} className="text-[#FBBF24] fill-[#FBBF24]" />
+                    <span className="text-[9px] font-black text-[#FBBF24]">{driver.rating || '5.0'}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 bg-black/10 p-3.5 rounded-xl border border-white/5 text-[10px] font-black uppercase tracking-wider">
+                  <div>
+                    <p className="text-[#5a6a85] text-[8px] mb-1">Посвідчення</p>
+                    <p className="text-[#8899b5]">{driver.licenseNumber}</p>
+                  </div>
+                  <div>
+                    <p className="text-[#5a6a85] text-[8px] mb-1">Рейси / Досвід</p>
+                    <span className={`px-2 py-0.5 rounded border text-[8px] font-black uppercase tracking-widest ${exp.badge}`}>
+                      {exp.label} ({exp.sub.split(' ')[0]})
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-3 border-t border-white/5">
+                  <span className={`px-3 py-1.5 rounded-full border text-[8px] font-black uppercase tracking-widest ${
+                    driver.status === 'active' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' :
+                    driver.status === 'resting' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                    'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                  }`}>
+                    {driver.status === 'active' ? '● В РОБОТІ' : driver.status === 'resting' ? 'ВІДПОЧИНОК' : 'НЕАКТИВНИЙ'}
+                  </span>
+
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handleToggleStatus(driver)} 
+                      className="p-3 rounded-xl bg-white/5 border border-white/5 text-[#8899b5] hover:text-[#0EA5E9] hover:bg-[#0EA5E9]/10 transition-all flex items-center justify-center min-w-[40px] min-h-[40px]" 
+                      title="Змінити статус"
+                    >
+                      <UserCheck2 size={16} />
+                    </button>
+                    <a 
+                      href={`tel:${driver.phone}`} 
+                      className="p-3 rounded-xl bg-white/5 border border-white/5 text-[#8899b5] hover:text-white hover:bg-white/10 transition-all flex items-center justify-center min-w-[40px] min-h-[40px]"
+                    >
+                      <Phone size={16} />
+                    </a>
+                    <button 
+                      onClick={() => setDriverToDelete({id: driver.id, name: `${driver.firstName} ${driver.lastName}`})} 
+                      className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center min-w-[40px] min-h-[40px]" 
+                      title="Видалити"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })
+        )}
+      </div>
+
+      {/* DESKTOP TABLE VIEW */}
+      <div className="hidden md:block overflow-x-auto scrollbar-hide">
         <table className="min-w-[900px] w-full text-left border-separate border-spacing-y-2">
           <thead>
             <tr className="bg-[#1A2639]/30">
@@ -207,12 +356,7 @@ export default function Drivers() {
           </thead>
           <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={6} className="py-20 text-center">
-                    <Loader2 size={48} className="animate-spin text-[#0EA5E9] mx-auto mb-4" />
-                    <p className="text-[#5a6a85] text-xs font-black uppercase tracking-widest">Завантаження...</p>
-                  </td>
-                </tr>
+                [1,2,3].map(i => <DriverSkeletonRow key={i} />)
               ) : drivers.length === 0 ? (
                 <tr>
                    <td colSpan={6} className="py-20 text-center">
@@ -220,65 +364,68 @@ export default function Drivers() {
                       <p className="text-[#5a6a85] text-xs font-black uppercase tracking-widest">Водіїв не знайдено</p>
                    </td>
                 </tr>
-              ) : drivers.map((driver, idx) => (
-                <motion.tr 
-                  key={driver.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="bg-[#1A2639]/30 hover:bg-[#1A2639]/50 transition-colors group"
-                >
-                  <td className="px-6 py-4 rounded-l-[16px]">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[#0EA5E9]/10 flex items-center justify-center text-[#0EA5E9] font-black border border-[#0EA5E9]/20">
-                        {driver.firstName.charAt(0)}
+              ) : drivers.map((driver, idx) => {
+                const exp = getExperience(driver);
+                return (
+                  <motion.tr 
+                    key={driver.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="bg-[#1A2639]/30 hover:bg-[#1A2639]/50 transition-colors group"
+                  >
+                    <td className="px-6 py-4 rounded-l-[16px]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#0EA5E9]/10 flex items-center justify-center text-[#0EA5E9] font-black border border-[#0EA5E9]/20">
+                          {driver.firstName.charAt(0)}
+                        </div>
+                        <div>
+                          <h4 className="text-[12px] font-bold text-white tracking-widest uppercase">{driver.firstName} {driver.lastName}</h4>
+                          <p className="text-[10px] text-[#5a6a85] font-medium">{driver.phone}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="text-[12px] font-bold text-white tracking-widest uppercase">{driver.firstName} {driver.lastName}</h4>
-                        <p className="text-[10px] text-[#5a6a85] font-medium">{driver.phone}</p>
+                    </td>
+                    <td className="px-6 py-4 text-[11px] text-[#8899b5] font-bold uppercase tracking-widest">{driver.licenseNumber}</td>
+                    <td className="px-6 py-4">
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-white uppercase tracking-widest">{exp.label}</p>
+                        <p className="text-[8px] font-black text-[#5a6a85] uppercase tracking-widest">{exp.sub}</p>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-[11px] text-[#8899b5] font-bold uppercase tracking-widest">{driver.licenseNumber}</td>
-                  <td className="px-6 py-4">
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black text-white uppercase tracking-widest">НОВИЙ</p>
-                      <p className="text-[8px] font-black text-[#5a6a85] uppercase tracking-widest">0 РЕЙСІВ</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FBBF24]/10 border border-[#FBBF24]/20 w-fit">
-                       <Star size={12} className="text-[#FBBF24] fill-[#FBBF24]" />
-                       <span className="text-[10px] font-black text-[#FBBF24]">{driver.rating || '5.0'}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest whitespace-nowrap ${
-                      driver.status === 'active' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' :
-                      driver.status === 'resting' ? 'bg-white/[0.05] text-[#5a6a85] border-white/5' :
-                      'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                    }`}>
-                      {driver.status === 'active' ? '● В РОБОТІ' : driver.status === 'resting' ? 'ВІДПОЧИНОК' : 'НЕАКТИВНИЙ'}
-                    </span>
-                  </td>
-                   <td className="px-6 py-4 text-right rounded-r-[16px]">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                       <button onClick={() => handleToggleStatus(driver)} className="p-2.5 rounded-full bg-white/[0.03] border border-white/5 text-[#8899b5] hover:text-[#0EA5E9] hover:bg-[#0EA5E9]/10 transition-all" title="Змінити статус">
-                          <UserCheck2 size={14} />
-                       </button>
-                       <a href={`tel:${driver.phone}`} className="p-2.5 rounded-full bg-white/[0.03] border border-white/5 text-[#8899b5] hover:text-white hover:bg-white/10 transition-all">
-                          <Phone size={14} />
-                       </a>
-                       <button onClick={() => setDriverToDelete({id: driver.id, name: `${driver.firstName} ${driver.lastName}`})} className="p-2.5 rounded-full bg-rose-500/5 border border-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all" title="Видалити">
-                          <Trash2 size={14} />
-                       </button>
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FBBF24]/10 border border-[#FBBF24]/20 w-fit">
+                         <Star size={12} className="text-[#FBBF24] fill-[#FBBF24]" />
+                         <span className="text-[10px] font-black text-[#FBBF24]">{driver.rating || '5.0'}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest whitespace-nowrap ${
+                        driver.status === 'active' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' :
+                        driver.status === 'resting' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                        'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                      }`}>
+                        {driver.status === 'active' ? '● В РОБОТІ' : driver.status === 'resting' ? 'ВІДПОЧИНОК' : 'НЕАКТИВНИЙ'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right rounded-r-[16px]">
+                      <div className="flex items-center justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                         <button onClick={() => handleToggleStatus(driver)} className="p-2.5 rounded-full bg-white/[0.03] border border-white/5 text-[#8899b5] hover:text-[#0EA5E9] hover:bg-[#0EA5E9]/10 transition-all" title="Змінити статус">
+                            <UserCheck2 size={14} />
+                         </button>
+                         <a href={`tel:${driver.phone}`} className="p-2.5 rounded-full bg-white/[0.03] border border-white/5 text-[#8899b5] hover:text-white hover:bg-white/10 transition-all">
+                            <Phone size={14} />
+                         </a>
+                         <button onClick={() => setDriverToDelete({id: driver.id, name: `${driver.firstName} ${driver.lastName}`})} className="p-2.5 rounded-full bg-rose-500/5 border border-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all" title="Видалити">
+                            <Trash2 size={14} />
+                         </button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                );
+              })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

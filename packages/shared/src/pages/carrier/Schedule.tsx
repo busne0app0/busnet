@@ -226,6 +226,7 @@ export default function Schedule() {
       localStorage.setItem('busnet_trip_draft', JSON.stringify(draftData));
       localStorage.setItem('busnet_current_step', '1');
       localStorage.setItem('busnet_editing_route_id', raw.id);
+      localStorage.setItem('busnet_editing_route_status', raw.status || 'pending');
     }
     setViewRoute(null);
     navigate('/newtrip');
@@ -439,7 +440,7 @@ export default function Schedule() {
 
                       {/* Actions */}
                       <td className="px-8 py-5 text-right">
-                        <div className="flex items-center justify-end gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center justify-end gap-1.5 opacity-100 lg:opacity-60 lg:group-hover:opacity-100 transition-opacity">
                           {/* 👁 View */}
                           <button
                             onClick={() => handleView(trip)}

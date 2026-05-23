@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import {
   Mail, Lock, Smartphone, Building2, Briefcase,
-  ArrowRight, Loader2, User, ChevronDown, X
+  ArrowRight, Loader2, User, ChevronDown, X, Bus, Zap
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { toast } from 'react-hot-toast';
@@ -11,8 +11,69 @@ import { Role } from '../types';
 import { supabase } from '../supabase/config';
 import { getAbsoluteRoleRoute } from '../constants/roleRoutes';
 
+// ─── Floating particle data ───────────────────────────────────────────────────
+const PARTICLES = Array.from({ length: 22 }, (_, i) => ({
+  id: i,
+  x: Math.random() * 100,
+  y: Math.random() * 100,
+  size: Math.random() * 3 + 1,
+  duration: 10 + Math.random() * 14,
+  delay: Math.random() * 8,
+  color: i % 3 === 0 ? '#00E5FF' : i % 3 === 1 ? '#E879F9' : '#FBBF24',
+  opacity: Math.random() * 0.4 + 0.1,
+}));
 
+// ─── Neon Input ───────────────────────────────────────────────────────────────
+const NeonInput = ({
+  icon: Icon,
+  type = 'text',
+  value,
+  onChange,
+  placeholder,
+  required = false,
+  accentColor = '#00E5FF',
+}: {
+  icon: React.ElementType;
+  type?: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  required?: boolean;
+  accentColor?: string;
+}) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div className="relative group">
+      <Icon
+        className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] transition-all duration-300"
+        style={{ color: focused ? accentColor : '#5a6a85' }}
+      />
+      <input
+        type={type}
+        required={required}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        placeholder={placeholder}
+        className="w-full bg-black/30 border rounded-2xl py-[15px] pl-12 pr-4 text-[13px] text-white outline-none transition-all duration-300 placeholder-[#3d4f6a]"
+        style={{
+          borderColor: focused ? `${accentColor}60` : 'rgba(255,255,255,0.06)',
+          boxShadow: focused ? `0 0 0 1px ${accentColor}30, inset 0 0 20px ${accentColor}05` : 'none',
+        }}
+      />
+      {/* Animated underline */}
+      <motion.div
+        className="absolute bottom-0 left-4 right-4 h-[1px] rounded-full"
+        style={{ background: accentColor }}
+        animate={{ scaleX: focused ? 1 : 0, opacity: focused ? 1 : 0 }}
+        transition={{ duration: 0.3 }}
+      />
+    </div>
+  );
+};
 
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const from = searchParams.get('from') || '/';
@@ -30,19 +91,13 @@ export default function AuthPage() {
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [companyName, setCompanyName] = useState('');
-  const [rememberMe, setRememberMe] = useState(false); // TODO: реалізувати sessionStorage логіку
 
   const { login, registerCarrier, registerUser, signInWithGoogle, user, isAuthenticated, loading: authLoading, setLoading: setAuthLoading } = useAuthStore();
   const navigate = useNavigate();
 
-  // ✅ ФІКС: Надійний редірект через useEffect замість вкладених промісів
   React.useEffect(() => {
-    console.log('[AuthPage] Auth State Update:', { authLoading, isAuthenticated, userEmail: user?.email, role: user?.role });
-    
     if (!authLoading && isAuthenticated && user) {
-      console.log('[AuthPage] SUCCESS: Redirecting to:', user.role);
       const targetUrl = getAbsoluteRoleRoute(user.role);
-      
       if (window.location.href !== targetUrl) {
         window.location.href = targetUrl;
       }
@@ -50,220 +105,240 @@ export default function AuthPage() {
   }, [isAuthenticated, authLoading, user]);
 
   const handleResetPassword = async () => {
-    if (!email) {
-      toast.error('Введіть ваш Email для відновлення');
-      return;
-    }
+    if (!email) { toast.error('Введіть ваш Email для відновлення'); return; }
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email);
       if (error) throw error;
       toast.success('Інструкції надіслано на пошту');
-    } catch (err: any) {
-      toast.error('Помилка: ' + err.message);
-    }
+    } catch (err: any) { toast.error('Помилка: ' + err.message); }
   };
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
-    try {
-      await signInWithGoogle();
-      // Редірект відбудеться через /bridge або useEffect вище
-    } catch (err: any) {
-      toast.error(err.message || 'Помилка Google авторизації');
-      setGoogleLoading(false);
-    }
+    try { await signInWithGoogle(); }
+    catch (err: any) { toast.error(err.message || 'Помилка Google авторизації'); setGoogleLoading(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (mode === 'register' && password !== confirmPassword) {
-      toast.error('Паролі не співпадають');
-      return;
-    }
-
+    if (mode === 'register' && password !== confirmPassword) { toast.error('Паролі не співпадають'); return; }
     setLoading(true);
-
-    // Fallback: якщо стор завис на loading — примусовий редірект/скидання через 6с
     const loadingTimeout = setTimeout(() => {
       const state = useAuthStore.getState();
-      if (state.isAuthenticated && state.user) {
-        console.warn('[AuthPage] Force-redirect after 6s timeout');
-        window.location.href = getAbsoluteRoleRoute(state.user.role);
-      } else if (!state.isAuthenticated) {
-        setLoading(false);
-        setAuthLoading(false);
-      }
+      if (state.isAuthenticated && state.user) { window.location.href = getAbsoluteRoleRoute(state.user.role); }
+      else if (!state.isAuthenticated) { setLoading(false); setAuthLoading(false); }
     }, 6000);
-
     try {
       if (mode === 'login') {
         await login(email, password);
         clearTimeout(loadingTimeout);
         toast.success('Вітаємо у Busnet!');
-        // Редірект відбудеться автоматично через useEffect вище при зміні стану стору
       } else {
-        if (role === 'passenger') {
-          await registerUser({ email, firstName, lastName, phone, role: 'passenger' }, password);
-          clearTimeout(loadingTimeout);
-          toast.success('Аккаунт створено!');
-        } else if (role === 'carrier') {
-          await registerCarrier({ email, companyName, phone }, password);
-          clearTimeout(loadingTimeout);
-          toast.success('Вітаємо у Busnet! Ваш кабінет готовий.');
-        } else if (role === 'agent') {
-          await registerUser({ email, firstName, lastName, phone, role: 'agent' }, password);
-          clearTimeout(loadingTimeout);
-          toast.success('Агент успішно зареєстрований');
-        }
+        if (role === 'passenger') { await registerUser({ email, firstName, lastName, phone, role: 'passenger' }, password); clearTimeout(loadingTimeout); toast.success('Аккаунт створено!'); }
+        else if (role === 'carrier') { await registerCarrier({ email, companyName, phone }, password); clearTimeout(loadingTimeout); toast.success('Вітаємо у Busnet! Ваш кабінет готовий.'); }
+        else if (role === 'agent') { await registerUser({ email, firstName, lastName, phone, role: 'agent' }, password); clearTimeout(loadingTimeout); toast.success('Агент успішно зареєстрований'); }
       }
-    } catch (err: any) {
-      clearTimeout(loadingTimeout);
-      toast.error(err.message || 'Сталася помилка');
-    } finally {
-      setLoading(false);
-    }
+    } catch (err: any) { clearTimeout(loadingTimeout); toast.error(err.message || 'Сталася помилка'); }
+    finally { setLoading(false); }
   };
 
+  const accentColor = role === 'carrier' ? '#FBBF24' : role === 'agent' ? '#A855F7' : '#00E5FF';
+  const accentGlow = role === 'carrier' ? 'rgba(251,191,36,0.3)' : role === 'agent' ? 'rgba(168,85,247,0.3)' : 'rgba(0,229,255,0.3)';
+
   return (
-    <div className="min-h-screen bg-[#07090e] flex items-center justify-center p-4 relative overflow-hidden font-dm selection:bg-[#00c8e0]/30 selection:text-white">
-      {/* Background */}
-      <div
-        className="absolute -top-[100px] -left-[100px] w-[600px] h-[600px] rounded-full blur-[120px] pointer-events-none z-0 opacity-60"
-        style={{ background: 'radial-gradient(circle, rgba(0,200,224,0.15) 0%, rgba(0,0,0,0) 70%)' }}
-      />
-      <div
-        className="absolute -bottom-[100px] -right-[100px] w-[600px] h-[600px] rounded-full blur-[120px] pointer-events-none z-0 opacity-40"
-        style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.1) 0%, rgba(0,0,0,0) 70%)' }}
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden font-sans selection:bg-[#00E5FF]/30 selection:text-white"
+      style={{ background: 'radial-gradient(ellipse at 20% 50%, #020b12 0%, #050B14 60%, #07090e 100%)' }}
+    >
+      {/* ── Deep space gradient mesh ── */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <div className="absolute -top-32 -left-32 w-[700px] h-[700px] rounded-full blur-[140px] opacity-30"
+          style={{ background: 'radial-gradient(circle, rgba(0,229,255,0.18) 0%, transparent 65%)' }} />
+        <div className="absolute -bottom-32 -right-32 w-[600px] h-[600px] rounded-full blur-[120px] opacity-20"
+          style={{ background: 'radial-gradient(circle, rgba(232,121,249,0.15) 0%, transparent 65%)' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full blur-[100px] opacity-10"
+          style={{ background: 'radial-gradient(circle, rgba(251,191,36,0.1) 0%, transparent 65%)' }} />
+      </div>
+
+      {/* ── Grid lines (subtle) ── */}
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]"
+        style={{
+          backgroundImage: 'linear-gradient(rgba(0,229,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,1) 1px, transparent 1px)',
+          backgroundSize: '60px 60px'
+        }}
       />
 
-      {/* Floating particles */}
-      {[...Array(6)].map((_, i) => (
+      {/* ── Floating particles ── */}
+      {PARTICLES.map(p => (
         <motion.div
-          key={i}
-          animate={{ y: [0, -40, 0], opacity: [0.1, 0.3, 0.1] }}
-          transition={{ duration: 8 + Math.random() * 10, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute w-1 h-1 bg-[#00c8e0]/40 rounded-full blur-[1px]"
-          style={{ top: `${Math.random() * 100}%`, left: `${Math.random() * 100}%` }}
+          key={p.id}
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            left: `${p.x}%`,
+            top: `${p.y}%`,
+            width: p.size,
+            height: p.size,
+            background: p.color,
+            filter: `blur(${p.size > 2.5 ? 1 : 0}px)`,
+            boxShadow: `0 0 ${p.size * 4}px ${p.color}`,
+          }}
+          animate={{
+            y: [0, -(30 + Math.random() * 40), 0],
+            x: [0, (Math.random() - 0.5) * 20, 0],
+            opacity: [p.opacity * 0.4, p.opacity, p.opacity * 0.2, p.opacity],
+            scale: [1, 1.3, 0.8, 1],
+          }}
+          transition={{ duration: p.duration, repeat: Infinity, delay: p.delay, ease: 'easeInOut' }}
         />
       ))}
 
+      {/* ── Orbiting ring decoration ── */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0">
+        <motion.div
+          className="w-[700px] h-[700px] rounded-full border border-[#00E5FF]/5"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
+        />
+        <motion.div
+          className="absolute inset-[80px] rounded-full border border-[#E879F9]/5"
+          animate={{ rotate: -360 }}
+          transition={{ duration: 45, repeat: Infinity, ease: 'linear' }}
+        />
+      </div>
+
+      {/* ── Main card ── */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.98, y: 15 }}
+        initial={{ opacity: 0, scale: 0.96, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-[440px] bg-[#111928CC] backdrop-blur-[32px] saturate-[180%] border border-white/10 rounded-[32px] shadow-[0_40px_100px_rgba(0,0,0,0.8),inset_0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden relative z-10"
+        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-[440px] relative z-10"
+        style={{
+          background: 'linear-gradient(135deg, rgba(11,18,33,0.92) 0%, rgba(5,11,20,0.95) 100%)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: 32,
+          boxShadow: `0 40px 100px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(255,255,255,0.04), 0 0 60px ${accentGlow}`,
+        }}
       >
+        {/* Accent glow top bar */}
+        <motion.div
+          className="absolute top-0 left-8 right-8 h-[1px] rounded-full"
+          style={{ background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)` }}
+          animate={{ opacity: [0.4, 1, 0.4] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        />
+
         {/* Close button */}
         <button
-          onClick={() => {
-            // Якщо from='/booking' — BookingPage без selectedTrip одразу редіректить на '/'
-            // тому NavigatE на '/' щоб уникнути infinite redirect loop
-            if (from === '/booking') {
-              navigate('/');
-            } else {
-              navigate(['/', '/forum'].includes(from) ? from : '/');
-            }
-          }}
-          className="absolute top-5 right-5 z-[60] w-8 h-8 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300 group"
+          onClick={() => navigate(from === '/booking' ? '/' : ['/', '/forum'].includes(from) ? from : '/')}
+          className="absolute top-5 right-5 z-[60] w-8 h-8 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 transition-all duration-300 group"
         >
           <X className="w-4 h-4 transition-transform group-hover:rotate-90" />
         </button>
 
+        {/* Logo */}
+        <div className="flex flex-col items-center pt-8 pb-2">
+          <motion.div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
+            style={{ background: `linear-gradient(135deg, ${accentColor}20, ${accentColor}05)`, border: `1px solid ${accentColor}30` }}
+            animate={{ boxShadow: [`0 0 10px ${accentColor}20`, `0 0 25px ${accentColor}40`, `0 0 10px ${accentColor}20`] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Bus size={22} style={{ color: accentColor }} />
+          </motion.div>
+          <p className="text-[9px] font-black tracking-[0.4em] uppercase" style={{ color: accentColor }}>BUSNET UA</p>
+        </div>
+
         {/* Tabs */}
-        <div className="flex bg-black/30 border-b border-white/5 relative">
+        <div className="flex bg-black/20 border-b border-white/5 relative mx-0 mt-4">
           {(['login', 'register'] as const).map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={`flex-1 py-6 text-center font-syne text-[14px] font-extrabold uppercase tracking-tighter transition-all relative z-10 ${
-                mode === m ? 'text-white' : 'text-[#5a6a85] hover:text-[#8ba2c4]'
+              className={`flex-1 py-5 text-center font-black text-[13px] uppercase tracking-widest transition-all relative z-10 font-sans ${
+                mode === m ? 'text-white' : 'text-[#4a5a75] hover:text-[#7a90b5]'
               }`}
             >
-              {m === 'login' ? 'Увійти' : 'Реєстрація'}
+              {m === 'login' ? 'Вхід' : 'Реєстрація'}
             </button>
           ))}
           <motion.div
-            className="absolute bottom-0 h-[3px] bg-[#00c8e0] shadow-[0_0_20px_#00c8e0] rounded-t-full"
-            animate={{ left: mode === 'login' ? '25%' : '75%', x: '-50%', width: '25%' }}
-            transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+            className="absolute bottom-0 h-[2px] rounded-t-full"
+            style={{ background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)`, boxShadow: `0 0 12px ${accentColor}` }}
+            animate={{ left: mode === 'login' ? '25%' : '75%', x: '-50%', width: '28%' }}
+            transition={{ type: 'spring', stiffness: 500, damping: 35 }}
           />
         </div>
 
-        <div className="p-10">
+        {/* Form area */}
+        <div className="p-8">
           <AnimatePresence mode="wait">
             {mode === 'login' ? (
               <motion.div
                 key="login"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 1.05 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-6"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-5"
               >
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5a6a85] group-focus-within:text-[#00c8e0] transition-colors" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Email адреса"
-                      className="w-full bg-black/40 border border-white/5 rounded-2xl py-[16px] pl-12 pr-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 focus:ring-1 focus:ring-[#00c8e0]/20 transition-all"
-                    />
-                  </div>
-                  <div className="relative group">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5a6a85] group-focus-within:text-[#00c8e0] transition-colors" />
-                    <input
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Пароль"
-                      className="w-full bg-black/40 border border-white/5 rounded-2xl py-[16px] pl-12 pr-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 focus:ring-1 focus:ring-[#00c8e0]/20 transition-all"
-                    />
-                  </div>
+                <div className="text-center mb-6">
+                  <h1 className="text-2xl font-black text-white tracking-tighter">Вітаємо назад</h1>
+                  <p className="text-[11px] text-[#5a6a85] font-bold uppercase tracking-widest mt-1">Увійдіть до вашого кабінету</p>
+                </div>
 
-                  <div className="flex items-center justify-start px-1">
-                    <button type="button" onClick={handleResetPassword} className="text-[10px] text-[#5a6a85] font-extrabold uppercase tracking-widest hover:text-[#00c8e0] transition-colors">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <NeonInput icon={Mail} type="email" value={email} onChange={setEmail} placeholder="Email адреса" required accentColor={accentColor} />
+                  <NeonInput icon={Lock} type="password" value={password} onChange={setPassword} placeholder="Пароль" required accentColor={accentColor} />
+
+                  <div className="flex items-center justify-end px-1">
+                    <button type="button" onClick={handleResetPassword} className="text-[10px] text-[#4a5a75] font-black uppercase tracking-widest hover:text-[#00E5FF] transition-colors">
                       Відновити доступ
                     </button>
                   </div>
 
-                  <button
+                  {/* Primary button with pulse */}
+                  <motion.button
                     disabled={loading || googleLoading}
-                    className="w-full py-4 rounded-2xl font-syne font-black uppercase tracking-tighter text-[13px] text-white flex items-center justify-center gap-2 group transition-all duration-500 relative overflow-hidden active:scale-[0.97] disabled:opacity-50"
-                    style={{ background: 'linear-gradient(135deg, #00c8e0 0%, #3b82f6 100%)', boxShadow: '0 15px 35px rgba(0, 200, 224, 0.3)' }}
+                    className="w-full py-4 rounded-2xl font-black uppercase tracking-widest text-[12px] text-white flex items-center justify-center gap-2 relative overflow-hidden disabled:opacity-50"
+                    style={{ background: `linear-gradient(135deg, ${accentColor} 0%, ${role === 'passenger' ? '#0EA5E9' : role === 'carrier' ? '#F97316' : '#7c5cfc'} 100%)` }}
+                    whileHover={{ scale: 1.02, boxShadow: `0 0 30px ${accentGlow}` }}
+                    whileTap={{ scale: 0.98 }}
+                    animate={{ boxShadow: [`0 10px 30px ${accentGlow}`, `0 15px 40px ${accentGlow.replace('0.3', '0.5')}`, `0 10px 30px ${accentGlow}`] }}
+                    transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' } as any}
                   >
-                    {loading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
+                    {/* Shimmer */}
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
+                      animate={{ x: ['-100%', '200%'] }}
+                      transition={{ duration: 3, repeat: Infinity, ease: 'linear', repeatDelay: 1 }}
+                    />
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
                       <>
+                        <Zap size={14} />
                         <span>Авторизуватись</span>
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        <ArrowRight className="w-4 h-4" />
                       </>
                     )}
-                  </button>
+                  </motion.button>
 
-                  <div className="relative py-2">
+                  <div className="relative py-1">
                     <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5" /></div>
-                    <div className="relative flex justify-center text-[10px] uppercase font-black tracking-widest"><span className="bg-[#111928] px-4 text-[#5a6a85]">АБО</span></div>
+                    <div className="relative flex justify-center text-[10px] uppercase font-black tracking-widest"><span className="bg-[#0b1221] px-4 text-[#3a4a5a]">АБО</span></div>
                   </div>
 
                   <button
                     type="button"
                     onClick={handleGoogleSignIn}
                     disabled={loading || googleLoading}
-                    className="w-full py-3.5 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 text-white font-syne font-black uppercase tracking-tighter text-[12px] flex items-center justify-center gap-3 transition-all disabled:opacity-50"
+                    className="w-full py-3.5 rounded-2xl border border-white/8 bg-white/[0.04] hover:bg-white/[0.08] text-white font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-3 transition-all disabled:opacity-50"
                   >
                     {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
                       <>
                         <svg className="w-4 h-4" viewBox="0 0 24 24">
-                          <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                          <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                          <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                          <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                         </svg>
                         <span>Увійти через Google</span>
                       </>
@@ -274,209 +349,200 @@ export default function AuthPage() {
             ) : (
               <motion.div
                 key="register"
-                initial={{ opacity: 0, scale: 1.05 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-6"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-5"
               >
-                {/* Role selector */}
-                <div className="relative z-50 py-4">
-                  <div className="relative max-w-[320px] mx-auto">
-                    <motion.button
-                      onClick={() => setIsRoleExpanded(!isRoleExpanded)}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="w-full relative flex items-center gap-4 bg-black/40 backdrop-blur-3xl border border-white/10 rounded-full p-2.5 transition-all shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] group"
-                    >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        role === 'passenger' ? 'bg-[#00D4FF]/10 text-[#00D4FF]' :
-                        role === 'carrier' ? 'bg-[#FFB800]/10 text-[#FFB800]' :
-                        'bg-[#A855F7]/10 text-[#A855F7]'
-                      }`}>
-                        {role === 'passenger' ? <User className="w-6 h-6" /> :
-                         role === 'carrier' ? <Building2 className="w-6 h-6" /> :
-                         <Briefcase className="w-6 h-6" />}
-                      </div>
-                      <div className="flex flex-col items-start">
-                        <span className="text-[9px] font-black uppercase tracking-[0.3em] opacity-40 font-syne">РЕЖИМ ДОСТУПУ</span>
-                        <span className="text-sm font-black uppercase tracking-widest text-white font-syne">
-                          {role === 'passenger' ? 'ПАСАЖИР' : role === 'carrier' ? 'ПЕРЕВІЗНИК' : 'АГЕНТ'}
-                        </span>
-                      </div>
-                      <div className="ml-auto pr-3">
-                        <ChevronDown className={`w-5 h-5 transition-all text-white/20 group-hover:text-white/60 ${isRoleExpanded ? 'rotate-180' : ''}`} />
-                      </div>
-                    </motion.button>
-
-                    <AnimatePresence>
-                      {isRoleExpanded && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                          className="absolute top-[calc(100%+8px)] left-0 right-0 bg-[#0a0f18]/90 backdrop-blur-3xl border border-white/10 rounded-[28px] p-2 flex flex-col gap-1 shadow-2xl z-50"
-                        >
-                          {(['passenger', 'carrier', 'agent'] as Role[]).map((r) => (
-                            <button
-                              key={r}
-                              onClick={() => { setRole(r); setIsRoleExpanded(false); }}
-                              className={`w-full flex items-center gap-3 p-3 rounded-[18px] transition-all ${role === r ? 'bg-white/10' : 'hover:bg-white/5'}`}
-                            >
-                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                                role === r ? (
-                                  r === 'passenger' ? 'bg-[#00D4FF] text-black' :
-                                  r === 'carrier' ? 'bg-[#FFB800] text-black' :
-                                  'bg-[#A855F7] text-white'
-                                ) : 'bg-white/5 text-white/30'
-                              }`}>
-                                {r === 'passenger' ? <User className="w-4 h-4" /> : r === 'carrier' ? <Building2 className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />}
-                              </div>
-                              <span className={`text-[13px] font-black uppercase tracking-widest font-syne ${role === r ? 'text-white' : 'text-white/40'}`}>
-                                {r === 'passenger' ? 'ПАСАЖИР' : r === 'carrier' ? 'ПЕРЕВІЗНИК' : 'АГЕНТ'}
-                              </span>
-                            </button>
-                          ))}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                <div className="text-center mb-4">
+                  <h1 className="text-2xl font-black text-white tracking-tighter">Приєднатись</h1>
+                  <p className="text-[11px] text-[#5a6a85] font-bold uppercase tracking-widest mt-1">Створіть свій акаунт</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <AnimatePresence mode="wait">
-                    {role === 'passenger' && (
-                      <motion.div key="pass" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="relative group">
-                            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6a85] group-focus-within:text-[#00c8e0] transition-colors" />
-                            <input type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Ім'я"
-                              className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] pl-11 pr-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                          </div>
-                          <input type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Прізвище"
-                            className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] px-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                        </div>
-                        <div className="relative group">
-                          <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5a6a85] group-focus-within:text-[#00c8e0] transition-colors" />
-                          <input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Номер телефону"
-                            className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] pl-12 pr-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                        </div>
-                        <div className="relative group">
-                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5a6a85] group-focus-within:text-[#00c8e0] transition-colors" />
-                          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email адреса"
-                            className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] pl-12 pr-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="relative group">
-                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5a6a85] group-focus-within:text-[#00c8e0] transition-colors" />
-                            <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Пароль"
-                              className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] pl-12 pr-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                          </div>
-                          <input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Підтвердити"
-                            className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] px-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                        </div>
-                        <button disabled={loading} className="w-full py-4 rounded-2xl font-syne font-black uppercase tracking-tighter text-[13px] text-white flex items-center justify-center disabled:opacity-50"
-                          style={{ background: 'linear-gradient(135deg, #00c8e0 0%, #3b82f6 100%)', boxShadow: '0 15px 35px rgba(0, 200, 224, 0.3)' }}>
-                          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Створити аккаунт'}
-                        </button>
-                        <button type="button" onClick={handleGoogleSignIn} disabled={loading || googleLoading}
-                          className="w-full py-3.5 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 text-white font-syne font-black uppercase tracking-tighter text-[12px] flex items-center justify-center gap-3 transition-all disabled:opacity-50">
-                          {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                            <>
-                              <svg className="w-4 h-4" viewBox="0 0 24 24">
-                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                              </svg>
-                              <span>Зареєструватись через Google</span>
-                            </>
-                          )}
-                        </button>
-                      </motion.div>
-                    )}
+                {/* Role selector */}
+                <div className="relative z-50">
+                  <motion.button
+                    onClick={() => setIsRoleExpanded(!isRoleExpanded)}
+                    className="w-full relative flex items-center gap-4 border rounded-2xl p-3 transition-all group"
+                    style={{
+                      background: 'rgba(0,0,0,0.3)',
+                      borderColor: isRoleExpanded ? `${accentColor}40` : 'rgba(255,255,255,0.06)',
+                      boxShadow: isRoleExpanded ? `0 0 20px ${accentGlow}` : 'none',
+                    }}
+                    whileTap={{ scale: 0.99 }}
+                  >
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center transition-all"
+                      style={{ background: `${accentColor}15`, border: `1px solid ${accentColor}30`, color: accentColor }}
+                    >
+                      {role === 'passenger' ? <User className="w-5 h-5" /> : role === 'carrier' ? <Building2 className="w-5 h-5" /> : <Briefcase className="w-5 h-5" />}
+                    </div>
+                    <div className="flex flex-col items-start">
+                      <span className="text-[9px] font-black uppercase tracking-[0.3em] text-[#3a4a5a]">РЕЖИМ ДОСТУПУ</span>
+                      <span className="text-[13px] font-black uppercase tracking-widest" style={{ color: accentColor }}>
+                        {role === 'passenger' ? 'ПАСАЖИР' : role === 'carrier' ? 'ПЕРЕВІЗНИК' : 'АГЕНТ'}
+                      </span>
+                    </div>
+                    <motion.div className="ml-auto pr-1" animate={{ rotate: isRoleExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                      <ChevronDown className="w-5 h-5 text-white/20" />
+                    </motion.div>
+                  </motion.button>
 
-                    {role === 'carrier' && (
-                      <motion.div key="carrier" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-                        <div className="relative group">
-                          <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5a6a85] group-focus-within:text-[#00c8e0] transition-colors" />
-                          <input type="text" required value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Назва компанії або ПІБ"
-                            className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] pl-12 pr-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                        </div>
-                        <div className="relative group">
-                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5a6a85] group-focus-within:text-[#00c8e0] transition-colors" />
-                          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Бізнес пошта"
-                            className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] pl-12 pr-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                        </div>
-                        <div className="relative group">
-                          <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5a6a85] group-focus-within:text-[#00c8e0] transition-colors" />
-                          <input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Контактний телефон"
-                            className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] pl-12 pr-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="relative group">
-                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5a6a85] group-focus-within:text-[#00c8e0] transition-colors" />
-                            <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Пароль"
-                              className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] pl-12 pr-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                          </div>
-                          <input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Підтвердити"
-                            className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] px-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                        </div>
-                        <button disabled={loading} className="w-full py-4 rounded-2xl font-syne font-black uppercase tracking-tighter text-[13px] text-white flex items-center justify-center gap-2 disabled:opacity-50"
-                          style={{ background: 'linear-gradient(135deg, #00c8e0 0%, #3b82f6 100%)', boxShadow: '0 15px 35px rgba(0, 200, 224, 0.3)' }}>
-                          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Briefcase className="w-4 h-4" /><span>Приєднатись до мережі</span></>}
-                        </button>
-                      </motion.div>
-                    )}
-
-                    {role === 'agent' && (
-                      <motion.div key="agent" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="relative group">
-                            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6a85] group-focus-within:text-[#00c8e0] transition-colors" />
-                            <input type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Ім'я"
-                              className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] pl-11 pr-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                          </div>
-                          <input type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Прізвище"
-                            className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] px-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                        </div>
-                        <div className="relative group">
-                          <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5a6a85] group-focus-within:text-[#00c8e0] transition-colors" />
-                          <input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Номер телефону"
-                            className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] pl-12 pr-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                        </div>
-                        <div className="relative group">
-                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5a6a85] group-focus-within:text-[#00c8e0] transition-colors" />
-                          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email адреса"
-                            className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] pl-12 pr-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="relative group">
-                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5a6a85] group-focus-within:text-[#00c8e0] transition-colors" />
-                            <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Пароль"
-                              className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] pl-12 pr-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                          </div>
-                          <input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Підтвердити"
-                            className="w-full bg-black/40 border border-white/5 rounded-2xl py-[14px] px-4 text-sm text-white focus:outline-none focus:border-[#00c8e0]/60 transition-all" />
-                        </div>
-                        <button disabled={loading} className="w-full py-4 rounded-2xl font-syne font-black uppercase tracking-tighter text-[13px] text-white flex items-center justify-center disabled:opacity-50"
-                          style={{ background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)', boxShadow: '0 15px 35px rgba(168, 85, 247, 0.4)' }}>
-                          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Зареєструвати Агента'}
-                        </button>
+                  <AnimatePresence>
+                    {isRoleExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute top-[calc(100%+6px)] left-0 right-0 rounded-2xl p-2 flex flex-col gap-1 z-50"
+                        style={{ background: 'rgba(5,11,20,0.96)', backdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}
+                      >
+                        {([
+                          { r: 'passenger', label: 'ПАСАЖИР', icon: User, color: '#00E5FF' },
+                          { r: 'carrier', label: 'ПЕРЕВІЗНИК', icon: Building2, color: '#FBBF24' },
+                          { r: 'agent', label: 'АГЕНТ', icon: Briefcase, color: '#A855F7' },
+                        ] as const).map(({ r, label, icon: Icon, color }) => (
+                          <button
+                            key={r}
+                            onClick={() => { setRole(r as Role); setIsRoleExpanded(false); }}
+                            className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
+                            style={{ background: role === r ? `${color}10` : 'transparent', border: role === r ? `1px solid ${color}20` : '1px solid transparent' }}
+                          >
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+                              style={{ background: role === r ? `${color}20` : 'rgba(255,255,255,0.05)', color: role === r ? color : '#5a6a85' }}>
+                              <Icon className="w-4 h-4" />
+                            </div>
+                            <span className="text-[12px] font-black uppercase tracking-widest" style={{ color: role === r ? color : '#5a6a85' }}>{label}</span>
+                          </button>
+                        ))}
                       </motion.div>
                     )}
                   </AnimatePresence>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-3">
+                  <AnimatePresence mode="wait">
+                    {role === 'passenger' && (
+                      <motion.div key="pass" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <NeonInput icon={User} value={firstName} onChange={setFirstName} placeholder="Ім'я" required accentColor={accentColor} />
+                          <div className="relative">
+                            <input type="text" required value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Прізвище"
+                              className="w-full bg-black/30 border border-white/6 rounded-2xl py-[15px] px-4 text-[13px] text-white outline-none focus:border-[#00E5FF]/40 transition-all placeholder-[#3d4f6a]" />
+                          </div>
+                        </div>
+                        <NeonInput icon={Smartphone} type="tel" value={phone} onChange={setPhone} placeholder="Номер телефону" required accentColor={accentColor} />
+                        <NeonInput icon={Mail} type="email" value={email} onChange={setEmail} placeholder="Email адреса" required accentColor={accentColor} />
+                        <div className="grid grid-cols-2 gap-3">
+                          <NeonInput icon={Lock} type="password" value={password} onChange={setPassword} placeholder="Пароль" required accentColor={accentColor} />
+                          <div className="relative">
+                            <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Підтвердити"
+                              className="w-full bg-black/30 border border-white/6 rounded-2xl py-[15px] px-4 text-[13px] text-white outline-none focus:border-[#00E5FF]/40 transition-all placeholder-[#3d4f6a]" />
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                    {role === 'carrier' && (
+                      <motion.div key="carrier" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
+                        <NeonInput icon={Building2} value={companyName} onChange={setCompanyName} placeholder="Назва компанії або ПІБ" required accentColor={accentColor} />
+                        <NeonInput icon={Mail} type="email" value={email} onChange={setEmail} placeholder="Бізнес пошта" required accentColor={accentColor} />
+                        <NeonInput icon={Smartphone} type="tel" value={phone} onChange={setPhone} placeholder="Контактний телефон" required accentColor={accentColor} />
+                        <div className="grid grid-cols-2 gap-3">
+                          <NeonInput icon={Lock} type="password" value={password} onChange={setPassword} placeholder="Пароль" required accentColor={accentColor} />
+                          <div className="relative">
+                            <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Підтвердити"
+                              className="w-full bg-black/30 border border-white/6 rounded-2xl py-[15px] px-4 text-[13px] text-white outline-none focus:border-[#FBBF24]/40 transition-all placeholder-[#3d4f6a]" />
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                    {role === 'agent' && (
+                      <motion.div key="agent" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <NeonInput icon={User} value={firstName} onChange={setFirstName} placeholder="Ім'я" required accentColor={accentColor} />
+                          <div className="relative">
+                            <input type="text" required value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Прізвище"
+                              className="w-full bg-black/30 border border-white/6 rounded-2xl py-[15px] px-4 text-[13px] text-white outline-none focus:border-[#A855F7]/40 transition-all placeholder-[#3d4f6a]" />
+                          </div>
+                        </div>
+                        <NeonInput icon={Smartphone} type="tel" value={phone} onChange={setPhone} placeholder="Номер телефону" required accentColor={accentColor} />
+                        <NeonInput icon={Mail} type="email" value={email} onChange={setEmail} placeholder="Email адреса" required accentColor={accentColor} />
+                        <div className="grid grid-cols-2 gap-3">
+                          <NeonInput icon={Lock} type="password" value={password} onChange={setPassword} placeholder="Пароль" required accentColor={accentColor} />
+                          <div className="relative">
+                            <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Підтвердити"
+                              className="w-full bg-black/30 border border-white/6 rounded-2xl py-[15px] px-4 text-[13px] text-white outline-none focus:border-[#A855F7]/40 transition-all placeholder-[#3d4f6a]" />
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <motion.button
+                    disabled={loading}
+                    className="w-full mt-2 py-4 rounded-2xl font-black uppercase tracking-widest text-[12px] text-white flex items-center justify-center gap-2 relative overflow-hidden disabled:opacity-50"
+                    style={{ background: `linear-gradient(135deg, ${accentColor} 0%, ${role === 'passenger' ? '#0EA5E9' : role === 'carrier' ? '#F97316' : '#7c5cfc'} 100%)` }}
+                    whileHover={{ scale: 1.02, boxShadow: `0 0 35px ${accentGlow}` }}
+                    whileTap={{ scale: 0.98 }}
+                    animate={{ boxShadow: [`0 8px 25px ${accentGlow}`, `0 12px 35px ${accentGlow.replace('0.3', '0.5')}`, `0 8px 25px ${accentGlow}`] }}
+                    transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' } as any}
+                  >
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
+                      animate={{ x: ['-100%', '200%'] }}
+                      transition={{ duration: 3, repeat: Infinity, ease: 'linear', repeatDelay: 1.5 }}
+                    />
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                      <>
+                        {role === 'carrier' ? <Building2 size={14} /> : role === 'agent' ? <Briefcase size={14} /> : <User size={14} />}
+                        <span>{role === 'carrier' ? 'Приєднатись до мережі' : role === 'agent' ? 'Зареєструвати агента' : 'Створити акаунт'}</span>
+                      </>
+                    )}
+                  </motion.button>
+
+                  {role === 'passenger' && (
+                    <button
+                      type="button"
+                      onClick={handleGoogleSignIn}
+                      disabled={loading || googleLoading}
+                      className="w-full py-3.5 rounded-2xl border border-white/6 bg-white/[0.04] hover:bg-white/[0.08] text-white font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-3 transition-all disabled:opacity-50"
+                    >
+                      {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                        <>
+                          <svg className="w-4 h-4" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                          </svg>
+                          <span>Зареєструватись через Google</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </form>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
+
+        {/* Bottom accent bar */}
+        <motion.div
+          className="absolute bottom-0 left-8 right-8 h-[1px] rounded-full"
+          style={{ background: `linear-gradient(90deg, transparent, ${accentColor}40, transparent)` }}
+          animate={{ opacity: [0.3, 0.8, 0.3] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }}
+        />
       </motion.div>
 
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-8 text-[#5a6a85]/30 font-syne text-[10px] uppercase font-black tracking-[0.7em] select-none pointer-events-none">
+      {/* Bottom label */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6 text-[#3a4a5a] text-[9px] uppercase font-black tracking-[0.5em] select-none pointer-events-none">
         <span>БЕЗПЕКА</span>
-        <div className="w-[1px] h-4 bg-[#5a6a85]/10" />
+        <div className="w-[1px] h-3 bg-[#3a4a5a]/30" />
         <span>BUSNET СИСТЕМИ 4.0</span>
+        <div className="w-[1px] h-3 bg-[#3a4a5a]/30" />
+        <span>UA</span>
       </div>
     </div>
   );

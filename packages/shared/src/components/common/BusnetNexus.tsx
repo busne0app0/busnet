@@ -261,7 +261,10 @@ export default function BusnetNexus() {
             setDockEdge(isRight ? 'right' : 'left');
             playSynthSound('dock');
           }}
-          initial={{ x: window.innerWidth - 100, y: window.innerHeight - 150 }}
+          initial={{ 
+            x: window.innerWidth - 80, 
+            y: window.innerHeight - (window.innerWidth < 768 ? 200 : 150) 
+          }}
           className="absolute pointer-events-auto flex flex-col items-center"
           style={{ touchAction: 'none' }}
         >

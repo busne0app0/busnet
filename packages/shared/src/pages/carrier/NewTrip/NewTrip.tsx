@@ -20,7 +20,7 @@ import html2canvas from 'html2canvas';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { supabase } from '../../../supabase/config';
 import { toast } from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 // --- Types ---
 type Amenity = 'wifi' | 'ac' | 'toilet' | 'usb' | 'coffee';
@@ -142,6 +142,7 @@ interface Carrier { uid: string; companyName?: string; email: string; }
 export default function NewTrip() {
   const { user, activeRole } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [carriers, setCarriers] = useState<Carrier[]>([]);
 
@@ -153,6 +154,8 @@ export default function NewTrip() {
   }, [activeRole]);
 
   const [currentStep, setCurrentStep] = useState(() => {
+    // If navigating from dashboard with a route to edit, always start at step 1
+    if ((location.state as any)?.editRoute) return 1;
     const saved = localStorage.getItem('busnet_current_step');
     return saved ? parseInt(saved) : 1;
   });
@@ -174,6 +177,35 @@ export default function NewTrip() {
       outbound: { stops: [], days: ['ПТ'] },
       inbound:  { stops: [], days: ['НД'] }
     };
+
+    // ✅ FIX: If navigated from dashboard with editRoute in state, populate form from it
+    const stateRoute = (location.state as any)?.editRoute;
+    if (stateRoute) {
+      // Save to localStorage so editingRouteId and draft are synced
+      localStorage.setItem('busnet_editing_route_id', stateRoute.id);
+      localStorage.setItem('busnet_editing_route_status', stateRoute.status || 'pending');
+      const draft: TripState = {
+        __version: SCHEMA_VERSION,
+        routeName: stateRoute.name || '',
+        operator: stateRoute.operator || '',
+        seats: stateRoute.seats || 50,
+        amenities: stateRoute.amenities || ['wifi', 'ac'],
+        isTransfer: stateRoute.is_transfer ?? false,
+        transferType: stateRoute.transfer_type || 'direct',
+        transferCity: stateRoute.transfer_city,
+        currency: stateRoute.currency || 'ГРН',
+        discounts: stateRoute.discounts || { child04: false, child412: false },
+        customDiscounts: stateRoute.custom_discounts || [],
+        rules: stateRoute.rules || [],
+        customRules: stateRoute.custom_rules || [],
+        outbound: stateRoute.outbound || { stops: [], days: ['ПТ'] },
+        inbound: stateRoute.inbound || { stops: [], days: ['НД'] },
+      };
+      localStorage.setItem('busnet_trip_draft', JSON.stringify(draft));
+      localStorage.setItem('busnet_current_step', '1');
+      return draft;
+    }
+
     try {
       const raw = localStorage.getItem('busnet_trip_draft');
       if (!raw) return defaults;
@@ -247,6 +279,7 @@ export default function NewTrip() {
     localStorage.removeItem('busnet_trip_draft');
     localStorage.removeItem('busnet_current_step');
     localStorage.removeItem('busnet_editing_route_id');
+    localStorage.removeItem('busnet_editing_route_status');
     setTrip({
       __version: SCHEMA_VERSION,
       routeName: '', operator: '', seats: 50, amenities: ['wifi','ac'],
@@ -263,7 +296,18 @@ export default function NewTrip() {
   const [priceMemory, setPriceMemory] = useState<Record<string, number>>({});
   const [exchangeRate, setExchangeRate] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
-  const [editingRouteId] = useState<string | null>(() => localStorage.getItem('busnet_editing_route_id'));
+  // Read editingRouteId from localStorage (may have been set by stateRoute or directly)
+  const [editingRouteId] = useState<string | null>(() => {
+    const stateRoute = (location.state as any)?.editRoute;
+    if (stateRoute?.id) return stateRoute.id;
+    return localStorage.getItem('busnet_editing_route_id');
+  });
+
+  const [editingRouteStatus] = useState<string | null>(() => {
+    const stateRoute = (location.state as any)?.editRoute;
+    if (stateRoute?.status) return stateRoute.status;
+    return localStorage.getItem('busnet_editing_route_status');
+  });
 
   const handleSmartParse = () => {
     if (!smartInputStep1) return;
@@ -396,11 +440,12 @@ export default function NewTrip() {
         seats: trip.seats, amenities: trip.amenities, is_transfer: trip.isTransfer,
         transfer_type: trip.transferType, transfer_city: trip.transferCity,
         currency: trip.currency, discounts: trip.discounts, custom_discounts: trip.customDiscounts,
-        rules: trip.rules, custom_rules: trip.customRules, outbound: trip.outbound, inbound: trip.inbound, status: 'pending'
+        rules: trip.rules, custom_rules: trip.customRules, outbound: trip.outbound, inbound: trip.inbound,
+        status: editingRouteStatus || 'pending'
       };
       let dbError;
       if (editingRouteId) {
-        const { error } = await supabase.from('routes').update({ ...routeData, status: 'pending' }).eq('id', editingRouteId);
+        const { error } = await supabase.from('routes').update(routeData).eq('id', editingRouteId);
         dbError = error;
       } else {
         const { error } = await supabase.from('routes').insert(routeData);
@@ -411,6 +456,7 @@ export default function NewTrip() {
       localStorage.removeItem('busnet_trip_draft');
       localStorage.removeItem('busnet_current_step');
       localStorage.removeItem('busnet_editing_route_id');
+      localStorage.removeItem('busnet_editing_route_status');
       setTimeout(() => navigate('/'), 1500);
     } catch (err) {
       console.error(err); toast.error('Помилка збереження');
@@ -544,11 +590,11 @@ export default function NewTrip() {
         </div>
         
         {/* STEP NAV */}
-        <div className="hidden lg:flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none max-w-[45%] md:max-w-[60%] lg:max-w-none py-1.5 shrink-0">
           {STEPS.map((step) => (
             <button 
               key={step.id} onClick={() => setCurrentStep(step.id)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all duration-300 ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all duration-300 shrink-0 ${
                 currentStep === step.id 
                   ? 'bg-[#00E5FF]/10 border-[#00E5FF]/50 text-[#00E5FF] shadow-[0_0_10px_rgba(0,229,255,0.1)]' 
                   : 'border-transparent text-[#5A6A85] hover:text-white hover:bg-white/5'
@@ -575,7 +621,7 @@ export default function NewTrip() {
       </header>
 
       <main id="scroll-area" className="flex-1 p-4 md:p-8 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent relative">
-        <div className="max-w-5xl mx-auto pb-24 md:pb-24">
+        <div className="max-w-5xl mx-auto pb-32 md:pb-32">
           <AnimatePresence mode="wait">
             
             {/* STEP 1 */}
@@ -742,13 +788,13 @@ export default function NewTrip() {
                               <input value={stop.address} onChange={(e) => updateStop('outbound', stop.id, { address: e.target.value })} className="w-full bg-transparent border-none px-3 text-[10px] font-medium text-[#5A6A85] outline-none placeholder:text-white/10" placeholder="Адреса зупинки..." />
                             </div>
                             <div className="flex flex-col gap-1 items-end">
-                              <input type="time" value={stop.time} onChange={(e) => updateStop('outbound', stop.id, { time: e.target.value })} className="bg-[#050B14] border border-white/5 focus:border-[#00E5FF]/50 rounded-lg px-2 py-2 text-[11px] font-black text-[#00E5FF] outline-none w-[75px]" />
+                              <input type="time" value={stop.time} onChange={(e) => updateStop('outbound', stop.id, { time: e.target.value })} className="bg-[#050B14] border border-white/5 focus:border-[#00E5FF]/50 rounded-lg px-2 py-2 text-[11px] font-black text-[#00E5FF] outline-none w-[85px] sm:w-[75px]" />
                               <div className="flex items-center gap-1 bg-[#050B14] rounded-lg px-2 py-1 border border-white/5">
                                 <span className="text-[8px] font-bold text-[#5A6A85] uppercase">День</span>
                                 <input type="number" min="0" value={stop.dayOffset} onChange={(e) => updateStop('outbound', stop.id, { dayOffset: parseInt(e.target.value) || 0 })} className="bg-transparent border-none text-[10px] font-bold text-white w-4 outline-none text-center" />
                               </div>
                             </div>
-                            <button onClick={() => removeStop('outbound', stop.id)} className="text-[#5A6A85] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all px-1"><Trash2 size={14}/></button>
+                            <button onClick={() => removeStop('outbound', stop.id)} className="text-[#5A6A85] hover:text-red-500 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all px-1"><Trash2 size={14}/></button>
                           </div>
                           {idx < trip.outbound.stops.length - 1 && (
                             <div className="flex justify-center -my-1">
@@ -765,6 +811,8 @@ export default function NewTrip() {
                     </div>
                   </div>
 
+                  <div className="block xl:hidden border-t border-dashed border-white/10 my-4" />
+
                   <div className="space-y-4">
                     <div className="flex items-center justify-between bg-[#D946EF]/10 border border-[#D946EF]/20 px-4 py-2 rounded-xl">
                       <h3 className="text-[11px] font-black text-[#D946EF] uppercase tracking-widest flex items-center gap-2"><ArrowLeft size={14} /> Назад</h3>
@@ -779,13 +827,13 @@ export default function NewTrip() {
                               <input value={stop.address} onChange={(e) => updateStop('inbound', stop.id, { address: e.target.value })} className="w-full bg-transparent border-none px-3 text-[10px] font-medium text-[#5A6A85] outline-none placeholder:text-white/10" placeholder="Адреса зупинки..." />
                             </div>
                             <div className="flex flex-col gap-1 items-end">
-                              <input type="time" value={stop.time} onChange={(e) => updateStop('inbound', stop.id, { time: e.target.value })} className="bg-[#050B14] border border-white/5 focus:border-[#D946EF]/50 rounded-lg px-2 py-2 text-[11px] font-black text-[#D946EF] outline-none w-[75px]" />
+                              <input type="time" value={stop.time} onChange={(e) => updateStop('inbound', stop.id, { time: e.target.value })} className="bg-[#050B14] border border-white/5 focus:border-[#D946EF]/50 rounded-lg px-2 py-2 text-[11px] font-black text-[#D946EF] outline-none w-[85px] sm:w-[75px]" />
                               <div className="flex items-center gap-1 bg-[#050B14] rounded-lg px-2 py-1 border border-white/5">
                                 <span className="text-[8px] font-bold text-[#5A6A85] uppercase">День</span>
                                 <input type="number" min="0" value={stop.dayOffset} onChange={(e) => updateStop('inbound', stop.id, { dayOffset: parseInt(e.target.value) || 0 })} className="bg-transparent border-none text-[10px] font-bold text-white w-4 outline-none text-center" />
                               </div>
                             </div>
-                            <button onClick={() => removeStop('inbound', stop.id)} className="text-[#5A6A85] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all px-1"><Trash2 size={14}/></button>
+                            <button onClick={() => removeStop('inbound', stop.id)} className="text-[#5A6A85] hover:text-red-500 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all px-1"><Trash2 size={14}/></button>
                           </div>
                           {idx < trip.inbound.stops.length - 1 && (
                             <div className="flex justify-center -my-1">
