@@ -100,7 +100,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     >
       {/* Logo */}
       <div className="p-6 border-b border-[#1e3a5f] flex items-center gap-3">
-        <div className="w-8 h-8 bg-[#00c8ff] rounded-md flex items-center justify-center font-black text-[#0a0e1a]">BN</div>
+        <img src="/icon.png" alt="BUSNET UA" className="w-8 h-8 object-contain rounded-md" />
         <span className="text-sm font-bold tracking-widest text-[#00c8ff]">BUSNET UA</span>
         <button className="md:hidden ml-auto text-[#7a9ab5]" onClick={closeSidebar}>
           <X size={20} />

@@ -182,9 +182,7 @@ export default function AgentLayout() {
         bg-[#0d1119] border-r border-white/5 flex flex-col h-full transition-all duration-300 overflow-hidden shrink-0
       `}>
         <div className="p-4 border-b border-white/5 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#7c5cfc] to-[#5533dd] flex items-center justify-center font-black text-white text-sm">
-            BN
-          </div>
+          <img src="/icon.png" alt="BUSNET UA" className="w-8 h-8 rounded-lg object-contain" />
           <div>
             <div className="font-['Syne'] font-extrabold text-sm tracking-tight">
               BUSNET <span className="text-[#7c5cfc]">UA</span>

@@ -147,8 +147,8 @@ export default function CarrierLayout() {
         
         {/* Top Logo */}
         <div className="flex flex-col items-center gap-1 mb-6 cursor-pointer" onClick={() => navigate('/')}>
-          <div className="w-12 h-10 border border-[#00E5FF]/40 rounded-xl flex items-center justify-center text-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.2)] group-hover:shadow-[0_0_25px_rgba(0,229,255,0.4)] transition-all">
-            <Bus size={20} />
+          <div className="w-12 h-10 border border-[#00E5FF]/40 rounded-xl flex items-center justify-center p-1 bg-black/40 shadow-[0_0_15px_rgba(0,229,255,0.2)] group-hover:shadow-[0_0_25px_rgba(0,229,255,0.4)] transition-all overflow-hidden">
+            <img src="/icon.png" alt="BUSNET UA" className="w-full h-full object-contain" />
           </div>
           <div className="text-center mt-1">
             <div className="text-[9px] font-black tracking-widest text-white">BUSNET UA</div>

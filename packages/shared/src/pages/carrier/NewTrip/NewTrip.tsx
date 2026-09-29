@@ -608,11 +608,22 @@ export default function NewTrip() {
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 bg-[#0B1221] px-3 py-1.5 rounded-lg border border-white/5">
-            <span className="text-[9px] text-[#5A6A85] font-bold uppercase tracking-widest">Rate</span>
+            <span className="text-[9px] text-[#5A6A85] font-bold uppercase tracking-widest">Курс</span>
             <input 
-              type="number" value={exchangeRate} onChange={(e) => setExchangeRate(parseFloat(e.target.value) || 0)}
-              className="bg-transparent border-none outline-none text-xs text-[#00E5FF] font-black w-10 text-right"
+              type="number"
+              value={exchangeRate === 0 ? '' : exchangeRate}
+              onChange={(e) => setExchangeRate(parseFloat(e.target.value) || 0)}
+              onFocus={(e) => e.target.select()}
+              placeholder="0"
+              className="bg-transparent border-none outline-none text-xs text-[#00E5FF] font-black w-12 text-right placeholder:text-[#5A6A85]"
             />
+            <button
+              onClick={() => setTrip(prev => ({ ...prev, currency: prev.currency === 'ГРН' ? 'EUR' : prev.currency === 'EUR' ? 'USD' : 'ГРН' }))}
+              className="ml-1 px-2 py-0.5 rounded-md bg-[#00E5FF]/10 border border-[#00E5FF]/30 text-[#00E5FF] text-[9px] font-black uppercase tracking-widest hover:bg-[#00E5FF]/20 transition-all"
+              title="Змінити валюту"
+            >
+              {trip.currency}
+            </button>
           </div>
           <button onClick={() => setShowResetConfirm(true)} className="text-[#5A6A85] hover:text-red-400 transition-colors" title="Скинути">
             <RefreshCcw size={16} />
@@ -925,9 +936,11 @@ export default function NewTrip() {
                            <div className="flex items-center gap-3">
                               <input 
                                 type="number" 
-                                value={segment.price} 
-                                onChange={(e) => setPriceMemory(prev => ({ ...prev, [segment.key]: parseInt(e.target.value) || 0 }))}
-                                className="w-24 bg-[#0B1221] border border-white/10 focus:border-[#00E5FF]/50 rounded-lg px-3 py-2 text-white font-bold text-right outline-none transition-all"
+                                value={segment.price === 0 ? '' : segment.price}
+                                onChange={(e) => setPriceMemory(prev => ({ ...prev, [segment.key]: parseFloat(e.target.value) || 0 }))}
+                                onFocus={(e) => e.target.select()}
+                                placeholder="0"
+                                className="w-24 bg-[#0B1221] border border-white/10 focus:border-[#00E5FF]/50 rounded-lg px-3 py-2 text-white font-bold text-right outline-none transition-all placeholder:text-[#5A6A85]"
                               />
                               <span className="text-[10px] text-[#00E5FF] font-black uppercase tracking-widest">{trip.currency}</span>
                            </div>
@@ -1086,8 +1099,9 @@ export default function NewTrip() {
 
           <button 
             onClick={() => {
-              if (conflicts.some(c => c.severity === 'error')) {
-                toast.error('Виправте критичні помилки перед продовженням');
+              const stepErrors = conflicts.filter(c => c.severity === 'error' && c.step === currentStep);
+              if (stepErrors.length > 0) {
+                toast.error(stepErrors[0].message);
                 return;
               }
               nextStep();
@@ -1096,8 +1110,8 @@ export default function NewTrip() {
               currentStep === 7 
                 ? 'bg-[#00E5FF] text-[#050B14] hover:shadow-[0_0_15px_rgba(0,229,255,0.4)]' 
                 : 'bg-white/10 text-white hover:bg-white/20'
-            } ${conflicts.some(c => c.severity === 'error') ? 'opacity-50 cursor-not-allowed' : ''}`}
-            disabled={conflicts.some(c => c.severity === 'error')}
+            } ${conflicts.filter(c => c.severity === 'error' && c.step === currentStep).length > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={conflicts.filter(c => c.severity === 'error' && c.step === currentStep).length > 0}
           >
             {currentStep === 7 ? 'Зберегти' : 'Далі'} <ChevronRight size={14} />
           </button>

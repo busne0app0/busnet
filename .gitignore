@@ -33,3 +33,6 @@ busnet_mobile_audit*.html
 .vercel
 
 .env*.local
+
+supabase/.temp/
+

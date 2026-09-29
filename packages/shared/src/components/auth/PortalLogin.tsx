@@ -197,9 +197,9 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
             <motion.div 
               whileHover={{ scale: 1.08, rotate: 5 }}
               whileTap={{ scale: 0.95 }}
-              className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.05)] mb-4 border border-white/15 bg-slate-900/80 cursor-pointer`}
+              className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.05)] mb-4 border border-white/15 bg-slate-900/80 cursor-pointer overflow-hidden p-2`}
             >
-              <Icon className="text-white w-8 h-8" />
+              <img src="/icon.png" alt="BUSNET UA" className="w-full h-full object-contain" />
             </motion.div>
             <h1 className="text-3xl font-black text-white tracking-tighter uppercase mb-2 font-syne text-center">
               {title}

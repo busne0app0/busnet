@@ -103,10 +103,10 @@ const AdminLayout: React.FC = () => {
       <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-16 bg-[#0d121e]/40 backdrop-blur-3xl border-r border-white/5 flex-col items-center py-6 z-50">
         <motion.div 
           whileHover={{ scale: 1.1, rotate: 5 }}
-          className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00D4FF] to-[#8B5CF6] flex items-center justify-center shadow-[0_0_20px_rgba(0,212,255,0.4)] mb-8 cursor-pointer"
+          className="w-10 h-10 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center shadow-[0_0_20px_rgba(0,212,255,0.4)] mb-8 cursor-pointer overflow-hidden p-1"
           onClick={() => navigate('/')}
         >
-          <Zap size={20} className="text-white fill-white" />
+          <img src="/icon.png" alt="BUSNET UA" className="w-full h-full object-contain" />
         </motion.div>
 
         <div className="flex-1 flex flex-col gap-6">

@@ -72,7 +72,8 @@ export default function Header() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between gap-4">
           
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 cursor-pointer shrink-0">
+          <Link to="/" className="flex items-center gap-2.5 cursor-pointer shrink-0">
+            <img src="/icon.png" alt="BUSNET UA" className="w-8 h-8 md:w-9 md:h-9 object-contain rounded-lg drop-shadow-[0_0_10px_rgba(0,212,255,0.4)]" />
             <span className="text-xl md:text-2xl font-black tracking-tight">
               <span className="holographic-text uppercase">BUSNET UA</span>
             </span>

@@ -16,8 +16,8 @@ const DriverLayout: React.FC = () => {
     <div className="min-h-screen bg-[#05050d] text-white flex flex-col">
       {/* Mobile Top Bar */}
       <div className="h-16 border-b border-white/5 bg-[#0a0e1a]/80 backdrop-blur-xl flex items-center justify-between px-6 sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center font-bold text-black italic">D</div>
+        <div className="flex items-center gap-2.5">
+          <img src="/icon.png" alt="BUSNET UA" className="w-8 h-8 rounded-lg object-contain" />
           <span className="text-sm font-black italic tracking-tighter">DRIVER HUB</span>
         </div>
         <button onClick={handleLogout} className="p-2 opacity-50 hover:opacity-100 transition-opacity">
