@@ -1,7 +1,153 @@
-export type Language = 'UA' | 'EN' | 'IT';
+export type Language = 'UK' | 'EN' | 'IT';
 
-export const translations = {
-  UA: {
+export interface TranslationSchema {
+  header: {
+    routes: string;
+    partners: string;
+    forum: string;
+    bookingBadge: string;
+    login: string;
+    langLabel: string;
+  };
+  hero: {
+    subtitle: string;
+    suggestCheapest: string;
+    suggestToday: string;
+    suggestFastest: string;
+    aiSlogan: string;
+    suggestAiChoice: string;
+    cityKyiv: string;
+    cityWarsaw: string;
+    cityLviv: string;
+    cityBerlin: string;
+    cityOdesa: string;
+    cityPrague: string;
+  };
+  search: {
+    from: string;
+    to: string;
+    date: string;
+    search: string;
+    placeholderFrom: string;
+    placeholderTo: string;
+    today: string;
+  };
+  calendar: {
+    months: string[];
+    monthsGenitive: string[];
+    weekdays: string[];
+    loading: string;
+    tripsFound: string;
+    daysWithTrips: (count: number) => string;
+    availableTrips: string;
+    noTrips: string;
+    lowestPrice: string;
+    route: string;
+    moreRoutes: (count: number) => string;
+  };
+  popular: {
+    badge: string;
+    title: string;
+    titleAccent: string;
+    premium: string;
+    priceFrom: string;
+    currency: string;
+  };
+  neuralWorkflow: {
+    title: string;
+    titleAccent: string;
+    steps: Array<{
+      id: number;
+      title: string;
+      text: string;
+      highlight: string;
+    }>;
+  };
+  validation: {
+    header: string;
+    fillAll: string;
+    sameCities: string;
+    from: string;
+    to: string;
+    date: string;
+  };
+  footer: {
+    rights: string;
+    about: string;
+    contacts: string;
+    terms: string;
+  };
+  advantages: {
+    badge: string;
+    title: string;
+    titleAccent: string;
+    items: Array<{
+      title: string;
+      subtitle: string;
+      desc: string;
+    }>;
+  };
+  about: {
+    title: string;
+    titleAccent: string;
+    desc: string;
+    quote: string;
+    stats: Array<{ label: string; value: string }>;
+  };
+  reviews: {
+    title: string;
+    titleAccent: string;
+    items: Array<{
+      name: string;
+      text: string;
+      route: string;
+      img: string;
+    }>;
+  };
+  appEco: {
+    title: string;
+    titleAccent: string;
+    desc: string;
+    downloadStore: string;
+    downloadStoreSub: string;
+    downloadGoogle: string;
+    downloadGoogleSub: string;
+    scanText: string;
+    phoneTitle: string;
+    phoneLogo: string;
+    ticketName: string;
+    ticketBus: string;
+    ticketRoute: string;
+    ticketTime: string;
+    qrTitle: string;
+    priceTitle: string;
+    price: string;
+    btnInstallPwa: string;
+    btnInstalled: string;
+    btnInstallMain: string;
+    btnEcoSys: string;
+    btnEcoModules: string;
+    iosHintTitle: string;
+    iosHintText: string;
+    iosHintStep1: string;
+    iosHintStep2: string;
+    iosHintGotIt: string;
+    modulesModalTitle: string;
+    modulesModalText: string;
+  };
+  confidence: {
+    title: string;
+    titleAccent: string;
+    items: Array<{ title: string; desc: string; icon: string }>;
+  };
+  seo: {
+    title: string;
+    desc: string;
+  };
+}
+
+export const translations: Record<Language, TranslationSchema> & { UA?: TranslationSchema } = {
+  UK: {
     header: {
       routes: 'Маршрути',
       partners: 'Партнерам',
@@ -11,11 +157,11 @@ export const translations = {
       langLabel: 'МОВА',
     },
     hero: {
-      subtitle: 'Знайди рейс • Бронюй онлайн • Сплачуй при посадці',
-      suggestCheapest: 'найдешевше',
-      suggestToday: 'сьогодні',
-      suggestFastest: 'найшвидше',
-      aiSlogan: 'бронювання 24/7',
+      subtitle: 'Знайди рейс • Бронюй онлайн • Оплачуй при посадці',
+      suggestCheapest: 'Найдешевше',
+      suggestToday: 'Сьогодні',
+      suggestFastest: 'Найшвидше',
+      aiSlogan: 'Бронювання 24/7',
       suggestAiChoice: 'AI вибір',
       cityKyiv: 'Київ',
       cityWarsaw: 'Варшава',
@@ -29,9 +175,28 @@ export const translations = {
       to: 'Куди',
       date: 'Дата відправлення',
       search: 'ПОШУК',
-      placeholderFrom: 'Місто...',
+      placeholderFrom: 'Місто відправлення...',
       placeholderTo: 'Куди прямуєте?',
       today: 'СЬОГОДНІ',
+    },
+    calendar: {
+      months: ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'],
+      monthsGenitive: ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'],
+      weekdays: ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'НД'],
+      loading: 'Завантаження...',
+      tripsFound: 'Рейсів знайдено',
+      daysWithTrips: (c) => {
+        const mod10 = c % 10;
+        const mod100 = c % 100;
+        if (mod10 === 1 && mod100 !== 11) return `${c} день з рейсами`;
+        if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return `${c} дні з рейсами`;
+        return `${c} днів з рейсами`;
+      },
+      availableTrips: 'Рейси доступні',
+      noTrips: 'Немає рейсів',
+      lowestPrice: 'Найнижча ціна',
+      route: 'Маршрут',
+      moreRoutes: (c) => `+${c} ще`,
     },
     popular: {
       badge: 'Напрямки 2026',
@@ -61,13 +226,14 @@ export const translations = {
           id: 3,
           title: 'Подорожуйте',
           text: 'Цифровий квиток та Passkey-авторизація. {highlight} або криптою.',
-          highlight: 'Сплата при посадці'
+          highlight: 'Оплата при посадці'
         }
       ]
     },
     validation: {
       header: 'Майже готово!',
       fillAll: 'Будь ласка, заповніть місто відправлення, прибуття та дату.',
+      sameCities: 'Місто відправлення та прибуття не можуть збігатися.',
       from: 'Звідки їдемо?',
       to: 'Куди прямуєте?',
       date: 'Коли в дорогу?'
@@ -90,8 +256,8 @@ export const translations = {
         },
         {
           title: "0% передоплата",
-          subtitle: "сплата при посадці",
-          desc: "Ніякого ризику. Оплачуйте водієві або Apple Pay прямо в автобусі."
+          subtitle: "оплата при посадці",
+          desc: "Ніякого ризику. Оплачуйте водієві або карткою прямо в автобусі."
         },
         {
           title: "Перевірені",
@@ -105,19 +271,19 @@ export const translations = {
         },
         {
           title: "Смарт-знижки",
-          subtitle: "для всіх категорій",
-          desc: "Дитяча -50%, студентська -20%, літні -30%. Розраховуються автоматично."
+          subtitle: "для пільгових категорій",
+          desc: "Діти -50%, студенти -20%, пасажири 60+ -30%. Розраховуються автоматично."
         },
         {
           title: "Підтримка",
           subtitle: "24/7 онлайн",
-          desc: "Живі агенти та нейро-асистенти завжди на зв'язку. Миттєве вирішення питань."
+          desc: "Живі оператори та AI-асистенти завжди на зв'язку. Миттєве вирішення питань."
         }
       ]
     },
     about: {
-      title: 'МИ НЕ ПРОСТО',
-      titleAccent: 'ПЕРЕВОЗИМО.',
+      title: 'БІЛЬШЕ, НІЖ ПРОСТО',
+      titleAccent: 'ПЕРЕВЕЗЕННЯ.',
       desc: 'Busnet UA — це інтелектуальна екосистема, що об’єднує міста за допомогою нейронних мереж та AI-аналітики. Ми відібрали найкращих перевізників Європи, щоб ваша подорож починалася не з вокзалу, а з першого кліку.',
       quote: '"Технології — це лише інструмент. Наша мета — ваш комфорт та безпека в кожному кілометрі."',
       stats: [
@@ -151,7 +317,7 @@ export const translations = {
         },
         {
           name: "Олег Н., Харків",
-          text: "Цифровий квиток. Показав QR-код зі смартфона і поїхав. Оплата при посадці — це те, що я шукав.",
+          text: "Цифровий квиток. Показав QR-код зі смартфона і поїхав. Оплата при посадці — це саме те, що я шукав.",
           route: "Львів → Відень",
           img: "https://images.unsplash.com/photo-1552058544-f2b08422138a?q=80&w=200&h=200&auto=format&fit=crop"
         }
@@ -160,7 +326,7 @@ export const translations = {
     appEco: {
       title: 'ТВІЙ КВИТОК ЗАВЖДИ З',
       titleAccent: 'BUSNET',
-      desc: 'Мобільний додаток — це фінальний крок нашої екосистеми. Квиток у смартфоні, 24/7 AI підтримка, живий трекінг автобуса та верифікована безпека. Серйозна IT-платформа для твоєї наступної поїздки.',
+      desc: 'Мобільний додаток — це фінальний крок нашої екосистеми. Квиток у смартфоні, 24/7 AI-підтримка, живий трекінг автобуса та верифікована безпека. Серйозна IT-платформа для вашої наступної поїздки.',
       downloadStore: 'App Store',
       downloadStoreSub: 'Завантажте в',
       downloadGoogle: 'Google Play',
@@ -181,18 +347,18 @@ export const translations = {
       btnEcoSys: 'ЕКОСИСТЕМА',
       btnEcoModules: 'ІНШІ МОДУЛІ',
       iosHintTitle: 'Встановити на iPhone',
-      iosHintText: 'Apple не дозволяє пряме встановлення. Щоб додати <b>BUSNET</b> на екран «Домой», виконайте 2 кроки:',
-      iosHintStep1: '1. Натисніть кнопку <b>"Поділитися"</b> знизу на панелі Safari',
-      iosHintStep2: '2. Оберіть <b>"На екран «Домой»"</b> зі списку дій',
-      iosHintGotIt: 'Я зрозумів',
+      iosHintText: 'Щоб додати BUSNET на "Початковий екран", виконайте 2 прості кроки:',
+      iosHintStep1: '1. Натисніть кнопку "Поділитися" на панелі Safari',
+      iosHintStep2: '2. Оберіть "На початковий екран" зі списку дій',
+      iosHintGotIt: 'Зрозуміло',
       modulesModalTitle: 'Модулі екосистеми',
-      modulesModalText: 'BUSNET — це єдина платформа мікросервісів. Відкрийте потрібний лінк на вашому телефоні, щоб встановити PWA додаток:',
+      modulesModalText: 'BUSNET — це єдина платформа мікросервісів. Відкрийте потрібне посилання на телефоні для встановлення PWA:',
     },
     confidence: {
       title: 'БЕЗПЕКА ТА',
       titleAccent: 'ДОВІРА',
       items: [
-        { title: 'Страхування', desc: 'Кожен пасажир застрахований на €30,000 протягом всієї поїздки.', icon: 'shield' },
+        { title: 'Страхування', desc: 'Кожен пасажир застрахований на €30,000 протягом усієї поїздки.', icon: 'shield' },
         { title: 'Підтримка 24/7', desc: 'Наші AI-агенти та живі оператори готові допомогти в будь-яку хвилину.', icon: 'support' },
         { title: 'Повернення', desc: 'Гарантоване повернення коштів при скасуванні рейсу за 24 години.', icon: 'refund' }
       ]
@@ -202,6 +368,7 @@ export const translations = {
       desc: 'Busnet UA пропонує найшвидші та найдешевші автобусні квитки з України в Польщу, Італію, Німеччину та інші країни ЄС. Завдяки нашій унікальній AI-технології пошуку, ви можете знайти оптимальний маршрут з Києва, Львова, Одеси та Дніпра до Варшави, Берліна, Риму та Мілана за лічені секунди. Бронюйте квитки онлайн без передоплати та насолоджуйтесь комфортною подорожжю з перевіреними перевізниками.'
     }
   },
+
   EN: {
     header: {
       routes: 'Routes',
@@ -209,13 +376,13 @@ export const translations = {
       forum: 'Forum',
       bookingBadge: '24/7 BOOKING',
       login: 'LOGIN',
-      langLabel: 'LANGUAGE',
+      langLabel: 'LANG',
     },
     hero: {
       subtitle: 'Find a trip • Book online • Pay on boarding',
-      suggestCheapest: 'cheapest',
-      suggestToday: 'today',
-      suggestFastest: 'fastest',
+      suggestCheapest: 'Cheapest',
+      suggestToday: 'Today',
+      suggestFastest: 'Fastest',
       aiSlogan: '24/7 booking',
       suggestAiChoice: 'AI Choice',
       cityKyiv: 'Kyiv',
@@ -230,9 +397,22 @@ export const translations = {
       to: 'To',
       date: 'Departure Date',
       search: 'SEARCH',
-      placeholderFrom: 'City...',
-      placeholderTo: 'Where to?',
+      placeholderFrom: 'Departure city...',
+      placeholderTo: 'Where are you going?',
       today: 'TODAY',
+    },
+    calendar: {
+      months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+      monthsGenitive: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+      weekdays: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'],
+      loading: 'Loading...',
+      tripsFound: 'Trips found',
+      daysWithTrips: (c) => `${c} ${c === 1 ? 'day' : 'days'} with trips`,
+      availableTrips: 'Trips available',
+      noTrips: 'No trips',
+      lowestPrice: 'Lowest price',
+      route: 'Route',
+      moreRoutes: (c) => `+${c} more`,
     },
     popular: {
       badge: '2026 Destinations',
@@ -268,7 +448,8 @@ export const translations = {
     },
     validation: {
       header: 'Almost there!',
-      fillAll: 'Please fill in the departure city, arrival city, and date.',
+      fillAll: 'Please fill in the departure city, destination, and date.',
+      sameCities: 'Departure and arrival cities cannot be the same.',
       from: 'Where from?',
       to: 'Where to?',
       date: 'When to go?'
@@ -287,40 +468,40 @@ export const translations = {
         {
           title: "60 Seconds",
           subtitle: "to Book",
-          desc: "Select a route, seat, and enter your name. No extra forms thanks to AI autofill."
+          desc: "Select a route, seat, and enter your name. No lengthy forms thanks to AI autofill."
         },
         {
           title: "0% Prepayment",
           subtitle: "Pay on Boarding",
-          desc: "No risk. Pay the driver or via Apple Pay directly on the bus."
+          desc: "Zero risk. Pay the driver in cash or with card directly on the bus."
         },
         {
           title: "Verified",
           subtitle: "Carriers",
-          desc: "All partners undergo multi-level verification and real-time rating."
+          desc: "All partners undergo multi-level verification and real-time ratings."
         },
         {
           title: "Digital",
           subtitle: "Ticket",
-          desc: "Your boarding pass is always in your smartphone. No paper, just QR or NFC."
+          desc: "Your boarding pass is always in your smartphone. Paperless QR or NFC."
         },
         {
           title: "Smart Discounts",
-          subtitle: "for All Categories",
-          desc: "Child -50%, Student -20%, Senior -30%. Calculated automatically."
+          subtitle: "for Concessions",
+          desc: "Children -50%, Students -20%, Seniors 60+ -30%. Applied automatically."
         },
         {
           title: "Support",
           subtitle: "24/7 Online",
-          desc: "Live agents and neuro-assistants always available. Instant question resolution."
+          desc: "Live agents and neuro-assistants always available for instant solutions."
         }
       ]
     },
     about: {
-      title: 'WE DON\'T JUST',
+      title: 'MORE THAN JUST',
       titleAccent: 'TRANSPORT.',
-      desc: 'Busnet UA is an intelligent ecosystem connecting cities through neural networks and AI analytics. We have selected Europe\'s best carriers so that your journey begins not from the terminal, but from the first click.',
-      quote: '"Technology is just a tool. Our goal is your comfort and safety in every kilometer."',
+      desc: 'Busnet UA is an intelligent ecosystem connecting cities through neural networks and AI analytics. We partner with Europe\'s top carriers so your trip begins with ease from the very first click.',
+      quote: '"Technology is just a tool. Our mission is your comfort and security in every single mile."',
       stats: [
         { label: 'Passengers', value: '100k+' },
         { label: 'EU Countries', value: '15+' },
@@ -334,25 +515,25 @@ export const translations = {
       items: [
         {
           name: "Iryna S., Odesa",
-          text: "Wonderful! Everything was fast and comfortable. Highly recommend! Will definitely travel with you again. Top-level service!",
+          text: "Wonderful experience! Fast, comfortable, and punctual. Definitely traveling with you again!",
           route: "Kyiv → Warsaw",
           img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&h=200&auto=format&fit=crop"
         },
         {
           name: "Dmytro P., Kropyvnytskyi",
-          text: "Premium class buses, clean, Wi-Fi worked stably the whole way. Drivers were polite and punctual.",
+          text: "Premium buses, clean interiors, and rock-solid Wi-Fi throughout the ride. Polite and professional drivers.",
           route: "Lviv → Prague",
           img: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&h=200&auto=format&fit=crop"
         },
         {
           name: "Olena V., Dnipro",
-          text: "24/7 support always in touch. Helped quickly resolve a booking issue. Comfortable and peaceful!",
+          text: "Support was responsive 24/7. They sorted out my booking question within minutes. Stress-free trip!",
           route: "Odesa → Berlin",
           img: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&h=200&auto=format&fit=crop"
         },
         {
           name: "Oleh N., Kharkiv",
-          text: "Digital ticket. Showed the QR code from my smartphone and off we go. Payment on boarding is what I was looking for.",
+          text: "Instant digital ticket. Just scanned the QR code from my phone and boarded. Exactly what I needed.",
           route: "Lviv → Vienna",
           img: "https://images.unsplash.com/photo-1552058544-f2b08422138a?q=80&w=200&h=200&auto=format&fit=crop"
         }
@@ -361,7 +542,7 @@ export const translations = {
     appEco: {
       title: 'YOUR TICKET ALWAYS WITH',
       titleAccent: 'BUSNET',
-      desc: 'The mobile app is the final step of our ecosystem. Ticket in your smartphone, 24/7 AI support, live bus tracking, and verified security. A serious IT platform for your next trip.',
+      desc: 'Our mobile app completes the ecosystem: digital tickets, 24/7 AI assistance, live bus telemetry, and certified safety.',
       downloadStore: 'App Store',
       downloadStoreSub: 'Download on the',
       downloadGoogle: 'Google Play',
@@ -372,52 +553,53 @@ export const translations = {
       ticketName: "Name: Iryna Sydorenko",
       ticketBus: "Bus: BusNet Express",
       ticketRoute: "Route: Kyiv → Warsaw",
-      ticketTime: "AI Departure: 04/16/2026, 08:00",
-      qrTitle: 'AI QR-CODE FOR BOARDING',
+      ticketTime: "AI Departure: 16.04.2026, 08:00",
+      qrTitle: 'AI QR CODE FOR BOARDING',
       priceTitle: 'Price (AI Verified)',
-      price: '1200 UAH',
+      price: '€29',
       btnInstallPwa: 'PWA Installation',
       btnInstalled: 'ALREADY INSTALLED',
       btnInstallMain: 'INSTALL APP',
       btnEcoSys: 'ECOSYSTEM',
       btnEcoModules: 'OTHER MODULES',
       iosHintTitle: 'Install on iPhone',
-      iosHintText: 'Apple does not allow direct installation. To add <b>BUSNET</b> to your Home screen, follow 2 steps:',
-      iosHintStep1: '1. Tap the <b>"Share"</b> button at the bottom of the Safari bar',
-      iosHintStep2: '2. Select <b>"Add to Home Screen"</b> from the action list',
+      iosHintText: 'To add BUSNET to your Home Screen, complete 2 quick steps:',
+      iosHintStep1: '1. Tap the "Share" button at the bottom of Safari',
+      iosHintStep2: '2. Choose "Add to Home Screen" from the menu',
       iosHintGotIt: 'Got it',
       modulesModalTitle: 'Ecosystem Modules',
-      modulesModalText: 'BUSNET is a single microservice platform. Open the required link on your phone to install the PWA app:',
+      modulesModalText: 'BUSNET is a unified microservice platform. Open this page on your phone to install:',
     },
     confidence: {
       title: 'SAFETY AND',
       titleAccent: 'TRUST',
       items: [
-        { title: 'Insurance', desc: 'Each passenger is insured for €30,000 throughout the entire trip.', icon: 'shield' },
-        { title: '24/7 Support', desc: 'Our AI agents and live operators are ready to help at any moment.', icon: 'support' },
-        { title: 'Refunds', desc: 'Guaranteed refund if the trip is canceled 24 hours in advance.', icon: 'refund' }
+        { title: 'Insurance', desc: 'Every passenger is insured for up to €30,000 for the entire route.', icon: 'shield' },
+        { title: '24/7 Support', desc: 'Our AI assistants and human agents are ready around the clock.', icon: 'support' },
+        { title: 'Refunds', desc: 'Guaranteed 100% refund for cancellations made 24 hours prior.', icon: 'refund' }
       ]
     },
     seo: {
       title: 'Popular Bus Routes Across Europe',
-      desc: 'Busnet UA offers the fastest and cheapest bus tickets from Ukraine to Poland, Italy, Germany, and other EU countries. Thanks to our unique AI search technology, you can find the optimal route from Kyiv, Lviv, Odesa, and Dnipro to Warsaw, Berlin, Rome, and Milan in seconds. Book tickets online without prepayment and enjoy a comfortable journey with verified carriers.'
+      desc: 'Busnet UA offers reliable and affordable bus tickets connecting Ukraine with Poland, Italy, Germany, and the EU. Our neural routing engine helps you pick optimal schedules in seconds.'
     }
   },
+
   IT: {
     header: {
-      routes: 'Percorsi',
+      routes: 'Tratte',
       partners: 'Partner',
       forum: 'Forum',
-      bookingBadge: 'PRENOTAZIONE 24/7',
-      login: 'ACCESSO',
+      bookingBadge: 'PRENOTAZIONI 24/7',
+      login: 'ACCEDI',
       langLabel: 'LINGUA',
     },
     hero: {
-      subtitle: 'Trova un viaggio • Prenota online • Paga all\'imbarco',
-      suggestCheapest: 'economico',
-      suggestToday: 'oggi',
-      suggestFastest: 'veloce',
-      aiSlogan: 'Prenotazione 24/7',
+      subtitle: 'Trova il viaggio • Prenota online • Paga a bordo',
+      suggestCheapest: 'Più economico',
+      suggestToday: 'Oggi',
+      suggestFastest: 'Più veloce',
+      aiSlogan: 'Prenotazioni 24/7',
       suggestAiChoice: 'Scelta AI',
       cityKyiv: 'Kiev',
       cityWarsaw: 'Varsavia',
@@ -431,15 +613,28 @@ export const translations = {
       to: 'A',
       date: 'Data di partenza',
       search: 'CERCA',
-      placeholderFrom: 'Città...',
-      placeholderTo: 'Dove vai?',
+      placeholderFrom: 'Città di partenza...',
+      placeholderTo: 'Dove vuoi andare?',
       today: 'OGGI',
+    },
+    calendar: {
+      months: ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'],
+      monthsGenitive: ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'],
+      weekdays: ['LU', 'MA', 'ME', 'GI', 'VE', 'SA', 'DO'],
+      loading: 'Caricamento...',
+      tripsFound: 'Corse trovate',
+      daysWithTrips: (c) => `${c} ${c === 1 ? 'giorno' : 'giorni'} con corse`,
+      availableTrips: 'Corse disponibili',
+      noTrips: 'Nessuna corsa',
+      lowestPrice: 'Prezzo più basso',
+      route: 'Percorso',
+      moreRoutes: (c) => `+altri ${c}`,
     },
     popular: {
       badge: 'Destinazioni 2026',
       title: 'Viaggi',
       titleAccent: 'popolari',
-      premium: 'Percorso Premium',
+      premium: 'Tratta Premium',
       priceFrom: 'Prezzo da',
       currency: '€',
     },
@@ -449,82 +644,83 @@ export const translations = {
       steps: [
         {
           id: 1,
-          title: 'Trova un viaggio',
-          text: "Parla o scrivi — {highlight} 15 paesi europei in 0.3 secondi.",
+          title: 'Trova una corsa',
+          text: 'Digita o usa la voce — {highlight} 15 paesi europei in 0.3 secondi.',
           highlight: "l'AI analizza"
         },
         {
           id: 2,
-          title: 'Scegli un biglietto',
-          text: "{highlight} ti suggerirà l'orario, il prezzo e il comfort migliori.",
+          title: 'Scegli il biglietto',
+          text: "{highlight} suggerirà l'orario, il prezzo e il comfort migliori.",
           highlight: 'AI Smart Suggest'
         },
         {
           id: 3,
-          title: 'Viaggia',
-          text: 'Biglietto digitale e autorizzazione Passkey. {highlight} o con cripto.',
-          highlight: "Paga all'imbarco"
+          title: 'Viaggia sereno',
+          text: 'Biglietto digitale e accesso Passkey. {highlight} o con criptovalute.',
+          highlight: 'Paga a bordo'
         }
       ]
     },
     validation: {
-      header: 'Quasi pronto!',
-      fillAll: 'Inserisci la città di partenza, la città di arrivo e la data.',
-      from: 'Da dove?',
-      to: 'Dove andare?',
-      date: 'Quando andare?'
+      header: 'Ci siamo quasi!',
+      fillAll: 'Inserisci la città di partenza, la destinazione e la data.',
+      sameCities: 'La città di partenza e di arrivo non possono essere uguali.',
+      from: 'Da dove parti?',
+      to: 'Dove sei diretto?',
+      date: 'Quando parti?'
     },
     footer: {
       rights: '© 2026 Tutti i diritti riservati',
       about: 'Chi siamo',
       contacts: 'Contatti',
-      terms: 'Termini e condizioni',
+      terms: 'Termini di servizio',
     },
     advantages: {
       badge: 'Vantaggi della Piattaforma',
-      title: 'Perché Scegliere',
+      title: 'Perché scegliere',
       titleAccent: 'BUSNET?',
       items: [
         {
           title: "60 Secondi",
-          subtitle: "per Prenotare",
-          desc: "Seleziona un percorso, un posto e inserisci il tuo nome. Niente moduli extra grazie all'autocompletamento AI."
+          subtitle: "per prenotare",
+          desc: "Scegli posto e inserisci il nominativo. Nessun modulo superfluo grazie all'AI."
         },
         {
-          title: "0% Acconto",
-          subtitle: "Paga all'Imbarco",
-          desc: "Nessun rischio. Paga l'autista o tramite Apple Pay direttamente sul bus."
+          title: "0% Anticipo",
+          subtitle: "Paga a bordo",
+          desc: "Zero rischi. Paga l'autista in contanti o con carta direttamente a bordo."
         },
         {
-          title: "Verificati",
-          subtitle: "Vettori",
-          desc: "Tutti i partner sono sottoposti a una verifica a più livelli e a una valutazione in tempo reale."
+          title: "Vettori",
+          subtitle: "verificati",
+          desc: "Tutti i partner superano controlli rigorosi e monitoraggio dei rating in tempo reale."
         },
         {
-          title: "Digitale",
-          subtitle: "Biglietto",
-          desc: "La tua carta d'imbarco è sempre nel tuo smartphone. Niente carta, solo QR o NFC."
+          title: "Biglietto",
+          subtitle: "digitale",
+          desc: "La carta d'imbarco è sempre nello smartphone. Niente carta: solo QR o NFC."
         },
         {
           title: "Sconti Smart",
-          subtitle: "per Tutte le Categorie",
-          desc: "Bambini -50%, Studenti -20%, Senior -30%. Calcolati automaticamente."
+          subtitle: "agevolazioni",
+          desc: "Bambini -50%, Studenti -20%, Senior 60+ -30%. Calcolati automaticamente."
         },
         {
-          title: "Supporto",
-          subtitle: "24/7 Online",
-          desc: "Agenti live e neuro-assistenti sempre disponibili. Risoluzione istantanea dei problemi."
+          title: "Assistenza",
+          subtitle: "24/7 online",
+          desc: "Operatori reali e assistenti neurali pronti a risolvere ogni dubbio all'istante."
         }
       ]
     },
     about: {
-      title: 'NON CI LIMITIAMO A',
-      titleAccent: 'TRASPORTARE.',
-      desc: 'Busnet UA è un ecosistema intelligente che collega le città attraverso reti neurali e analisi AI. Abbiamo selezionato i migliori vettori d\'Europa affinché il tuo viaggio inizi non dal terminal, ma dal primo clic.',
-      quote: '"La tecnologia è solo uno strumento. Il nostro obiettivo è il tuo comfort e la tua sicurezza in ogni chilometro."',
+      title: 'MOLTO PIÙ DI UN',
+      titleAccent: 'SEMPLICE VIAGGIO.',
+      desc: 'Busnet UA è un ecosistema intelligente che collega città europee attraverso reti neurali. Selezioniamo i vettori più affidabili affinché il viaggio cominci al meglio dal primo clic.',
+      quote: '"La tecnologia è uno strumento. Il nostro scopo è la vostra serenità ad ogni chilometro."',
       stats: [
         { label: 'Passeggeri', value: '100k+' },
-        { label: 'Paesi Europei', value: '15+' },
+        { label: 'Paesi UE', value: '15+' },
         { label: 'Affidabilità', value: '99.8%' },
         { label: 'Velocità AI', value: '0.3s' },
       ]
@@ -535,25 +731,25 @@ export const translations = {
       items: [
         {
           name: "Iryna S., Odessa",
-          text: "Splendido! Tutto veloce e confortevole. Lo consiglio vivamente! Viaggerò sicuramente di nuovo con voi. Servizio di alto livello!",
+          text: "Esperienza splendida! Puntuali, autobus pulitissimi. Viaggerò sicuramente di nuovo con voi!",
           route: "Kiev → Varsavia",
           img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&h=200&auto=format&fit=crop"
         },
         {
           name: "Dmytro P., Kropyvnytskyi",
-          text: "Autobus di classe premium, puliti, il Wi-Fi ha funzionato stabilmente per tutto il percorso. Autisti gentili e puntuali.",
+          text: "Autobus moderni con Wi-Fi stabile lungo tutto il tragitto. Autisti gentili e scrupolosi.",
           route: "Leopoli → Praga",
           img: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&h=200&auto=format&fit=crop"
         },
         {
           name: "Olena V., Dnipro",
-          text: "Supporto 24/7 sempre disponibile. Mi hanno aiutato a risolvere rapidamente un problema di prenotazione. Comodo e tranquillo!",
+          text: "Assistenza attiva 24 ore su 24. Mi hanno aiutato all'istante con una modifica di orario.",
           route: "Odessa → Berlino",
           img: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&h=200&auto=format&fit=crop"
         },
         {
           name: "Oleh N., Kharkiv",
-          text: "Biglietto digitale. Ho mostrato il codice QR dallo smartphone e sono partito. Il pagamento all'imbarco è quello che cercavo.",
+          text: "Biglietto digitale comodissimo: mostrato il QR dal telefono e salito subito a bordo. Ottimo!",
           route: "Leopoli → Vienna",
           img: "https://images.unsplash.com/photo-1552058544-f2b08422138a?q=80&w=200&h=200&auto=format&fit=crop"
         }
@@ -562,46 +758,49 @@ export const translations = {
     appEco: {
       title: 'IL TUO BIGLIETTO SEMPRE CON',
       titleAccent: 'BUSNET',
-      desc: "L'app mobile è l'ultimo passo del nostro ecosistema. Biglietto nello smartphone, supporto AI 24/7, monitoraggio bus in tempo reale e sicurezza verificata. Una seria piattaforma IT per il tuo prossimo viaggio.",
+      desc: 'L\'app mobile completa il servizio: pass digitale, supporto AI 24/7, tracking del pullman e massima sicurezza.',
       downloadStore: 'App Store',
       downloadStoreSub: 'Scarica su',
       downloadGoogle: 'Google Play',
       downloadGoogleSub: 'DISPONIBILE SU',
-      scanText: 'Scansiona per scaricare',
+      scanText: 'Inquadra per scaricare',
       phoneTitle: 'ECOSISTEMA',
       phoneLogo: 'BUSNET',
       ticketName: "Nome: Iryna Sydorenko",
-      ticketBus: "Autobus: BusNet Express",
-      ticketRoute: "Percorso: Kiev → Varsavia",
+      ticketBus: "Bus: BusNet Express",
+      ticketRoute: "Tratta: Kiev → Varsavia",
       ticketTime: "Partenza AI: 16.04.2026, 08:00",
-      qrTitle: 'CODICE QR AI PER IMBARCO',
+      qrTitle: 'QR CODE AI PER SALITA A BORDO',
       priceTitle: 'Prezzo (Verificato AI)',
-      price: '1200 UAH',
+      price: '€29',
       btnInstallPwa: 'Installazione PWA',
       btnInstalled: 'GIÀ INSTALLATO',
       btnInstallMain: 'INSTALLA APP',
       btnEcoSys: 'ECOSISTEMA',
       btnEcoModules: 'ALTRI MODULI',
       iosHintTitle: 'Installa su iPhone',
-      iosHintText: 'Apple non consente l\'installazione diretta. Per aggiungere <b>BUSNET</b> alla schermata Home, segui 2 passaggi:',
-      iosHintStep1: '1. Tocca il pulsante <b>"Condividi"</b> nella parte inferiore della barra di Safari',
-      iosHintStep2: '2. Seleziona <b>"Aggiungi alla schermata Home"</b> dall\'elenco',
+      iosHintText: 'Per aggiungere BUSNET alla schermata Home bastano 2 passaggi:',
+      iosHintStep1: '1. Tocca l\'icona "Condividi" in basso su Safari',
+      iosHintStep2: '2. Seleziona "Aggiungi a schermata Home"',
       iosHintGotIt: 'Ho capito',
       modulesModalTitle: 'Moduli dell\'ecosistema',
-      modulesModalText: 'BUSNET è una piattaforma unica di microservizi. Apri il link desiderato sul tuo telefono per installare la PWA:',
+      modulesModalText: 'BUSNET è una piattaforma unica. Apri questo indirizzo sul telefono per installare la PWA:',
     },
     confidence: {
       title: 'SICUREZZA E',
-      titleAccent: 'FIDUCIA',
+      titleAccent: 'AFFIDABILITÀ',
       items: [
-        { title: 'Assicurazione', desc: 'Ogni passeggero è assicurato per € 30.000 per l\'intero viaggio.', icon: 'shield' },
-        { title: 'Supporto 24/7', desc: 'I nostri agenti AI e operatori live sono pronti ad aiutarti in ogni momento.', icon: 'support' },
-        { title: 'Rimborsi', desc: 'Rimborso garantito in caso di cancellazione del viaggio con 24 ore di anticipo.', icon: 'refund' }
+        { title: 'Assicurazione', desc: 'Ogni passeggero è assicurato fino a €30.000 per tutta la tratta.', icon: 'shield' },
+        { title: 'Supporto 24/7', desc: 'Agenti AI e operatori umani pronti ad aiutarti in qualsiasi momento.', icon: 'support' },
+        { title: 'Rimborsi', desc: 'Rimborso garantito al 100% per cancellazioni effettuate con 24h di anticipo.', icon: 'refund' }
       ]
     },
     seo: {
-      title: 'Linee di autobus popolari in tutta Europa',
-      desc: 'Busnet UA offre i biglietti dell\'autobus più veloci ed economici dall\'Ucraina a Polonia, Italia, Germania e altri paesi dell\'UE. Grazie alla nostra esclusiva tecnologia di ricerca AI, puoi trovare il percorso ottimale da Kiev, Leopoli, Odessa e Dnipro a Varsavia, Berlino, Roma e Milano in pochi secondi. Prenota i biglietti online senza pagamento anticipato e goditi un viaggio confortevole con vettori verificati.'
+      title: 'Autobus per l\'Europa | Biglietti Online',
+      desc: 'Busnet UA offre collegamenti in pullman veloci ed economici tra Ucraina, Polonia, Italia, Germania e il resto d\'Europa. Algoritmi intelligenti per pianificare il viaggio perfetto in pochi secondi.'
     }
   }
 };
+
+// Backward-compatibility alias for UA
+translations.UA = translations.UK;

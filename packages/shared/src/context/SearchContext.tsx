@@ -1,5 +1,12 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { SearchParams } from '../types';
+import { formatISODate } from '../lib/dateUtils';
+
+/** Returns today's date in YYYY-MM-DD using local timezone (not UTC) */
+function getTodayLocalISO(): string {
+  const now = new Date();
+  return formatISODate(now.getFullYear(), now.getMonth() + 1, now.getDate());
+}
 
 interface SearchContextType {
   searchParams: SearchParams;
@@ -16,11 +23,10 @@ const SearchContext = createContext<SearchContextType | undefined>(undefined);
 
 export function SearchProvider({ children }: { children: ReactNode }) {
   const [searchParams, setSearchParamsState] = useState<SearchParams>(() => {
-    const today = new Date().toISOString().split('T')[0];
     return {
       from: '',
       to: '',
-      date: today
+      date: getTodayLocalISO(),
     };
   });
   const [triggerSearch, setTriggerSearch] = useState(false);

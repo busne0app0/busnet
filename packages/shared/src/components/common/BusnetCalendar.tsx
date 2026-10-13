@@ -1,309 +1,359 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Bus, Tag, MapPin } from 'lucide-react';
 import { useLanguage } from '@busnet/shared/context/LanguageContext';
-import { supabase } from '@busnet/shared/supabase/config';
+import { useCalendarSchedule, CalendarDayInfo } from '@busnet/shared/hooks/useCalendarSchedule';
+import { formatISODate, isPastDate } from '@busnet/shared/lib/dateUtils';
 
-interface BusnetCalendarProps {
-  selectedDate: string; // YYYY-MM-DD
+export interface BusnetCalendarProps {
+  selectedDate: string; // Формат: YYYY-MM-DD
   onSelect: (date: string) => void;
   tripContext?: { from: string; to: string };
   onClose?: () => void;
 }
 
-// ─── Day-of-week helper (UTC noon — same logic as useTrips.ts) ────────────────
-const UA_DAYS = ['НД', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ'] as const;
-
-function getUaDayOfWeek(dateString: string): string {
-  const date = new Date(dateString + 'T12:00:00Z');
-  return UA_DAYS[date.getUTCDay()];
-}
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface DayInfo {
-  count: number;
-  minPrice: number;
-  routes: string[];
-  amenities: string[];
-}
-
-const AMENITY_MAP: Record<string, string> = {
-  wifi: 'Wi-Fi', usb: 'USB', ac: 'Клімат',
-  toilet: 'WC', coffee: 'Кава', tv: 'TV',
+// Мультиязичні назви зручностей (UK / EN / IT)
+const AMENITY_LABELS: Record<string, Record<string, string>> = {
+  UK: { wifi: 'Wi-Fi', usb: 'USB', ac: 'Клімат', toilet: 'WC', coffee: 'Кава', tv: 'TV' },
+  EN: { wifi: 'Wi-Fi', usb: 'USB', ac: 'A/C', toilet: 'WC', coffee: 'Coffee', tv: 'TV' },
+  IT: { wifi: 'Wi-Fi', usb: 'USB', ac: 'Clima', toilet: 'WC', coffee: 'Caffè', tv: 'TV' },
 };
 
-const ICON = {
-  bus:   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><circle cx="7" cy="20" r="2"/><circle cx="17" cy="20" r="2"/><path d="M7 8h10M7 12h5"/></svg>,
-  tag:   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
-  map:   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>,
-  clock: <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-};
+/** Безпечний парсинг YYYY-MM-DD у локальний об'єкт Date без зсуву часових поясів */
+function parseLocalDate(dateString: string): Date {
+  if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    const fallback = new Date();
+    fallback.setHours(12, 0, 0, 0);
+    return fallback;
+  }
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+}
 
-export default function BusnetCalendar({ selectedDate, onSelect, tripContext, onClose }: BusnetCalendarProps) {
-  const { language, t } = useLanguage();
+interface GridCell {
+  day: number;
+  monthOffset: -1 | 0 | 1; // -1: prev month, 0: current month, 1: next month
+  date: string;
+  isToday: boolean;
+  isPast: boolean;
+  trip: CalendarDayInfo | null;
+  key: string;
+}
 
-  const [currentDate, setCurrentDate] = useState(() => {
-    const d = selectedDate ? new Date(selectedDate) : new Date();
-    d.setHours(12, 0, 0, 0);
-    return d;
-  });
+export default function BusnetCalendar({
+  selectedDate,
+  onSelect,
+  tripContext,
+  onClose,
+}: BusnetCalendarProps) {
+  const { language = 'UK', t } = useLanguage();
+  const currentLang = (language?.toUpperCase() === 'EN' ? 'EN' : language?.toUpperCase() === 'IT' ? 'IT' : 'UK') as 'UK' | 'EN' | 'IT';
+  const amenityMap = AMENITY_LABELS[currentLang] || AMENITY_LABELS.UK;
+  const calText = t.calendar;
 
-  const [monthTrips, setMonthTrips] = useState<Record<number, DayInfo>>({});
-  const [loading, setLoading] = useState(false);
+  // Ініціалізація року та місяця без зсуву по таймзоні
+  const initDate = useMemo(() => {
+    const d = parseLocalDate(selectedDate);
+    return { year: d.getFullYear(), month: d.getMonth() };
+  }, [selectedDate]);
+
+  const [viewYear, setViewYear] = useState<number>(initDate.year);
+  const [viewMonth, setViewMonth] = useState<number>(initDate.month);
   const [tooltip, setTooltip] = useState<{ day: number; x: number; y: number } | null>(null);
+
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const curYear  = currentDate.getFullYear();
-  const curMonth = currentDate.getMonth();
-
-  const MONTHS_UK = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
-  const MONTHS_GEN = ['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
-  const weekdays = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'НД'];
-
-  const plural = (n: number, forms: [string, string, string]) => {
-    const cases = [2, 0, 1, 1, 1, 2];
-    return forms[(n % 100 > 4 && n % 100 < 20) ? 2 : cases[(n % 10 < 5) ? n % 10 : 5]];
-  };
-
-  // ─── Fetch routes from Supabase and compute which days have trips ─────────
+  // Синхронізація місяця при зовнішній зміні selectedDate (пункт 2 аудиту)
   useEffect(() => {
-    const fetchMonthData = async () => {
-      setLoading(true);
+    if (selectedDate && /^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
+      const d = parseLocalDate(selectedDate);
+      setViewYear(d.getFullYear());
+      setViewMonth(d.getMonth());
+    }
+  }, [selectedDate]);
 
-      try {
-        // Pull all active routes
-        const { data: routes, error } = await supabase
-          .from('routes')
-          .select('id, name, outbound, amenities, currency')
-          .eq('status', 'active');
-
-        if (error) throw error;
-        if (!routes || routes.length === 0) {
-          setMonthTrips({});
-          return;
-        }
-
-        const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate();
-        const data: Record<number, DayInfo> = {};
-
-        // For each day in the displayed month, check which routes run on that day
-        for (let d = 1; d <= daysInMonth; d++) {
-          const iso = `${curYear}-${String(curMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-          const uaDay = getUaDayOfWeek(iso);
-
-          for (const route of routes) {
-            const stops: any[] = route.outbound?.stops ?? [];
-            const days: string[] = route.outbound?.days ?? [];
-
-            // Must run on this weekday
-            if (!days.includes(uaDay)) continue;
-
-            const from = tripContext?.from?.trim().toLowerCase() ?? '';
-            const to   = tripContext?.to?.trim().toLowerCase() ?? '';
-
-            let fromIdx = -1;
-            let toIdx   = -1;
-
-            if (from) fromIdx = stops.findIndex(s => s.city?.toLowerCase().includes(from));
-            if (to)   toIdx   = stops.findIndex(s => s.city?.toLowerCase().includes(to));
-
-            // If search context given — both cities must be present in correct order
-            if (from && to) {
-              if (fromIdx === -1 || toIdx === -1 || fromIdx >= toIdx) continue;
-            } else if (from) {
-              if (fromIdx === -1) continue;
-            } else if (to) {
-              if (toIdx === -1) continue;
-            }
-
-            // Determine price: use fromStop price if available, else first priced stop
-            const priceStop = fromIdx !== -1 ? stops[fromIdx] : stops.find(s => s.price > 0);
-            const price: number = priceStop?.price ?? 0;
-
-            // Route label
-            const firstStop = stops[0]?.city ?? '';
-            const lastStop  = stops[stops.length - 1]?.city ?? '';
-            const routeStr  = `${firstStop} → ${lastStop}`;
-
-            if (!data[d]) {
-              data[d] = { count: 0, minPrice: Infinity, routes: [], amenities: [] };
-            }
-
-            data[d].count += 1;
-            if (price > 0) data[d].minPrice = Math.min(data[d].minPrice, price);
-            if (!data[d].routes.includes(routeStr)) data[d].routes.push(routeStr);
-
-            const amenities: string[] = route.amenities ?? [];
-            amenities.forEach(a => {
-              if (!data[d].amenities.includes(a)) data[d].amenities.push(a);
-            });
-          }
-
-          // Clean up Infinity
-          if (data[d] && data[d].minPrice === Infinity) data[d].minPrice = 0;
-        }
-
-        setMonthTrips(data);
-      } catch (err) {
-        console.error('[BusnetCalendar] Error fetching calendar data:', err);
-      } finally {
-        setLoading(false);
+  // Закриття календаря клавішею Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
       }
     };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
-    fetchMonthData();
-  }, [curYear, curMonth, tripContext?.from, tripContext?.to]);
+  // Отримання розкладу через ізольований хук з кешуванням та AbortController
+  const { monthTrips, loading } = useCalendarSchedule({
+    year: viewYear,
+    month: viewMonth,
+    from: tripContext?.from,
+    to: tripContext?.to,
+  });
 
-  // ─── Grid cells ───────────────────────────────────────────────────────────
-  const daysInMonth     = new Date(curYear, curMonth + 1, 0).getDate();
-  const firstDayOfMonth = new Date(curYear, curMonth, 1).getDay();
-  const offset          = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
-  const daysInPrevMonth = new Date(curYear, curMonth, 0).getDate();
+  // Сьогоднішня дата в ISO
+  const todayNow = new Date();
+  const todayIso = formatISODate(
+    todayNow.getFullYear(),
+    todayNow.getMonth() + 1,
+    todayNow.getDate()
+  );
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Перемикання місяців
+  const handlePrevMonth = useCallback(() => {
+    setViewMonth((prev) => {
+      if (prev === 0) {
+        setViewYear((y) => y - 1);
+        return 11;
+      }
+      return prev - 1;
+    });
+    setTooltip(null);
+  }, []);
 
-  const cells = useMemo(() => {
-    const items: any[] = [];
+  const handleNextMonth = useCallback(() => {
+    setViewMonth((prev) => {
+      if (prev === 11) {
+        setViewYear((y) => y + 1);
+        return 0;
+      }
+      return prev + 1;
+    });
+    setTooltip(null);
+  }, []);
 
-    for (let i = 0; i < offset; i++) {
-      items.push({ day: daysInPrevMonth - offset + 1 + i, type: 'other', key: `prev-${i}` });
+  // Кнопка «СЬОГОДНІ» обирає сьогоднішню дату
+  const handleSelectToday = useCallback(() => {
+    setViewYear(todayNow.getFullYear());
+    setViewMonth(todayNow.getMonth());
+    onSelect(todayIso);
+    if (onClose) onClose();
+  }, [todayIso, onSelect, onClose]);
+
+  // Генерація клітинок сітки календаря
+  const cells: GridCell[] = useMemo(() => {
+    const items: GridCell[] = [];
+    const daysInCurrentMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
+
+    // Зміщення дня тижня (Понеділок = 0, Неділя = 6)
+    const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+    const startOffset = (firstDay + 6) % 7;
+
+    // Дні попереднього місяця
+    const prevYear = viewMonth === 0 ? viewYear - 1 : viewYear;
+    const prevMonthNum = viewMonth === 0 ? 12 : viewMonth;
+    for (let i = 0; i < startOffset; i++) {
+      const dayNum = daysInPrevMonth - startOffset + 1 + i;
+      const dateStr = formatISODate(prevYear, prevMonthNum, dayNum);
+      items.push({
+        day: dayNum,
+        monthOffset: -1,
+        date: dateStr,
+        isToday: dateStr === todayIso,
+        isPast: isPastDate(dateStr),
+        trip: null,
+        key: `prev-${dayNum}`,
+      });
     }
 
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dateStr = `${curYear}-${String(curMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const dt = new Date(curYear, curMonth, d);
-      dt.setHours(0, 0, 0, 0);
+    // Дні поточного місяця
+    for (let d = 1; d <= daysInCurrentMonth; d++) {
+      const dateStr = formatISODate(viewYear, viewMonth + 1, d);
       items.push({
-        day: d, type: 'current', date: dateStr,
-        isToday: dt.getTime() === today.getTime(),
+        day: d,
+        monthOffset: 0,
+        date: dateStr,
+        isToday: dateStr === todayIso,
+        isPast: isPastDate(dateStr),
         trip: monthTrips[d] || null,
         key: `curr-${d}`,
       });
     }
 
-    const total = offset + daysInMonth;
-    const tail  = total % 7 === 0 ? 0 : 7 - (total % 7);
-    for (let i = 1; i <= tail; i++) {
-      items.push({ day: i, type: 'other', key: `next-${i}` });
+    // Дні наступного місяця
+    const totalRendered = startOffset + daysInCurrentMonth;
+    const tailCount = totalRendered % 7 === 0 ? 0 : 7 - (totalRendered % 7);
+    const nextYear = viewMonth === 11 ? viewYear + 1 : viewYear;
+    const nextMonthNum = viewMonth === 11 ? 1 : viewMonth + 2;
+    for (let i = 1; i <= tailCount; i++) {
+      const dateStr = formatISODate(nextYear, nextMonthNum, i);
+      items.push({
+        day: i,
+        monthOffset: 1,
+        date: dateStr,
+        isToday: dateStr === todayIso,
+        isPast: isPastDate(dateStr),
+        trip: null,
+        key: `next-${i}`,
+      });
     }
 
     return items;
-  }, [curYear, curMonth, monthTrips, offset, daysInMonth, daysInPrevMonth]);
+  }, [viewYear, viewMonth, monthTrips, todayIso]);
 
-  const onDayClick = (date: string) => {
-    onSelect(date);
+  const onCellClick = (cell: GridCell) => {
+    // Минулі дати недоступні для вибору
+    if (cell.isPast) return;
+
+    if (cell.monthOffset === -1) {
+      handlePrevMonth();
+    } else if (cell.monthOffset === 1) {
+      handleNextMonth();
+    }
+
+    onSelect(cell.date);
     if (onClose) onClose();
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────
-  return (
-    <div className="cal-wrapper select-none w-full max-w-[340px] sm:max-w-[420px]" ref={containerRef}>
-      <div className="bg-[#0e1420] border border-white/10 rounded-[24px] p-5 shadow-[0_24px_48px_rgba(0,0,0,0.5)] overflow-hidden relative backdrop-blur-3xl">
+  // safeX обчислюється тут одразу, щоб JSX залишався чистим (без IIFE-антипатерну)
+  const handleCellHover = (e: React.MouseEvent<HTMLButtonElement>, cell: GridCell) => {
+    if (cell.monthOffset !== 0 || !cell.trip) {
+      setTooltip(null);
+      return;
+    }
 
+    const container = containerRef.current;
+    if (!container) return;
+
+    const cellRect = e.currentTarget.getBoundingClientRect();
+    const contRect = container.getBoundingClientRect();
+
+    const rawX = cellRect.left - contRect.left + cellRect.width / 2;
+    const halfTooltip = 115; // половина ширини w-[230px]
+    const safeX = Math.max(halfTooltip + 8, Math.min(rawX, contRect.width - halfTooltip - 8));
+
+    setTooltip({
+      day: cell.day,
+      x: safeX,
+      y: cellRect.top - contRect.top + cellRect.height + 8,
+    });
+  };
+
+  const daysWithTripsCount = Object.keys(monthTrips).length;
+
+  return (
+    <div
+      className="cal-wrapper select-none w-full max-w-[340px] sm:max-w-[420px] focus:outline-none"
+      ref={containerRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Календар вибору дати"
+    >
+      <div className="bg-[#0e1420]/95 border border-white/10 rounded-[24px] p-4 sm:p-5 shadow-[0_24px_50px_rgba(0,0,0,0.7)] overflow-hidden relative backdrop-blur-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
           <div className="flex flex-col gap-0.5">
-            <div className="text-white font-black text-lg sm:text-xl uppercase tracking-tight font-sans italic">
-              {MONTHS_UK[curMonth]} {curYear}
-            </div>
-            <div className="text-slate-500 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan shadow-[0_0_8px_#00D4FF]" />
+            <h2 className="text-white font-black text-lg sm:text-xl uppercase tracking-tight font-sans italic">
+              {calText.months[viewMonth]} {viewYear}
+            </h2>
+            <div className="text-slate-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan shadow-[0_0_8px_#00D4FF]" aria-hidden="true" />
               {loading
-                ? 'Завантаження...'
-                : `${Object.keys(monthTrips).length} ${plural(Object.keys(monthTrips).length, ['день', 'дні', 'днів'])} з рейсами`
-              }
+                ? calText.loading
+                : calText.daysWithTrips(daysWithTripsCount)}
             </div>
           </div>
-          <div className="flex gap-2">
+
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
-              onClick={() => setCurrentDate(new Date(curYear, curMonth - 1, 15))}
-              className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-95"
+              type="button"
+              onClick={handlePrevMonth}
+              aria-label="Попередній місяць"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-neon-cyan"
             >
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              <ChevronLeft size={18} aria-hidden="true" />
             </button>
             <button
-              onClick={() => setCurrentDate(new Date())}
-              className="px-3 h-10 rounded-xl bg-neon-cyan/10 border border-neon-cyan/20 flex items-center justify-center text-neon-cyan text-[10px] font-black uppercase tracking-widest hover:bg-neon-cyan/20 transition-all active:scale-95"
+              type="button"
+              onClick={handleSelectToday}
+              aria-label="Обрати сьогоднішню дату"
+              className="px-2.5 sm:px-3 h-9 sm:h-10 rounded-xl bg-neon-cyan/10 border border-neon-cyan/30 flex items-center justify-center text-neon-cyan text-[10px] font-black uppercase tracking-widest hover:bg-neon-cyan/20 transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-neon-cyan"
             >
               {t?.search?.today || 'СЬОГОДНІ'}
             </button>
             <button
-              onClick={() => setCurrentDate(new Date(curYear, curMonth + 1, 15))}
-              className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-95"
+              type="button"
+              onClick={handleNextMonth}
+              aria-label="Наступний місяць"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-neon-cyan"
             >
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              <ChevronRight size={18} aria-hidden="true" />
             </button>
           </div>
         </div>
 
         {/* Weekdays */}
         <div className="grid grid-cols-7 mb-2">
-          {weekdays.map(wd => (
-            <div key={wd} className="text-center text-[10px] font-black text-slate-600 tracking-widest py-2">
+          {calText.weekdays.map((wd) => (
+            <div
+              key={wd}
+              className="text-center text-[10px] font-black text-slate-500 tracking-widest py-1.5"
+            >
               {wd}
             </div>
           ))}
         </div>
 
-        {/* Grid */}
+        {/* Grid Container */}
         <div className="grid grid-cols-7 gap-1 relative">
           <AnimatePresence mode="wait">
             <motion.div
-              key={`${curYear}-${curMonth}`}
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              transition={{ duration: 0.2 }}
+              key={`${viewYear}-${viewMonth}`}
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.15 }}
               className="grid grid-cols-7 gap-1 col-span-7"
             >
               {cells.map((cell) => {
                 const isSelected = selectedDate === cell.date;
-                const hasTrip    = !!cell.trip;
+                const hasTrip = !!cell.trip && cell.trip.count > 0;
+                const isOtherMonth = cell.monthOffset !== 0;
 
                 return (
-                  <div
+                  <button
                     key={cell.key}
-                    onMouseEnter={(e) => {
-                      if (cell.trip) {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const containerRect = containerRef.current?.getBoundingClientRect();
-                        if (containerRect) {
-                          setTooltip({
-                            day: cell.day!,
-                            x: rect.left - containerRect.left + rect.width / 2,
-                            y: rect.top - containerRect.top + rect.height + 8,
-                          });
-                        }
-                      }
-                    }}
+                    type="button"
+                    disabled={cell.isPast}
+                    onMouseEnter={(e) => handleCellHover(e, cell)}
                     onMouseLeave={() => setTooltip(null)}
-                    onClick={() => cell.date && onDayClick(cell.date)}
+                    onClick={() => onCellClick(cell)}
+                    aria-label={`${cell.day} ${calText.monthsGenitive[viewMonth]} ${cell.isPast ? '(минула дата)' : ''} ${hasTrip ? `, знайдено ${cell.trip?.count} рейсів` : ''}`}
+                    aria-selected={isSelected}
+                    aria-disabled={cell.isPast}
                     className={`
-                      relative aspect-square flex items-center justify-center rounded-xl cursor-default transition-all group overflow-visible
-                      ${cell.type === 'other' ? 'opacity-20 pointer-events-none' : ''}
-                      ${hasTrip ? 'cursor-pointer hover:scale-110 z-10' : ''}
-                      ${cell.isToday && !isSelected ? 'bg-neon-cyan/5 border border-neon-cyan/20' : ''}
-                      ${isSelected ? 'bg-neon-cyan border border-neon-cyan shadow-[0_0_20px_rgba(0,212,255,0.4)] scale-105 z-20' : ''}
-                      ${hasTrip && !isSelected ? 'hover:bg-white/5' : ''}
+                      relative aspect-square flex items-center justify-center rounded-xl transition-all group overflow-visible focus-visible:ring-2 focus-visible:ring-neon-cyan focus-visible:z-30 outline-none
+                      ${cell.isPast ? 'opacity-25 cursor-not-allowed text-slate-600' : 'cursor-pointer'}
+                      ${isOtherMonth && !cell.isPast ? 'opacity-40 hover:opacity-80' : ''}
+                      ${hasTrip && !cell.isPast ? 'hover:scale-105 z-10' : ''}
+                      ${cell.isToday && !isSelected ? 'bg-neon-cyan/5 border border-neon-cyan/30' : ''}
+                      ${isSelected ? 'bg-neon-cyan text-slate-950 font-black border border-neon-cyan shadow-[0_0_20px_rgba(0,212,255,0.4)] scale-105 z-20' : ''}
+                      ${hasTrip && !isSelected && !cell.isPast ? 'hover:bg-white/10' : ''}
                     `}
                   >
-                    <span className={`
-                      text-sm font-black italic
-                      ${cell.type === 'other' ? 'text-slate-500' : 'text-slate-300'}
-                      ${hasTrip && !isSelected ? 'text-neon-cyan' : ''}
-                      ${cell.isToday && !isSelected ? 'text-white' : ''}
-                      ${isSelected ? 'text-white' : ''}
-                    `}>
+                    <span
+                      className={`
+                        text-xs sm:text-sm font-black italic
+                        ${isSelected ? 'text-slate-950' : ''}
+                        ${!isSelected && hasTrip ? 'text-neon-cyan' : ''}
+                        ${!isSelected && !hasTrip && !isOtherMonth && !cell.isPast ? 'text-slate-300' : ''}
+                        ${isOtherMonth && !isSelected ? 'text-slate-500' : ''}
+                      `}
+                    >
                       {cell.day}
                     </span>
 
                     {/* Dot indicator */}
-                    <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-0.5">
-                      {hasTrip && <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-neon-cyan'}`} />}
-                      {cell.isToday && !hasTrip && <div className="w-1 h-1 rounded-full bg-slate-500" />}
-                    </div>
-                  </div>
+                    {hasTrip && !cell.isPast && (
+                      <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
+                        <div
+                          className={`w-1 h-1 rounded-full ${isSelected ? 'bg-slate-950' : 'bg-neon-cyan shadow-[0_0_4px_#00D4FF]'}`}
+                          aria-hidden="true"
+                        />
+                      </div>
+                    )}
+                  </button>
                 );
               })}
             </motion.div>
@@ -311,91 +361,86 @@ export default function BusnetCalendar({ selectedDate, onSelect, tripContext, on
         </div>
 
         {/* Legend */}
-        <div className="mt-6 pt-4 border-t border-white/5 flex flex-wrap gap-4">
-          <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-            <div className="w-2 h-2 rounded-full bg-neon-cyan shadow-[0_0_5px_#00D4FF]" />
-            Рейси доступні
+        <div className="mt-4 pt-3 border-t border-white/5 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            <div className="w-2 h-2 rounded-full bg-neon-cyan shadow-[0_0_5px_#00D4FF]" aria-hidden="true" />
+            {calText.availableTrips}
           </div>
-          <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-            <div className="w-2 h-2 rounded-full bg-white/5 border border-white/20" />
-            Немає рейсів
+          <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+            <div className="w-2 h-2 rounded-full bg-white/10 border border-white/20" aria-hidden="true" />
+            {calText.noTrips}
           </div>
         </div>
 
-        {/* Tooltip */}
+        {/* Dynamic Tooltip — координати вже обчислені в handleCellHover */}
         <AnimatePresence>
           {tooltip && monthTrips[tooltip.day] && (
             <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              initial={{ opacity: 0, y: 6, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 5, scale: 0.95 }}
-              style={{ left: tooltip.x, top: tooltip.y, transform: 'translateX(-50%)' }}
-              className="absolute z-[100] w-[220px] bg-[#0a0f1a] border border-white/10 rounded-2xl p-4 shadow-2xl backdrop-blur-2xl pointer-events-none"
+              exit={{ opacity: 0, y: 4, scale: 0.95 }}
+              style={{
+                left: tooltip.x,
+                top: tooltip.y,
+                transform: 'translateX(-50%)',
+              }}
+              className="absolute z-[100] w-[230px] bg-[#0a0f1a]/98 border border-neon-cyan/30 rounded-2xl p-3.5 shadow-2xl backdrop-blur-2xl pointer-events-none"
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-2.5">
                 <div className="text-white font-black text-sm italic tracking-tight">
-                  {tooltip.day} {MONTHS_GEN[curMonth]}
+                  {tooltip.day} {calText.monthsGenitive[viewMonth]}
                 </div>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-neon-cyan/10 border border-neon-cyan/20">
-                  <div className="w-1 h-1 rounded-full bg-neon-cyan animate-pulse" />
+                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-neon-cyan/10 border border-neon-cyan/20">
+                  <div className="w-1 h-1 rounded-full bg-neon-cyan animate-pulse" aria-hidden="true" />
                   <span className="text-neon-cyan text-[8px] font-black uppercase tracking-wider">ACTIVE</span>
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2 text-xs">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5 text-[#5a6a85]">
-                    <span className="text-neon-cyan/60">{ICON.bus}</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest">Рейсів знайдено</span>
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <Bus size={12} className="text-neon-cyan" aria-hidden="true" />
+                    <span className="text-[9px] font-black uppercase tracking-widest">{calText.tripsFound}</span>
                   </div>
-                  <div className="text-white font-black text-xs italic">{monthTrips[tooltip.day].count}</div>
+                  <div className="text-white font-black italic">{monthTrips[tooltip.day].count}</div>
                 </div>
 
                 {monthTrips[tooltip.day].minPrice > 0 && (
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5 text-[#5a6a85]">
-                      <span className="text-neon-cyan/60">{ICON.tag}</span>
-                      <span className="text-[9px] font-black uppercase tracking-widest">Найнижча ціна</span>
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <Tag size={12} className="text-emerald-400" aria-hidden="true" />
+                      <span className="text-[9px] font-black uppercase tracking-widest">{calText.lowestPrice}</span>
                     </div>
-                    <div className="text-emerald-400 font-black text-xs italic">
-                      {monthTrips[tooltip.day].minPrice} ГРН
+                    <div className="text-emerald-400 font-black italic">
+                      {monthTrips[tooltip.day].minPrice} {monthTrips[tooltip.day].currency}
                     </div>
                   </div>
                 )}
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5 text-[#5a6a85]">
-                    <span className="text-neon-cyan/60">{ICON.map}</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest">Маршрут</span>
-                  </div>
-                  <div className="text-white/80 font-bold text-[9px] italic truncate max-w-[80px]">
-                    {monthTrips[tooltip.day].routes[0]?.split(' → ')[0] || '-'}
-                  </div>
-                </div>
-
-                {monthTrips[tooltip.day].routes.length > 1 && (
-                  <>
-                    <div className="h-px bg-white/5 my-2" />
-                    <div className="flex flex-wrap gap-1.5">
-                      {monthTrips[tooltip.day].routes.slice(1, 4).map((r, i) => (
-                        <span key={i} className="px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-[8px] font-bold text-slate-400">
-                          {r}
-                        </span>
-                      ))}
-                      {monthTrips[tooltip.day].routes.length > 4 && (
-                        <span className="text-[8px] font-black text-neon-cyan uppercase">
-                          +{monthTrips[tooltip.day].routes.length - 4} MORE
-                        </span>
-                      )}
+                {monthTrips[tooltip.day].routes.length > 0 && (
+                  <div className="pt-1 border-t border-white/5">
+                    <div className="text-slate-400 text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                      <MapPin size={10} className="text-neon-cyan" aria-hidden="true" /> {calText.route}
                     </div>
-                  </>
+                    <div className="text-white/90 font-bold text-[10px] italic leading-tight break-words">
+                      {monthTrips[tooltip.day].routes[0]}
+                    </div>
+                    {monthTrips[tooltip.day].routes.length > 1 && (
+                      <div className="text-[8px] font-bold text-neon-cyan mt-1">
+                        {calText.moreRoutes(monthTrips[tooltip.day].routes.length - 1)}
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {monthTrips[tooltip.day].amenities.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {monthTrips[tooltip.day].amenities.slice(0, 4).map((a, i) => (
-                      <span key={i} className="px-1.5 py-0.5 rounded-md bg-neon-cyan/5 text-neon-cyan text-[8px] font-bold uppercase border border-neon-cyan/10">
-                        {AMENITY_MAP[a] || a}
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {monthTrips[tooltip.day].amenities.slice(0, 4).map((a) => (
+                      <span
+                        key={a}
+                        className="px-1.5 py-0.5 rounded-md bg-neon-cyan/5 text-neon-cyan text-[8px] font-bold uppercase border border-neon-cyan/15"
+                      >
+                        {amenityMap[a] || a}
                       </span>
                     ))}
                   </div>
@@ -408,4 +453,3 @@ export default function BusnetCalendar({ selectedDate, onSelect, tripContext, on
     </div>
   );
 }
-

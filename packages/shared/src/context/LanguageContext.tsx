@@ -1,14 +1,12 @@
 import React, { createContext, useContext, ReactNode, useEffect } from 'react';
 import { useTranslation, I18nextProvider } from 'react-i18next';
-import { Language, translations } from '@busnet/shared/constants/translations';
+import { Language, translations, TranslationSchema } from '@busnet/shared/constants/translations';
 import i18n from '../i18n';
 
 interface LanguageContextType {
   language: Language;
-  setLanguage: (lang: Language) => void;
-  // Keep the old object for backward compatibility for now
-  t: typeof translations.UA;
-  // Also expose the new i18n translation function
+  setLanguage: (lang: Language | 'UA') => void;
+  t: TranslationSchema;
   i18nT: any;
 }
 
@@ -17,11 +15,16 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const { t: i18nT, i18n: i18nInstance } = useTranslation();
 
-  // Make sure to sync if language changes externally.
-  // i18next-browser-languagedetector might init to 'en-US' or something else, 
-  // we normalize it to 'UA', 'EN', 'IT'.
+  // Normalize language: 'UK' (or legacy 'UA'), 'EN', 'IT'
   const rawLang = i18nInstance.language?.toUpperCase().substring(0, 2);
-  const normalizedLang = (['UA', 'EN', 'IT'].includes(rawLang) ? rawLang : 'UA') as Language;
+  let normalizedLang: Language = 'UK';
+  if (rawLang === 'EN') {
+    normalizedLang = 'EN';
+  } else if (rawLang === 'IT') {
+    normalizedLang = 'IT';
+  } else {
+    normalizedLang = 'UK';
+  }
 
   useEffect(() => {
     if (i18nInstance.language !== normalizedLang && !i18nInstance.language.startsWith(normalizedLang.toLowerCase())) {
@@ -29,15 +32,16 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }
   }, [i18nInstance, normalizedLang]);
 
-  const setLanguage = (lang: Language) => {
-    i18nInstance.changeLanguage(lang);
+  const setLanguage = (lang: Language | 'UA') => {
+    const targetLang: Language = lang === 'UA' ? 'UK' : lang;
+    i18nInstance.changeLanguage(targetLang);
   };
 
   const value = {
     language: normalizedLang,
     setLanguage,
-    t: translations[normalizedLang] || translations.UA, // old API
-    i18nT // new API
+    t: translations[normalizedLang] || translations.UK,
+    i18nT,
   };
 
   return (

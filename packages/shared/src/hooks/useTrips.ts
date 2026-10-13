@@ -2,43 +2,81 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@busnet/shared/supabase/config';
 import { Trip } from '../busnet/types';
 import { SearchParams } from '../types';
+import { getUaDayOfWeek, formatISODate } from '../lib/dateUtils';
+import { isCityMatch } from '../lib/cityUtils';
 
-// ─── Day-of-week helper ───────────────────────────────────────────────────────
-const UA_DAYS = ['НД', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ'] as const;
+export interface RouteStop {
+  id?: string;
+  city: string;
+  time?: string;
+  price?: number;
+  address?: string;
+}
 
-function getUaDayOfWeek(dateString: string): string {
-  const date = new Date(dateString + 'T12:00:00Z');
-  return UA_DAYS[date.getUTCDay()];
+export interface RouteDirection {
+  stops?: RouteStop[];
+  days?: string[];
+}
+
+export interface DatabaseRoute {
+  id: string;
+  name?: string;
+  carrier_id?: string;
+  carrierId?: string;
+  operator?: string;
+  carrier_name?: string;
+  status?: string;
+  currency?: string;
+  seats?: number;
+  busInfo?: string;
+  amenities?: string[];
+  outbound?: RouteDirection;
+  inbound?: RouteDirection;
+  pricesThere?: Record<string, number>;
+  pricesBack?: Record<string, number>;
 }
 
 // ─── Route → Trip adapter ─────────────────────────────────────────────────────
-function routeToTrip(route: any, fromStop: any, toStop: any, date: string): Trip {
-  // БАГ 2 ФІКС: seatsBooked не існує в таблиці routes → завжди 0
+function routeToTrip(
+  route: DatabaseRoute,
+  fromStop: RouteStop,
+  toStop: RouteStop,
+  date: string,
+  segmentPrice?: number
+): Trip {
   const seatsTotal: number = route.seats ?? 50;
-  const seatsBooked: number = 0; // routes не має цього поля
-  const availableSeats: number = seatsTotal - seatsBooked; // завжди число, ніколи NaN
+  const seatsBooked: number = 0;
+  const availableSeats: number = seatsTotal - seatsBooked;
 
-  // БАГ 1 ФІКС: якщо fromStop.price = 0 (проміжна зупинка без ціни),
-  // беремо першу зупинку з ціною > 0
-  const allStops: any[] = route.outbound?.stops ?? [];
-  const fallbackPrice = allStops.find((s: any) => (s.price ?? 0) > 0)?.price ?? 0;
-  const price: number = (fromStop.price ?? 0) > 0 ? fromStop.price : fallbackPrice;
+  const allStops: RouteStop[] = route.outbound?.stops ?? [];
+  let finalPrice = segmentPrice ?? 0;
+
+  if (finalPrice <= 0) {
+    if ((toStop.price ?? 0) > 0) {
+      finalPrice = toStop.price!;
+    } else if ((fromStop.price ?? 0) > 0) {
+      finalPrice = fromStop.price!;
+    } else {
+      const fallbackPrice = allStops.find((s) => (s.price ?? 0) > 0)?.price ?? 0;
+      finalPrice = fallbackPrice;
+    }
+  }
 
   return {
-    id: `${route.id}_${fromStop.id ?? 'start'}_${toStop.id ?? 'end'}_${date}`,
-    carrierId: route.carrier_id ?? route.carrierId,
+    id: `${route.id}_${fromStop.id ?? fromStop.city}_${toStop.id ?? toStop.city}_${date}`,
+    carrierId: route.carrier_id ?? route.carrierId ?? '',
     carrierName: route.operator ?? route.carrier_name ?? 'Перевізник',
     from: fromStop.city,
     to: toStop.city,
     routeId: route.id,
-    name: route.name,
-    operator: route.operator,
+    name: route.name ?? `${fromStop.city} - ${toStop.city}`,
+    operator: route.operator ?? 'Перевізник',
     departureCity: fromStop.city,
     arrivalCity: toStop.city,
     departureDate: date,
-    departureTime: fromStop.time,
-    arrivalTime: toStop.time,
-    price,
+    departureTime: fromStop.time ?? '00:00',
+    arrivalTime: toStop.time ?? '00:00',
+    price: finalPrice,
     currency: route.currency ?? 'ГРН',
     availableSeats,
     totalSeats: seatsTotal,
@@ -46,36 +84,65 @@ function routeToTrip(route: any, fromStop: any, toStop: any, date: string): Trip
     seatsBooked,
     busInfo: route.busInfo ?? 'Комфортабельний автобус',
     amenities: route.amenities ?? [],
-    status: route.status,
+    status: (route.status as any) ?? 'active',
     stops: allStops,
   } as Trip;
 }
 
-// ─── Core client-side filter ──────────────────────────────────────────────────
+// ─── Core client-side filter with Inbound & Outbound support (items 8, 16) ────
 function filterRoutes(
-  routes: any[],
+  routes: DatabaseRoute[],
   from: string,
   to: string,
   uaDay: string
 ): Trip[] {
   const results: Trip[] = [];
 
+  const checkDirection = (
+    route: DatabaseRoute,
+    dir: RouteDirection | undefined,
+    pricesMap: Record<string, number> | undefined
+  ) => {
+    if (!dir || !dir.stops || !dir.days) return;
+    if (uaDay && !dir.days.includes(uaDay)) return;
+
+    const stops = dir.stops;
+    if (stops.length < 2) return;
+
+    let fromIdx = -1;
+    let toIdx = -1;
+
+    if (from) {
+      fromIdx = stops.findIndex((s) => isCityMatch(s.city, from));
+    }
+    if (to) {
+      toIdx = stops.findIndex((s) => isCityMatch(s.city, to));
+    }
+
+    if (from && to) {
+      if (fromIdx === -1 || toIdx === -1 || fromIdx >= toIdx) return;
+    } else if (from) {
+      if (fromIdx === -1) return;
+      toIdx = stops.length - 1;
+    } else if (to) {
+      if (toIdx === -1) return;
+      fromIdx = 0;
+    }
+
+    let segmentPrice: number | undefined;
+    if (fromIdx !== -1 && toIdx !== -1 && pricesMap) {
+      segmentPrice = pricesMap[`${fromIdx}-${toIdx}`];
+    }
+
+    results.push(routeToTrip(route, stops[fromIdx], stops[toIdx], '', segmentPrice));
+  };
+
   for (const route of routes) {
-    const stops: any[] = route.outbound?.stops ?? [];
-    const days: string[] = route.outbound?.days ?? [];
+    // 1. Check outbound
+    checkDirection(route, route.outbound, route.pricesThere);
 
-    if (uaDay && !days.includes(uaDay)) continue;
-
-    const fromIdx = stops.findIndex(s =>
-      s.city?.toLowerCase().includes(from.toLowerCase())
-    );
-    const toIdx = stops.findIndex(s =>
-      s.city?.toLowerCase().includes(to.toLowerCase())
-    );
-
-    if (fromIdx === -1 || toIdx === -1 || (from && to && fromIdx >= toIdx)) continue;
-
-    results.push(routeToTrip(route, stops[fromIdx], stops[toIdx], ''));
+    // 2. Check inbound (item 8)
+    checkDirection(route, route.inbound, route.pricesBack);
   }
 
   return results;
@@ -92,15 +159,15 @@ export function useTrips() {
     setError(null);
 
     try {
-      // ✅ FIX 1: status = 'active'
-      const { data: routes, error: dbErr } = await supabase
+      const { data: rawRoutes, error: dbErr } = await supabase
         .from('routes')
         .select('*')
         .eq('status', 'active');
 
       if (dbErr) throw dbErr;
 
-      if (!routes || routes.length === 0) {
+      const routes = (rawRoutes as DatabaseRoute[]) || [];
+      if (routes.length === 0) {
         setTrips([]);
         return;
       }
@@ -112,7 +179,7 @@ export function useTrips() {
       if (!from && !to && !params.date) {
         const all: Trip[] = [];
         for (const route of routes) {
-          const stops: any[] = route.outbound?.stops ?? [];
+          const stops = route.outbound?.stops ?? [];
           if (stops.length >= 2) {
             all.push(routeToTrip(route, stops[0], stops[stops.length - 1], ''));
           }
@@ -121,13 +188,15 @@ export function useTrips() {
         return;
       }
 
-      const filtered = filterRoutes(routes, from, to, uaDay)
-        .map(t => ({ ...t, departureDate: params.date ?? '' }));
+      const filtered = filterRoutes(routes, from, to, uaDay).map((t) => ({
+        ...t,
+        departureDate: params.date ?? '',
+      }));
 
       setTrips(filtered);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[useTrips] fetchTrips error:', err);
-      setError(err.message ?? 'Помилка пошуку рейсів');
+      setError((err as Error)?.message ?? 'Помилка пошуку рейсів');
     } finally {
       setLoading(false);
     }
@@ -136,14 +205,14 @@ export function useTrips() {
   const fetchAvailableDates = useCallback(
     async (params: { from: string; to: string }): Promise<string[]> => {
       try {
-        // ✅ FIX 1 (same): status = 'active'
-        const { data: routes, error: dbErr } = await supabase
+        const { data: rawRoutes, error: dbErr } = await supabase
           .from('routes')
-          .select('id, outbound, status')
+          .select('id, outbound, inbound, status')
           .eq('status', 'active');
 
         if (dbErr) throw dbErr;
-        if (!routes) return [];
+        const routes = (rawRoutes as DatabaseRoute[]) || [];
+        if (routes.length === 0) return [];
 
         const today = new Date();
         const dates: string[] = [];
@@ -151,21 +220,17 @@ export function useTrips() {
         for (let i = 0; i < 90; i++) {
           const d = new Date(today);
           d.setDate(today.getDate() + i);
-          const iso = d.toISOString().split('T')[0];
+          const iso = formatISODate(d.getFullYear(), d.getMonth() + 1, d.getDate());
           const uaDay = getUaDayOfWeek(iso);
 
-          const hasMatch = routes.some(route => {
-            const stops: any[] = route.outbound?.stops ?? [];
-            const days: string[] = route.outbound?.days ?? [];
-            if (!days.includes(uaDay)) return false;
-
-            const fromIdx = stops.findIndex(s =>
-              s.city?.toLowerCase().includes(params.from.toLowerCase())
-            );
-            const toIdx = stops.findIndex(s =>
-              s.city?.toLowerCase().includes(params.to.toLowerCase())
-            );
-            return fromIdx !== -1 && toIdx !== -1 && fromIdx < toIdx;
+          const hasMatch = routes.some((route) => {
+            const check = (dir?: RouteDirection) => {
+              if (!dir?.stops || !dir?.days?.includes(uaDay)) return false;
+              const fromIdx = dir.stops.findIndex((s) => isCityMatch(s.city, params.from));
+              const toIdx = dir.stops.findIndex((s) => isCityMatch(s.city, params.to));
+              return fromIdx !== -1 && toIdx !== -1 && fromIdx < toIdx;
+            };
+            return check(route.outbound) || check(route.inbound);
           });
 
           if (hasMatch) dates.push(iso);
@@ -185,25 +250,25 @@ export function useTrips() {
     setError(null);
 
     try {
-      // ✅ FIX 2: column is 'carrier_id' snake_case
-      const { data: routes, error: dbErr } = await supabase
+      const { data: rawRoutes, error: dbErr } = await supabase
         .from('routes')
         .select('*')
         .eq('carrier_id', carrierId);
 
       if (dbErr) throw dbErr;
 
-      const normalized: Trip[] = (routes ?? []).map((route: any) => {
-        const stops: any[] = route.outbound?.stops ?? [];
+      const routes = (rawRoutes as DatabaseRoute[]) || [];
+      const normalized: Trip[] = routes.map((route) => {
+        const stops = route.outbound?.stops ?? [];
         const first = stops[0] ?? { city: 'N/A', time: '00:00' };
         const last = stops[stops.length - 1] ?? { city: 'N/A', time: '00:00' };
         return routeToTrip(route, first, last, '');
       });
 
       setTrips(normalized);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[useTrips] fetchCarrierTrips error:', err);
-      setError(err.message ?? 'Помилка завантаження рейсів перевізника');
+      setError((err as Error)?.message ?? 'Помилка завантаження рейсів перевізника');
     } finally {
       setLoading(false);
     }
@@ -211,5 +276,3 @@ export function useTrips() {
 
   return { trips, loading, error, fetchTrips, fetchAvailableDates, fetchCarrierTrips };
 }
-
-
