@@ -10,7 +10,8 @@ i18n
   .use(initReactI18next)
   .init({
     resources: {
-      UA: { translation: translations.UA },
+      UK: { translation: translations.UK },
+      UA: { translation: translations.UK },
       EN: { translation: translations.EN },
       IT: { translation: translations.IT }
     },
@@ -18,7 +19,7 @@ i18n
       order: ['localStorage'], // Only rely on explicitly saved language
       caches: ['localStorage'],
     },
-    fallbackLng: 'UA',
+    fallbackLng: 'UK',
     debug: false,
     interpolation: {
       escapeValue: false, // react already safes from xss

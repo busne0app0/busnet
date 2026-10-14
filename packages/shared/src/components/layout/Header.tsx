@@ -41,7 +41,7 @@ export default function Header() {
     setIsMenuOpen(false);
   };
 
-  const languages: Language[] = ['UA', 'EN', 'IT'];
+  const languages: Language[] = ['UK', 'EN', 'IT'];
 
   const handleProfileClick = () => {
     if (!isAuthenticated) {
@@ -111,7 +111,7 @@ export default function Header() {
                     language === lang ? 'bg-neon-cyan text-busnet-bg shadow-[0_0_10px_#00D4FF]' : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  {lang}
+                  {lang === 'UK' ? 'UA' : lang}
                 </button>
               ))}
             </div>
@@ -145,7 +145,7 @@ export default function Header() {
               >
                 <Globe className="w-5 h-5 text-slate-400" />
                 <span className="absolute -bottom-1 -right-1 bg-busnet-bg border border-neon-cyan/30 text-neon-cyan text-[8px] font-black px-1 rounded-sm">
-                  {language}
+                  {language === 'UK' ? 'UA' : language}
                 </span>
               </button>
               <AnimatePresence>
@@ -156,7 +156,7 @@ export default function Header() {
                     exit={{ opacity: 0, y: -8, scale: 0.95 }}
                     className="absolute top-full right-0 mt-2 bg-[#0A0D14]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-2 flex gap-1 shadow-xl z-[60]"
                   >
-                    {(['UA', 'EN', 'IT'] as Language[]).map((lang) => (
+                    {languages.map((lang) => (
                       <button
                         key={lang}
                         onClick={() => { setLanguage(lang); setIsMobileLangOpen(false); }}
@@ -164,7 +164,7 @@ export default function Header() {
                           language === lang ? 'bg-neon-cyan text-busnet-bg' : 'text-slate-400 hover:text-white hover:bg-white/10'
                         }`}
                       >
-                        {lang}
+                        {lang === 'UK' ? 'UA' : lang}
                       </button>
                     ))}
                   </motion.div>
