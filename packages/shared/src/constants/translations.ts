@@ -10,6 +10,8 @@ export interface TranslationSchema {
     langLabel: string;
   };
   hero: {
+    titleLine1: string;
+    titleLine2: string;
     subtitle: string;
     suggestCheapest: string;
     suggestToday: string;
@@ -157,6 +159,8 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       langLabel: 'МОВА',
     },
     hero: {
+      titleLine1: 'Європа ближче,',
+      titleLine2: 'ніж здається.',
       subtitle: 'Знайди рейс • Бронюй онлайн • Оплачуй при посадці',
       suggestCheapest: 'Найдешевше',
       suggestToday: 'Сьогодні',
@@ -379,6 +383,8 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       langLabel: 'LANG',
     },
     hero: {
+      titleLine1: 'Europe is closer,',
+      titleLine2: 'than you think.',
       subtitle: 'Find a trip • Book online • Pay on boarding',
       suggestCheapest: 'Cheapest',
       suggestToday: 'Today',
@@ -595,6 +601,8 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       langLabel: 'LINGUA',
     },
     hero: {
+      titleLine1: "L'Europa è più vicina,",
+      titleLine2: 'di quanto pensi.',
       subtitle: 'Trova il viaggio • Prenota online • Paga a bordo',
       suggestCheapest: 'Più economico',
       suggestToday: 'Oggi',

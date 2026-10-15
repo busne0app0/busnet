@@ -1,0 +1,172 @@
+.busnet-hero {
+  --busnet-hero-bg: #030712;
+  position: relative;
+  isolation: isolate;
+  background: var(--busnet-hero-bg);
+}
+
+/* ───────────── Media stage ─────────────
+ * .busnet-hero__media is a size container. The stage inside it behaves like
+ * `object-fit: cover` with a focal point, but holds BOTH the photo and the
+ * route svg, so they are always cropped and moved identically.
+ * Uses container query units for locked aspect ratios.
+ */
+.busnet-hero__media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  container-type: size;
+}
+
+.busnet-hero__stage {
+  --r: 2;       /* stage aspect ratio: desktop image is 2:1 */
+  --fx: 64%;    /* focal point inside the photo */
+  --fy: 56%;
+  position: absolute;
+  left: var(--fx);
+  top: var(--fy);
+  width: max(100cqw, calc(var(--r) * 100cqh));
+  aspect-ratio: var(--r) / 1;
+  transform: translate(calc(var(--fx) * -1), calc(var(--fy) * -1));
+}
+
+.busnet-hero__drift {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+}
+
+.busnet-hero__picture {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.busnet-hero__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+}
+
+.busnet-hero__routes {
+  position: absolute;
+  inset: 0;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+/* ───────────── Overlays ───────────── */
+.busnet-hero__shade,
+.busnet-hero__glow,
+.busnet-hero__bottom-fade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Horizontal shade: keeps text high contrast on the left while revealing the bright night continent on the right */
+.busnet-hero__shade--horizontal {
+  background: linear-gradient(
+    90deg,
+    rgba(3, 7, 18, 0.65) 0%,
+    rgba(3, 7, 18, 0.48) 25%,
+    rgba(3, 7, 18, 0.22) 50%,
+    rgba(3, 7, 18, 0.05) 75%,
+    rgba(3, 7, 18, 0) 100%
+  );
+}
+
+/* Vertical shade: gentle top vignette and bottom integration */
+.busnet-hero__shade--vertical {
+  background: linear-gradient(
+    180deg,
+    rgba(3, 7, 18, 0.25) 0%,
+    rgba(3, 7, 18, 0.02) 45%,
+    rgba(3, 7, 18, 0.60) 100%
+  );
+}
+
+.busnet-hero__glow {
+  background: radial-gradient(
+    ellipse at 77% 48%,
+    rgba(0, 212, 255, 0.12) 0%,
+    rgba(139, 92, 246, 0.05) 30%,
+    transparent 55%
+  );
+}
+
+/* Sits UNDER the content (z-index 1 < 2), creating a smooth 100% seamless fade into #030712 */
+.busnet-hero__bottom-fade {
+  inset: auto 0 0;
+  height: 6rem;
+  background: linear-gradient(
+    180deg,
+    rgba(3, 7, 18, 0) 0%,
+    rgba(3, 7, 18, 0.45) 45%,
+    var(--busnet-hero-bg) 100%
+  );
+}
+
+.busnet-hero__content {
+  position: relative;
+  z-index: 2;
+}
+
+/* ───────────── Motion: desktop with fine pointer only ───────────── */
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .busnet-hero__drift {
+    will-change: transform;
+    animation: busnet-hero-slow-drift 40s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes busnet-hero-slow-drift {
+  from { transform: scale(1.002); }
+  to { transform: scale(1.03); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .busnet-hero__drift {
+    animation: none !important;
+    will-change: auto;
+  }
+}
+
+/* ───────────── Mobile: portrait crop, vibrant city lights, readable text ───────────── */
+@media (max-width: 767px) {
+  .busnet-hero__stage {
+    --r: 0.75;  /* portrait files are 3:4 */
+    --fx: 50%;
+    --fy: 50%;
+  }
+
+  .busnet-hero__routes {
+    display: none;
+  }
+
+  .busnet-hero__shade--horizontal {
+    background: linear-gradient(
+      90deg,
+      rgba(3, 7, 18, 0.48) 0%,
+      rgba(3, 7, 18, 0.35) 40%,
+      rgba(3, 7, 18, 0.18) 75%,
+      rgba(3, 7, 18, 0.08) 100%
+    );
+  }
+
+  .busnet-hero__shade--vertical {
+    background: linear-gradient(
+      180deg,
+      rgba(3, 7, 18, 0.20) 0%,
+      rgba(3, 7, 18, 0.10) 36%,
+      rgba(3, 7, 18, 0.65) 100%
+    );
+  }
+}

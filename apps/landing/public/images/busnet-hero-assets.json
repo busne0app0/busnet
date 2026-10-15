@@ -1,0 +1,38 @@
+{
+  "source": "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=3200&q=92&fm=jpg",
+  "credit": "Unsplash photo-1614730321146-b6fa6a46bcb4 (add photographer name here)",
+  "generatedAt": "2026-10-15T08:24:27.498Z",
+  "variants": [
+    {
+      "name": "landscape",
+      "aspectRatio": 2,
+      "widths": [
+        800,
+        1400,
+        2400
+      ],
+      "focal": {
+        "x": 0.64,
+        "y": 0.56
+      }
+    },
+    {
+      "name": "portrait",
+      "aspectRatio": 0.75,
+      "widths": [
+        600,
+        900,
+        1200
+      ],
+      "focal": {
+        "x": 0.74,
+        "y": 0.52
+      }
+    }
+  ],
+  "formats": [
+    "avif",
+    "webp",
+    "jpg"
+  ]
+}
