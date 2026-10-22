@@ -29,5 +29,10 @@
     "allowImportingTsExtensions": true,
     "types": ["vite/client"],
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "supabase/functions",
+    "ai-image-demo"
+  ]
 }

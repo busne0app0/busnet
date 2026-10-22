@@ -102,6 +102,18 @@
     appearance: none !important;
   }
 
+  /* PREVENT BROWSER AUTOFILL WHITE BACKGROUND */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px #0e1420 inset !important;
+    box-shadow: 0 0 0 1000px #0e1420 inset !important;
+    -webkit-text-fill-color: #ffffff !important;
+    caret-color: #00D4FF !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
   body {
     @apply bg-busnet-bg font-sans antialiased text-slate-100;
     overflow-x: hidden;

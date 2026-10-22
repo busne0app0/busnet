@@ -21,10 +21,14 @@ import { useAuthStore } from '../../../store/useAuthStore';
 import { supabase } from '../../../supabase/config';
 import { toast } from 'react-hot-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { calculateTripPrices } from '../../../busnet/logic';
+import { PricingMode } from '../../../busnet/types';
+import type { PriceSegment } from './types';
 
 // --- Types ---
 type Amenity = 'wifi' | 'ac' | 'toilet' | 'usb' | 'coffee';
 type CityConfirmStatus = 'confirmed' | 'unrecognized' | 'pending';
+export type PriceCurrency = 'ГРН' | 'EUR' | 'USD' | 'PLN';
 
 interface Stop {
   id: string;
@@ -37,7 +41,14 @@ interface Stop {
   cityStatus?: CityConfirmStatus;
 }
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
+
+interface DirectionState {
+  stops: Stop[];
+  days: string[];
+  prices?: Record<string, number>;
+  currency?: PriceCurrency;
+}
 
 interface TripState {
   __version?: number;
@@ -49,7 +60,7 @@ interface TripState {
   transferType: 'direct' | 'transfer';
   transferCity?: string;
   transferTime?: string;
-  currency: string;
+  currency: PriceCurrency;
   discounts: {
     child04: boolean;
     child412: boolean;
@@ -57,14 +68,8 @@ interface TripState {
   customDiscounts: { id: string; label: string; value: number }[];
   rules: string[];
   customRules: string[];
-  outbound: {
-    stops: Stop[];
-    days: string[];
-  };
-  inbound: {
-    stops: Stop[];
-    days: string[];
-  };
+  outbound: DirectionState;
+  inbound: DirectionState;
 }
 
 const generateId = (): string => {
@@ -255,9 +260,28 @@ export default function NewTrip() {
     };
     checkRoute('outbound', 2);
     checkRoute('inbound', 3);
-    const allStops = [...trip.outbound.stops, ...trip.inbound.stops];
-    if (allStops.length > 0 && allStops.some(s => s.price === 0)) {
-      issues.push({ step: 4, message: 'Є зупинки з нульовою ціною', severity: 'warning' });
+    const checkPrices = (dirName: 'outbound' | 'inbound', label: string) => {
+      const dir = trip[dirName];
+      const stops = dir.stops;
+      if (stops.length >= 2) {
+        const prices = dir.prices || {};
+        for (let i = 0; i < stops.length - 1; i++) {
+          for (let j = i + 1; j < stops.length; j++) {
+            const key = `${stops[i].id}|${stops[j].id}`;
+            if (!prices[key] || prices[key] <= 0) {
+              issues.push({
+                step: 4,
+                message: `Не задано ціну: ${stops[i].city || 'Зупинка ' + (i + 1)} → ${stops[j].city || 'Зупинка ' + (j + 1)} (${label})`,
+                severity: 'warning'
+              });
+            }
+          }
+        }
+      }
+    };
+    checkPrices('outbound', 'Туди');
+    if (trip.inbound.stops.length >= 2) {
+      checkPrices('inbound', 'Назад');
     }
     return issues;
   }, [trip]);
@@ -293,7 +317,8 @@ export default function NewTrip() {
   }, []);
 
   const [smartInputStep1, setSmartInputStep1] = useState('');
-  const [priceMemory, setPriceMemory] = useState<Record<string, number>>({});
+  const [priceDirection, setPriceDirection] = useState<'outbound' | 'inbound'>('outbound');
+  const [singlePricePresetInput, setSinglePricePresetInput] = useState('');
   const [exchangeRate, setExchangeRate] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   // Read editingRouteId from localStorage (may have been set by stateRoute or directly)
@@ -435,19 +460,45 @@ export default function NewTrip() {
         }
       }
       if (!finalOperator) { toast.error('Не вказано перевізника!'); setIsSaving(false); return; }
-      const routeData = {
-        name: trip.routeName, operator: finalOperator, carrier_id: targetCarrierId,
-        seats: trip.seats, amenities: trip.amenities, is_transfer: trip.isTransfer,
-        transfer_type: trip.transferType, transfer_city: trip.transferCity,
-        currency: trip.currency, discounts: trip.discounts, custom_discounts: trip.customDiscounts,
-        rules: trip.rules, custom_rules: trip.customRules, outbound: trip.outbound, inbound: trip.inbound,
-        status: editingRouteStatus || 'pending'
+
+      const outboundPrices = trip.outbound.prices || {};
+      const inboundPrices = trip.inbound.prices || {};
+
+      const routeData: any = {
+        name: trip.routeName,
+        operator: finalOperator,
+        carrier_id: targetCarrierId,
+        seats: trip.seats,
+        amenities: trip.amenities,
+        is_transfer: trip.isTransfer,
+        transfer_type: trip.transferType,
+        transfer_city: trip.transferCity,
+        currency: trip.currency,
+        discounts: trip.discounts,
+        custom_discounts: trip.customDiscounts,
+        rules: trip.rules,
+        custom_rules: trip.customRules,
+        outbound: {
+          ...trip.outbound,
+          currency: trip.outbound.currency || trip.currency || 'ГРН',
+          prices: outboundPrices
+        },
+        inbound: {
+          ...trip.inbound,
+          currency: trip.inbound.currency || trip.currency || 'ГРН',
+          prices: inboundPrices
+        }
       };
+
       let dbError;
       if (editingRouteId) {
+        if (editingRouteStatus) {
+          routeData.status = editingRouteStatus;
+        }
         const { error } = await supabase.from('routes').update(routeData).eq('id', editingRouteId);
         dbError = error;
       } else {
+        // Upon creation, do not send status (server sets pending default)
         const { error } = await supabase.from('routes').insert(routeData);
         dbError = error;
       }
@@ -457,9 +508,10 @@ export default function NewTrip() {
       localStorage.removeItem('busnet_current_step');
       localStorage.removeItem('busnet_editing_route_id');
       localStorage.removeItem('busnet_editing_route_status');
-      setTimeout(() => navigate('/'), 1500);
-    } catch (err) {
-      console.error(err); toast.error('Помилка збереження');
+      setTimeout(() => navigate('/trips'), 1500);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || 'Помилка збереження');
     } finally { setIsSaving(false); }
   };
 
@@ -532,21 +584,139 @@ export default function NewTrip() {
     setTrip(prev => ({ ...prev, inbound: { ...prev.inbound, stops: reversed } }));
   };
 
-  const allSegments = useMemo(() => {
-    if (trip.outbound.stops.length < 2) return [];
-    const segments: any[] = [];
-    for (let i = 0; i < trip.outbound.stops.length; i++) {
-      for (let j = i + 1; j < trip.outbound.stops.length; j++) {
-        const from = trip.outbound.stops[i].city;
-        const to = trip.outbound.stops[j].city;
-        if (from && to) {
-          const key = `${from}-${to}`.toLowerCase();
-          segments.push({ from, to, price: priceMemory[key] || 0, currency: 'ГРН', key });
+  const updateSegmentPrice = (dir: 'outbound' | 'inbound', key: string, val: number) => {
+    setTrip(prev => ({
+      ...prev,
+      [dir]: {
+        ...prev[dir],
+        prices: {
+          ...(prev[dir].prices || {}),
+          [key]: val
+        }
+      }
+    }));
+  };
+
+  const setDirectionCurrency = (dir: 'outbound' | 'inbound', currency: PriceCurrency) => {
+    setTrip(prev => ({
+      ...prev,
+      [dir]: {
+        ...prev[dir],
+        currency
+      }
+    }));
+  };
+
+  const applySinglePricePreset = (dir: 'outbound' | 'inbound', singlePrice: number) => {
+    if (singlePrice <= 0) return;
+    const stops = trip[dir].stops;
+    if (stops.length < 2) return;
+    const rawPrices = calculateTripPrices(stops as any, PricingMode.SINGLE, { singlePrice });
+    const newPrices: Record<string, number> = { ...(trip[dir].prices || {}) };
+    for (let f = 0; f < stops.length - 1; f++) {
+      for (let t = f + 1; t < stops.length; t++) {
+        const pairKey = `${stops[f].id}|${stops[t].id}`;
+        newPrices[pairKey] = rawPrices[`${f}-${t}`] ?? singlePrice;
+      }
+    }
+    setTrip(prev => ({
+      ...prev,
+      [dir]: {
+        ...prev[dir],
+        prices: newPrices
+      }
+    }));
+    toast.success(`Ціну ${singlePrice} встановлено для всіх сегментів`);
+  };
+
+  const mirrorOutboundPricesToInbound = () => {
+    const outStops = trip.outbound.stops;
+    const inStops = trip.inbound.stops;
+    const outPrices = trip.outbound.prices || {};
+    if (outStops.length < 2 || inStops.length < 2) {
+      toast.error('Необхідно мінімум 2 зупинки в обох напрямках');
+      return;
+    }
+    const newInPrices: Record<string, number> = { ...(trip.inbound.prices || {}) };
+    let appliedCount = 0;
+
+    for (let i = 0; i < inStops.length - 1; i++) {
+      for (let j = i + 1; j < inStops.length; j++) {
+        const inFromCity = inStops[i].city.trim().toLowerCase();
+        const inToCity = inStops[j].city.trim().toLowerCase();
+        const inKey = `${inStops[i].id}|${inStops[j].id}`;
+
+        let foundPrice: number | undefined;
+        for (let oi = 0; oi < outStops.length - 1; oi++) {
+          for (let oj = oi + 1; oj < outStops.length; oj++) {
+            if (
+              outStops[oi].city.trim().toLowerCase() === inToCity &&
+              outStops[oj].city.trim().toLowerCase() === inFromCity
+            ) {
+              const outKey = `${outStops[oi].id}|${outStops[oj].id}`;
+              if (outPrices[outKey] !== undefined) {
+                foundPrice = outPrices[outKey];
+                break;
+              }
+            }
+          }
+          if (foundPrice !== undefined) break;
+        }
+
+        if (foundPrice === undefined) {
+          const revFromIdx = outStops.length - 1 - j;
+          const revToIdx = outStops.length - 1 - i;
+          if (revFromIdx >= 0 && revToIdx < outStops.length && revFromIdx < revToIdx) {
+            const revKey = `${outStops[revFromIdx].id}|${outStops[revToIdx].id}`;
+            if (outPrices[revKey] !== undefined) {
+              foundPrice = outPrices[revKey];
+            }
+          }
+        }
+
+        if (foundPrice !== undefined) {
+          newInPrices[inKey] = foundPrice;
+          appliedCount++;
         }
       }
     }
+
+    setTrip(prev => ({
+      ...prev,
+      inbound: {
+        ...prev.inbound,
+        currency: prev.outbound.currency || prev.currency,
+        prices: newInPrices
+      }
+    }));
+    toast.success(`Дзеркальні ціни застосовано (${appliedCount} сегментів)`);
+  };
+
+  const currentSegments = useMemo<PriceSegment[]>(() => {
+    const stops = trip[priceDirection].stops;
+    if (stops.length < 2) return [];
+    const dirPrices = trip[priceDirection].prices || {};
+    const dirCurrency = trip[priceDirection].currency || trip.currency || 'ГРН';
+    const segments: PriceSegment[] = [];
+
+    for (let i = 0; i < stops.length - 1; i++) {
+      for (let j = i + 1; j < stops.length; j++) {
+        const fromStop = stops[i];
+        const toStop = stops[j];
+        const key = `${fromStop.id}|${toStop.id}`;
+        segments.push({
+          fromId: fromStop.id,
+          toId: toStop.id,
+          from: fromStop.city || `Зупинка ${i + 1}`,
+          to: toStop.city || `Зупинка ${j + 1}`,
+          price: dirPrices[key] || 0,
+          currency: dirCurrency,
+          key
+        });
+      }
+    }
     return segments;
-  }, [trip.outbound.stops, priceMemory]);
+  }, [trip, priceDirection]);
 
   const nextStep = () => {
     if (currentStep === 7) { syncToSupabase(); return; }
@@ -917,39 +1087,120 @@ export default function NewTrip() {
             {/* STEP 4 */}
             {currentStep === 4 && (
               <motion.div key="step4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
-                <div>
-                  <h2 className="text-xl font-black text-white uppercase tracking-widest flex items-center gap-3">
-                    <CreditCard className="text-[#00E5FF]" size={20} /> Ціноутворення
-                  </h2>
-                  <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.2em] mt-1 font-bold">Вартість проїзду між сегментами</p>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-black text-white uppercase tracking-widest flex items-center gap-3">
+                      <CreditCard className="text-[#00E5FF]" size={20} /> Ціноутворення
+                    </h2>
+                    <p className="text-[10px] text-[#5A6A85] uppercase tracking-[0.2em] mt-1 font-bold">Вартість проїзду між зупинками для обох напрямків</p>
+                  </div>
+
+                  {/* Direction Tabs */}
+                  <div className="flex items-center gap-2 bg-[#0B1221] p-1.5 rounded-xl border border-white/10">
+                    <button
+                      onClick={() => setPriceDirection('outbound')}
+                      className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+                        priceDirection === 'outbound'
+                          ? 'bg-[#00E5FF] text-[#050B14] shadow-[0_0_12px_rgba(0,229,255,0.4)]'
+                          : 'text-[#5A6A85] hover:text-white'
+                      }`}
+                    >
+                      <ArrowRight size={14} /> Туди
+                    </button>
+                    <button
+                      onClick={() => setPriceDirection('inbound')}
+                      className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+                        priceDirection === 'inbound'
+                          ? 'bg-[#D946EF] text-white shadow-[0_0_12px_rgba(217,70,239,0.4)]'
+                          : 'text-[#5A6A85] hover:text-white'
+                      }`}
+                    >
+                      <ArrowLeft size={14} /> Назад
+                    </button>
+                  </div>
+                </div>
+
+                {/* Controls Bar: Currency + Presets */}
+                <div className="bg-[#0B1221] p-4 rounded-xl border border-white/10 flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] text-[#5A6A85] font-black uppercase tracking-widest">
+                      Валюта ({priceDirection === 'outbound' ? 'Туди' : 'Назад'}):
+                    </span>
+                    <select
+                      value={trip[priceDirection].currency || trip.currency || 'ГРН'}
+                      onChange={(e) => setDirectionCurrency(priceDirection, e.target.value as PriceCurrency)}
+                      className="bg-[#050B14] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-bold text-white outline-none focus:border-[#00E5FF]/50"
+                    >
+                      <option value="ГРН">ГРН (UAH)</option>
+                      <option value="EUR">EUR (€)</option>
+                      <option value="USD">USD ($)</option>
+                      <option value="PLN">PLN (zł)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        placeholder="Ціна"
+                        value={singlePricePresetInput}
+                        onChange={(e) => setSinglePricePresetInput(e.target.value)}
+                        className="w-24 bg-[#050B14] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-bold text-white outline-none focus:border-[#00E5FF]/50 placeholder:text-[#5A6A85]"
+                      />
+                      <button
+                        onClick={() => {
+                          const val = parseFloat(singlePricePresetInput);
+                          if (val > 0) applySinglePricePreset(priceDirection, val);
+                        }}
+                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
+                      >
+                        Заповнити всі
+                      </button>
+                    </div>
+
+                    {priceDirection === 'inbound' && (
+                      <button
+                        onClick={mirrorOutboundPricesToInbound}
+                        className="px-3 py-1.5 bg-[#D946EF]/10 hover:bg-[#D946EF]/20 border border-[#D946EF]/30 text-[#D946EF] rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5"
+                      >
+                        <RefreshCcw size={12} /> Дзеркально з Туди
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="bg-[#0B1221] rounded-2xl p-6 border border-white/10">
                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10">
-                      {allSegments.map((segment, idx) => (
+                      {currentSegments.map((segment, idx) => (
                         <div key={idx} className="flex items-center justify-between bg-[#050B14] p-4 rounded-xl border border-white/5 group hover:border-white/20 transition-all">
                            <div className="flex items-center gap-4">
                               <p className="text-xs text-[#5A6A85] font-bold uppercase tracking-widest">{segment.from}</p>
-                              <ArrowRight size={12} className="text-[#00E5FF]" />
+                              {priceDirection === 'outbound' ? (
+                                <ArrowRight size={12} className="text-[#00E5FF]" />
+                              ) : (
+                                <ArrowLeft size={12} className="text-[#D946EF]" />
+                              )}
                               <p className="text-sm font-black text-white uppercase">{segment.to}</p>
                            </div>
                            <div className="flex items-center gap-3">
                               <input 
                                 type="number" 
                                 value={segment.price === 0 ? '' : segment.price}
-                                onChange={(e) => setPriceMemory(prev => ({ ...prev, [segment.key]: parseFloat(e.target.value) || 0 }))}
+                                onChange={(e) => updateSegmentPrice(priceDirection, segment.key, parseFloat(e.target.value) || 0)}
                                 onFocus={(e) => e.target.select()}
                                 placeholder="0"
                                 className="w-24 bg-[#0B1221] border border-white/10 focus:border-[#00E5FF]/50 rounded-lg px-3 py-2 text-white font-bold text-right outline-none transition-all placeholder:text-[#5A6A85]"
                               />
-                              <span className="text-[10px] text-[#00E5FF] font-black uppercase tracking-widest">{trip.currency}</span>
+                              <span className="text-[10px] text-[#00E5FF] font-black uppercase tracking-widest">{segment.currency}</span>
                            </div>
                         </div>
                       ))}
-                      {allSegments.length === 0 && (
+                      {currentSegments.length === 0 && (
                         <div className="py-16 text-center">
                            <Info size={32} className="mx-auto mb-3 text-[#5A6A85]" />
-                           <p className="text-[10px] text-[#5A6A85] font-bold uppercase tracking-[0.2em]">Спочатку додайте зупинки у графік</p>
+                           <p className="text-[10px] text-[#5A6A85] font-bold uppercase tracking-[0.2em]">
+                             Спочатку додайте мінімум 2 зупинки у графік ({priceDirection === 'outbound' ? 'Туди' : 'Назад'})
+                           </p>
                         </div>
                       )}
                    </div>

@@ -4,7 +4,7 @@
 
 export type Amenity = 'wifi' | 'ac' | 'toilet' | 'usb' | 'coffee';
 export type TripDirection = 'outbound' | 'inbound';
-export type PriceCurrency = 'ГРН' | 'EUR';
+export type PriceCurrency = 'ГРН' | 'EUR' | 'USD' | 'PLN';
 export type ConflictSeverity = 'warning' | 'error';
 
 // FIX #10: три стани замість boolean isConfirmed
@@ -24,6 +24,8 @@ export interface Stop {
 export interface DirectionState {
   stops: Stop[];
   days: string[];
+  prices?: Record<string, number>;
+  currency?: PriceCurrency;
 }
 
 export interface TripState {
@@ -49,11 +51,13 @@ export interface TripState {
 }
 
 export interface PriceSegment {
+  fromId: string;
+  toId: string;
   from: string;
   to: string;
   price: number;
   currency: PriceCurrency;
-  key: string; // "from_to" lowercase
+  key: string; // "fromId|toId"
 }
 
 export interface Conflict {

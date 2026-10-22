@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import {
   Mail, Lock, Smartphone, Building2, Briefcase,
-  ArrowRight, Loader2, User, ChevronDown, X, Bus, Zap
+  ArrowRight, ArrowLeft, Loader2, User, ChevronDown, X, Bus, Zap
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { toast } from 'react-hot-toast';
@@ -10,6 +10,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Role } from '../types';
 import { supabase } from '../supabase/config';
 import { getAbsoluteRoleRoute } from '../constants/roleRoutes';
+import { PartnerApplicationModal } from '../components/auth/PartnerApplicationModal';
 
 // ─── Floating particle data ───────────────────────────────────────────────────
 const PARTICLES = Array.from({ length: 22 }, (_, i) => ({
@@ -78,7 +79,7 @@ export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const from = searchParams.get('from') || '/';
 
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [role, setRole] = useState<Role>('passenger');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -92,6 +93,18 @@ export default function AuthPage() {
   const [phone, setPhone] = useState('');
   const [companyName, setCompanyName] = useState('');
 
+  const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
+
+  const formatAuthError = (msg?: string) => {
+    if (!msg) return 'Сталася помилка. Спробуйте ще раз';
+    if (msg.includes('Invalid login credentials')) return 'Невірний email або пароль';
+    if (msg.includes('Email not confirmed')) return 'Електронна пошта ще не підтверджена';
+    if (msg.includes('User already registered')) return 'Користувач з такою поштою вже зареєстрований';
+    if (msg.includes('Password should be at least')) return 'Пароль повинен містити щонайменше 6 символів';
+    if (msg.includes('rate limit') || msg.includes('Too many')) return 'Забагато спроб. Зачекайте хвилину';
+    return msg;
+  };
+
   const { login, registerCarrier, registerUser, signInWithGoogle, user, isAuthenticated, loading: authLoading, setLoading: setAuthLoading } = useAuthStore();
   const navigate = useNavigate();
 
@@ -104,19 +117,24 @@ export default function AuthPage() {
     }
   }, [isAuthenticated, authLoading, user]);
 
-  const handleResetPassword = async () => {
-    if (!email) { toast.error('Введіть ваш Email для відновлення'); return; }
+  const handleResetPassword = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!email.trim()) { toast.error('Введіть ваш Email для відновлення'); return; }
+    setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/auth?reset=true`
+      });
       if (error) throw error;
-      toast.success('Інструкції надіслано на пошту');
-    } catch (err: any) { toast.error('Помилка: ' + err.message); }
+      toast.success('Інструкції для відновлення надіслано на вашу пошту!');
+    } catch (err: any) { toast.error(formatAuthError(err.message)); }
+    finally { setLoading(false); }
   };
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     try { await signInWithGoogle(); }
-    catch (err: any) { toast.error(err.message || 'Помилка Google авторизації'); setGoogleLoading(false); }
+    catch (err: any) { toast.error(formatAuthError(err.message)); setGoogleLoading(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -134,11 +152,11 @@ export default function AuthPage() {
         clearTimeout(loadingTimeout);
         toast.success('Вітаємо у Busnet!');
       } else {
-        if (role === 'passenger') { await registerUser({ email, firstName, lastName, phone, role: 'passenger' }, password); clearTimeout(loadingTimeout); toast.success('Аккаунт створено!'); }
-        else if (role === 'carrier') { await registerCarrier({ email, companyName, phone }, password); clearTimeout(loadingTimeout); toast.success('Вітаємо у Busnet! Ваш кабінет готовий.'); }
-        else if (role === 'agent') { await registerUser({ email, firstName, lastName, phone, role: 'agent' }, password); clearTimeout(loadingTimeout); toast.success('Агент успішно зареєстрований'); }
+        await registerUser({ email, firstName, lastName, phone, role: 'passenger' }, password);
+        clearTimeout(loadingTimeout);
+        toast.success('Аккаунт створено!');
       }
-    } catch (err: any) { clearTimeout(loadingTimeout); toast.error(err.message || 'Сталася помилка'); }
+    } catch (err: any) { clearTimeout(loadingTimeout); toast.error(formatAuthError(err.message)); }
     finally { setLoading(false); }
   };
 
@@ -249,30 +267,78 @@ export default function AuthPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex bg-black/20 border-b border-white/5 relative mx-0 mt-4">
-          {(['login', 'register'] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={`flex-1 py-5 text-center font-black text-[13px] uppercase tracking-widest transition-all relative z-10 font-sans ${
-                mode === m ? 'text-white' : 'text-[#4a5a75] hover:text-[#7a90b5]'
-              }`}
-            >
-              {m === 'login' ? 'Вхід' : 'Реєстрація'}
-            </button>
-          ))}
-          <motion.div
-            className="absolute bottom-0 h-[2px] rounded-t-full"
-            style={{ background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)`, boxShadow: `0 0 12px ${accentColor}` }}
-            animate={{ left: mode === 'login' ? '25%' : '75%', x: '-50%', width: '28%' }}
-            transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-          />
-        </div>
+        {mode !== 'forgot' && (
+          <div className="flex bg-black/20 border-b border-white/5 relative mx-0 mt-4">
+            {(['login', 'register'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`flex-1 py-5 text-center font-black text-[13px] uppercase tracking-widest transition-all relative z-10 font-sans ${
+                  mode === m ? 'text-white' : 'text-[#4a5a75] hover:text-[#7a90b5]'
+                }`}
+              >
+                {m === 'login' ? 'Вхід' : 'Реєстрація'}
+              </button>
+            ))}
+            <motion.div
+              className="absolute bottom-0 h-[2px] rounded-t-full"
+              style={{ background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)`, boxShadow: `0 0 12px ${accentColor}` }}
+              animate={{ left: mode === 'login' ? '25%' : '75%', x: '-50%', width: '28%' }}
+              transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+            />
+          </div>
+        )}
 
         {/* Form area */}
         <div className="p-8">
           <AnimatePresence mode="wait">
-            {mode === 'login' ? (
+            {mode === 'forgot' ? (
+              <motion.div
+                key="forgot"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-5"
+              >
+                <div className="text-center mb-6">
+                  <h1 className="text-2xl font-black text-white tracking-tighter">Відновлення доступу</h1>
+                  <p className="text-[11px] text-[#8b9dc3] font-bold uppercase tracking-widest mt-1">
+                    Введіть email, на який надіслати інструкції
+                  </p>
+                </div>
+
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <NeonInput icon={Mail} type="email" value={email} onChange={setEmail} placeholder="Email адреса" required accentColor={accentColor} />
+
+                  <motion.button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-4 rounded-2xl font-black uppercase tracking-widest text-[12px] text-white flex items-center justify-center gap-2 relative overflow-hidden disabled:opacity-50"
+                    style={{ background: `linear-gradient(135deg, ${accentColor} 0%, #0EA5E9 100%)` }}
+                    whileHover={{ scale: 1.02, boxShadow: `0 0 30px ${accentGlow}` }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                      <>
+                        <Zap size={14} />
+                        <span>Надіслати інструкції</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </motion.button>
+
+                  <button
+                    type="button"
+                    onClick={() => setMode('login')}
+                    className="w-full text-center py-2.5 text-xs font-bold text-[#8b9dc3] hover:text-[#00E5FF] transition-colors flex items-center justify-center gap-2"
+                  >
+                    <ArrowLeft size={14} />
+                    <span>Повернутися до входу</span>
+                  </button>
+                </form>
+              </motion.div>
+            ) : mode === 'login' ? (
               <motion.div
                 key="login"
                 initial={{ opacity: 0, y: 10 }}
@@ -283,7 +349,7 @@ export default function AuthPage() {
               >
                 <div className="text-center mb-6">
                   <h1 className="text-2xl font-black text-white tracking-tighter">Вітаємо назад</h1>
-                  <p className="text-[11px] text-[#5a6a85] font-bold uppercase tracking-widest mt-1">Увійдіть до вашого кабінету</p>
+                  <p className="text-[11px] text-[#8b9dc3] font-bold uppercase tracking-widest mt-1">Увійдіть до вашого кабінету</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -291,7 +357,7 @@ export default function AuthPage() {
                   <NeonInput icon={Lock} type="password" value={password} onChange={setPassword} placeholder="Пароль" required accentColor={accentColor} />
 
                   <div className="flex items-center justify-end px-1">
-                    <button type="button" onClick={handleResetPassword} className="text-[10px] text-[#4a5a75] font-black uppercase tracking-widest hover:text-[#00E5FF] transition-colors">
+                    <button type="button" onClick={() => setMode('forgot')} className="text-[11px] text-[#8b9dc3] font-bold uppercase tracking-wider hover:text-[#00E5FF] transition-colors">
                       Відновити доступ
                     </button>
                   </div>
@@ -321,9 +387,13 @@ export default function AuthPage() {
                     )}
                   </motion.button>
 
-                  <div className="relative py-1">
-                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5" /></div>
-                    <div className="relative flex justify-center text-[10px] uppercase font-black tracking-widest"><span className="bg-[#0b1221] px-4 text-[#3a4a5a]">АБО</span></div>
+                  {/* Clean transparent divider without background box */}
+                  <div className="flex items-center gap-3 my-4">
+                    <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b9dc3]">
+                      або
+                    </span>
+                    <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent via-white/15 to-transparent" />
                   </div>
 
                   <button
@@ -353,175 +423,87 @@ export default function AuthPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.25 }}
-                className="space-y-5"
+                className="space-y-4"
               >
-                <div className="text-center mb-4">
+                <div className="text-center mb-3">
                   <h1 className="text-2xl font-black text-white tracking-tighter">Приєднатись</h1>
-                  <p className="text-[11px] text-[#5a6a85] font-bold uppercase tracking-widest mt-1">Створіть свій акаунт</p>
+                  <p className="text-[11px] text-[#8b9dc3] font-bold uppercase tracking-widest mt-1">Реєстрація пасажира</p>
                 </div>
 
-                {/* Role selector */}
-                <div className="relative z-50">
-                  <motion.button
-                    onClick={() => setIsRoleExpanded(!isRoleExpanded)}
-                    className="w-full relative flex items-center gap-4 border rounded-2xl p-3 transition-all group"
-                    style={{
-                      background: 'rgba(0,0,0,0.3)',
-                      borderColor: isRoleExpanded ? `${accentColor}40` : 'rgba(255,255,255,0.06)',
-                      boxShadow: isRoleExpanded ? `0 0 20px ${accentGlow}` : 'none',
-                    }}
-                    whileTap={{ scale: 0.99 }}
-                  >
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center transition-all"
-                      style={{ background: `${accentColor}15`, border: `1px solid ${accentColor}30`, color: accentColor }}
-                    >
-                      {role === 'passenger' ? <User className="w-5 h-5" /> : role === 'carrier' ? <Building2 className="w-5 h-5" /> : <Briefcase className="w-5 h-5" />}
-                    </div>
-                    <div className="flex flex-col items-start">
-                      <span className="text-[9px] font-black uppercase tracking-[0.3em] text-[#3a4a5a]">РЕЖИМ ДОСТУПУ</span>
-                      <span className="text-[13px] font-black uppercase tracking-widest" style={{ color: accentColor }}>
-                        {role === 'passenger' ? 'ПАСАЖИР' : role === 'carrier' ? 'ПЕРЕВІЗНИК' : 'АГЕНТ'}
-                      </span>
-                    </div>
-                    <motion.div className="ml-auto pr-1" animate={{ rotate: isRoleExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                      <ChevronDown className="w-5 h-5 text-white/20" />
-                    </motion.div>
-                  </motion.button>
+                {/* Google Sign-In Top Option */}
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={loading || googleLoading}
+                  className="w-full py-3.5 rounded-2xl border border-white/10 bg-white/[0.05] hover:bg-white/[0.09] text-white font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-3 transition-all disabled:opacity-50 shadow-lg"
+                >
+                  {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                    <>
+                      <svg className="w-4 h-4" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                      </svg>
+                      <span>Реєстрація через Google</span>
+                    </>
+                  )}
+                </button>
 
-                  <AnimatePresence>
-                    {isRoleExpanded && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -8, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute top-[calc(100%+6px)] left-0 right-0 rounded-2xl p-2 flex flex-col gap-1 z-50"
-                        style={{ background: 'rgba(5,11,20,0.96)', backdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}
-                      >
-                        {([
-                          { r: 'passenger', label: 'ПАСАЖИР', icon: User, color: '#00E5FF' },
-                          { r: 'carrier', label: 'ПЕРЕВІЗНИК', icon: Building2, color: '#FBBF24' },
-                          { r: 'agent', label: 'АГЕНТ', icon: Briefcase, color: '#A855F7' },
-                        ] as const).map(({ r, label, icon: Icon, color }) => (
-                          <button
-                            key={r}
-                            onClick={() => { setRole(r as Role); setIsRoleExpanded(false); }}
-                            className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
-                            style={{ background: role === r ? `${color}10` : 'transparent', border: role === r ? `1px solid ${color}20` : '1px solid transparent' }}
-                          >
-                            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                              style={{ background: role === r ? `${color}20` : 'rgba(255,255,255,0.05)', color: role === r ? color : '#5a6a85' }}>
-                              <Icon className="w-4 h-4" />
-                            </div>
-                            <span className="text-[12px] font-black uppercase tracking-widest" style={{ color: role === r ? color : '#5a6a85' }}>{label}</span>
-                          </button>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                {/* Clean transparent divider without background box */}
+                <div className="flex items-center gap-3 my-4">
+                  <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b9dc3]">
+                    або через email
+                  </span>
+                  <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent via-white/15 to-transparent" />
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-3">
-                  <AnimatePresence mode="wait">
-                    {role === 'passenger' && (
-                      <motion.div key="pass" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <NeonInput icon={User} value={firstName} onChange={setFirstName} placeholder="Ім'я" required accentColor={accentColor} />
-                          <div className="relative">
-                            <input type="text" required value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Прізвище"
-                              className="w-full bg-black/30 border border-white/6 rounded-2xl py-[15px] px-4 text-[13px] text-white outline-none focus:border-[#00E5FF]/40 transition-all placeholder-[#3d4f6a]" />
-                          </div>
-                        </div>
-                        <NeonInput icon={Smartphone} type="tel" value={phone} onChange={setPhone} placeholder="Номер телефону" required accentColor={accentColor} />
-                        <NeonInput icon={Mail} type="email" value={email} onChange={setEmail} placeholder="Email адреса" required accentColor={accentColor} />
-                        <div className="grid grid-cols-2 gap-3">
-                          <NeonInput icon={Lock} type="password" value={password} onChange={setPassword} placeholder="Пароль" required accentColor={accentColor} />
-                          <div className="relative">
-                            <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Підтвердити"
-                              className="w-full bg-black/30 border border-white/6 rounded-2xl py-[15px] px-4 text-[13px] text-white outline-none focus:border-[#00E5FF]/40 transition-all placeholder-[#3d4f6a]" />
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                    {role === 'carrier' && (
-                      <motion.div key="carrier" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
-                        <NeonInput icon={Building2} value={companyName} onChange={setCompanyName} placeholder="Назва компанії або ПІБ" required accentColor={accentColor} />
-                        <NeonInput icon={Mail} type="email" value={email} onChange={setEmail} placeholder="Бізнес пошта" required accentColor={accentColor} />
-                        <NeonInput icon={Smartphone} type="tel" value={phone} onChange={setPhone} placeholder="Контактний телефон" required accentColor={accentColor} />
-                        <div className="grid grid-cols-2 gap-3">
-                          <NeonInput icon={Lock} type="password" value={password} onChange={setPassword} placeholder="Пароль" required accentColor={accentColor} />
-                          <div className="relative">
-                            <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Підтвердити"
-                              className="w-full bg-black/30 border border-white/6 rounded-2xl py-[15px] px-4 text-[13px] text-white outline-none focus:border-[#FBBF24]/40 transition-all placeholder-[#3d4f6a]" />
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                    {role === 'agent' && (
-                      <motion.div key="agent" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <NeonInput icon={User} value={firstName} onChange={setFirstName} placeholder="Ім'я" required accentColor={accentColor} />
-                          <div className="relative">
-                            <input type="text" required value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Прізвище"
-                              className="w-full bg-black/30 border border-white/6 rounded-2xl py-[15px] px-4 text-[13px] text-white outline-none focus:border-[#A855F7]/40 transition-all placeholder-[#3d4f6a]" />
-                          </div>
-                        </div>
-                        <NeonInput icon={Smartphone} type="tel" value={phone} onChange={setPhone} placeholder="Номер телефону" required accentColor={accentColor} />
-                        <NeonInput icon={Mail} type="email" value={email} onChange={setEmail} placeholder="Email адреса" required accentColor={accentColor} />
-                        <div className="grid grid-cols-2 gap-3">
-                          <NeonInput icon={Lock} type="password" value={password} onChange={setPassword} placeholder="Пароль" required accentColor={accentColor} />
-                          <div className="relative">
-                            <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Підтвердити"
-                              className="w-full bg-black/30 border border-white/6 rounded-2xl py-[15px] px-4 text-[13px] text-white outline-none focus:border-[#A855F7]/40 transition-all placeholder-[#3d4f6a]" />
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  <div className="grid grid-cols-2 gap-3">
+                    <NeonInput icon={User} value={firstName} onChange={setFirstName} placeholder="Ім'я" required accentColor="#00E5FF" />
+                    <div className="relative">
+                      <input type="text" required value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Прізвище"
+                        className="w-full bg-black/30 border border-white/6 rounded-2xl py-[15px] px-4 text-[13px] text-white outline-none focus:border-[#00E5FF]/40 transition-all placeholder-[#3d4f6a]" />
+                    </div>
+                  </div>
+                  <NeonInput icon={Smartphone} type="tel" value={phone} onChange={setPhone} placeholder="Номер телефону" required accentColor="#00E5FF" />
+                  <NeonInput icon={Mail} type="email" value={email} onChange={setEmail} placeholder="Email адреса" required accentColor="#00E5FF" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <NeonInput icon={Lock} type="password" value={password} onChange={setPassword} placeholder="Пароль" required accentColor="#00E5FF" />
+                    <div className="relative">
+                      <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Підтвердити"
+                        className="w-full bg-black/30 border border-white/6 rounded-2xl py-[15px] px-4 text-[13px] text-white outline-none focus:border-[#00E5FF]/40 transition-all placeholder-[#3d4f6a]" />
+                    </div>
+                  </div>
 
                   <motion.button
                     disabled={loading}
                     className="w-full mt-2 py-4 rounded-2xl font-black uppercase tracking-widest text-[12px] text-white flex items-center justify-center gap-2 relative overflow-hidden disabled:opacity-50"
-                    style={{ background: `linear-gradient(135deg, ${accentColor} 0%, ${role === 'passenger' ? '#0EA5E9' : role === 'carrier' ? '#F97316' : '#7c5cfc'} 100%)` }}
-                    whileHover={{ scale: 1.02, boxShadow: `0 0 35px ${accentGlow}` }}
+                    style={{ background: 'linear-gradient(135deg, #00E5FF 0%, #0EA5E9 100%)' }}
+                    whileHover={{ scale: 1.02, boxShadow: '0 0 35px rgba(0,229,255,0.3)' }}
                     whileTap={{ scale: 0.98 }}
-                    animate={{ boxShadow: [`0 8px 25px ${accentGlow}`, `0 12px 35px ${accentGlow.replace('0.3', '0.5')}`, `0 8px 25px ${accentGlow}`] }}
-                    transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' } as any}
                   >
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
-                      animate={{ x: ['-100%', '200%'] }}
-                      transition={{ duration: 3, repeat: Infinity, ease: 'linear', repeatDelay: 1.5 }}
-                    />
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
                       <>
-                        {role === 'carrier' ? <Building2 size={14} /> : role === 'agent' ? <Briefcase size={14} /> : <User size={14} />}
-                        <span>{role === 'carrier' ? 'Приєднатись до мережі' : role === 'agent' ? 'Зареєструвати агента' : 'Створити акаунт'}</span>
+                        <User size={14} />
+                        <span>Створити акаунт пасажира</span>
                       </>
                     )}
                   </motion.button>
-
-                  {role === 'passenger' && (
-                    <button
-                      type="button"
-                      onClick={handleGoogleSignIn}
-                      disabled={loading || googleLoading}
-                      className="w-full py-3.5 rounded-2xl border border-white/6 bg-white/[0.04] hover:bg-white/[0.08] text-white font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-3 transition-all disabled:opacity-50"
-                    >
-                      {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                        <>
-                          <svg className="w-4 h-4" viewBox="0 0 24 24">
-                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                          </svg>
-                          <span>Зареєструватись через Google</span>
-                        </>
-                      )}
-                    </button>
-                  )}
                 </form>
+
+                {/* Partner Application Link */}
+                <div className="pt-4 border-t border-white/5 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setIsPartnerModalOpen(true)}
+                    className="text-[12px] text-amber-400/90 hover:text-amber-300 transition-colors font-medium flex items-center justify-center gap-2 mx-auto group"
+                  >
+                    <Building2 size={15} className="group-hover:scale-110 transition-transform text-amber-400" />
+                    <span>Транспортна компанія чи квитковий агент? <strong className="underline underline-offset-2">Подати заявку</strong></span>
+                  </button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -544,6 +526,12 @@ export default function AuthPage() {
         <div className="w-[1px] h-3 bg-[#3a4a5a]/30" />
         <span>UA</span>
       </div>
+
+      {/* Partner Application Modal */}
+      <PartnerApplicationModal
+        isOpen={isPartnerModalOpen}
+        onClose={() => setIsPartnerModalOpen(false)}
+      />
     </div>
   );
 }

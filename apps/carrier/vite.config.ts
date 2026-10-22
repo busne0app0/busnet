@@ -33,7 +33,9 @@ export default defineConfig({
     })
   ],
   base: '/',
-  server: { 
+  server: {
+    port: 3001,
+    strictPort: true,
     hmr: process.env.DISABLE_HMR !== 'true',
     fs: {
       allow: ['../..']

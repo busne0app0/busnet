@@ -175,7 +175,7 @@ export default function Schedule() {
   }, [user, fetchCarrierTrips]);
 
   const handleCancel = async (routeId: string) => {
-    if (!confirm('Ви впевнені, що хочете скасувати цей маршрут? Всі пасажири отримають сповіщення.')) return;
+    if (!confirm('Ви впевнені, що хочете скасувати цей маршрут?')) return;
     setCancelling(routeId);
     const toastId = toast.loading('Скасування...');
     try {
@@ -426,7 +426,7 @@ export default function Schedule() {
                         <div className="flex items-center gap-1.5">
                           <Coins size={14} className="text-emerald-400" />
                           <span className="text-[11px] font-black text-emerald-400 tracking-widest">
-                            €{(((trip.seatsBooked ?? 0) * (trip.price ?? (trip as any)._raw?.outbound?.stops?.[(trip as any)._raw?.outbound?.stops?.length - 1]?.price ?? 0))).toLocaleString()}
+                            {(trip.price ?? 0).toLocaleString()} {trip.currency || 'ГРН'}
                           </span>
                         </div>
                       </td>

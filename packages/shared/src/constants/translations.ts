@@ -29,10 +29,14 @@ export interface TranslationSchema {
     from: string;
     to: string;
     date: string;
+    selectDate: string;
     search: string;
     placeholderFrom: string;
     placeholderTo: string;
     today: string;
+    swap: string;
+    clear: string;
+    cityNotFound: string;
   };
   calendar: {
     months: string[];
@@ -46,6 +50,13 @@ export interface TranslationSchema {
     lowestPrice: string;
     route: string;
     moreRoutes: (count: number) => string;
+    ariaLabel: string;
+    prevMonth: string;
+    nextMonth: string;
+    selectToday: string;
+    pastDate: string;
+    active: string;
+    tripsAria: (count: number) => string;
   };
   popular: {
     badge: string;
@@ -67,8 +78,11 @@ export interface TranslationSchema {
   };
   validation: {
     header: string;
+    close: string;
     fillAll: string;
     sameCities: string;
+    unknownCity: string;
+    pastDate: string;
     from: string;
     to: string;
     date: string;
@@ -159,8 +173,8 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       langLabel: 'МОВА',
     },
     hero: {
-      titleLine1: 'Європа ближче,',
-      titleLine2: 'ніж здається.',
+      titleLine1: 'Європа ближче',
+      titleLine2: 'ніж здається',
       subtitle: 'Знайди рейс • Бронюй онлайн • Оплачуй при посадці',
       suggestCheapest: 'Найдешевше',
       suggestToday: 'Сьогодні',
@@ -178,10 +192,14 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       from: 'Звідки',
       to: 'Куди',
       date: 'Дата відправлення',
+      selectDate: 'Оберіть дату',
       search: 'ПОШУК',
       placeholderFrom: 'Місто відправлення...',
       placeholderTo: 'Куди прямуєте?',
       today: 'СЬОГОДНІ',
+      swap: 'Поміняти місцями',
+      clear: 'Очистити поле',
+      cityNotFound: 'Місто не знайдено',
     },
     calendar: {
       months: ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'],
@@ -201,6 +219,13 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       lowestPrice: 'Найнижча ціна',
       route: 'Маршрут',
       moreRoutes: (c) => `+${c} ще`,
+      ariaLabel: 'Календар вибору дати',
+      prevMonth: 'Попередній місяць',
+      nextMonth: 'Наступний місяць',
+      selectToday: 'Обрати сьогоднішню дату',
+      pastDate: 'минула дата',
+      active: 'Активний',
+      tripsAria: (c) => `знайдено рейсів: ${c}`,
     },
     popular: {
       badge: 'Напрямки 2026',
@@ -235,9 +260,12 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       ]
     },
     validation: {
-      header: 'Майже готово!',
+      header: 'Увага!',
+      close: 'Закрити сповіщення',
       fillAll: 'Будь ласка, заповніть місто відправлення, прибуття та дату.',
       sameCities: 'Місто відправлення та прибуття не можуть збігатися.',
+      unknownCity: 'Оберіть місто зі списку.',
+      pastDate: 'Дата відправлення не може бути в минулому.',
       from: 'Звідки їдемо?',
       to: 'Куди прямуєте?',
       date: 'Коли в дорогу?'
@@ -364,7 +392,7 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       items: [
         { title: 'Страхування', desc: 'Кожен пасажир застрахований на €30,000 протягом усієї поїздки.', icon: 'shield' },
         { title: 'Підтримка 24/7', desc: 'Наші AI-агенти та живі оператори готові допомогти в будь-яку хвилину.', icon: 'support' },
-        { title: 'Повернення', desc: 'Гарантоване повернення коштів при скасуванні рейсу за 24 години.', icon: 'refund' }
+        { title: 'Повернення', desc: 'Гарантоване 100% повернення коштів при скасуванні за 24 години до відправлення.', icon: 'refund' }
       ]
     },
     seo: {
@@ -383,8 +411,8 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       langLabel: 'LANG',
     },
     hero: {
-      titleLine1: 'Europe is closer,',
-      titleLine2: 'than you think.',
+      titleLine1: 'Europe is closer',
+      titleLine2: 'than you think',
       subtitle: 'Find a trip • Book online • Pay on boarding',
       suggestCheapest: 'Cheapest',
       suggestToday: 'Today',
@@ -402,10 +430,14 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       from: 'From',
       to: 'To',
       date: 'Departure Date',
+      selectDate: 'Select date',
       search: 'SEARCH',
       placeholderFrom: 'Departure city...',
       placeholderTo: 'Where are you going?',
       today: 'TODAY',
+      swap: 'Swap cities',
+      clear: 'Clear field',
+      cityNotFound: 'City not found',
     },
     calendar: {
       months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
@@ -419,6 +451,13 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       lowestPrice: 'Lowest price',
       route: 'Route',
       moreRoutes: (c) => `+${c} more`,
+      ariaLabel: 'Date selection calendar',
+      prevMonth: 'Previous month',
+      nextMonth: 'Next month',
+      selectToday: 'Select today',
+      pastDate: 'past date',
+      active: 'Active',
+      tripsAria: (c) => `${c} trips found`,
     },
     popular: {
       badge: '2026 Destinations',
@@ -453,9 +492,12 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       ]
     },
     validation: {
-      header: 'Almost there!',
+      header: 'Attention!',
+      close: 'Close notification',
       fillAll: 'Please fill in the departure city, destination, and date.',
       sameCities: 'Departure and arrival cities cannot be the same.',
+      unknownCity: 'Please select a city from the list.',
+      pastDate: 'Departure date cannot be in the past.',
       from: 'Where from?',
       to: 'Where to?',
       date: 'When to go?'
@@ -601,8 +643,8 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       langLabel: 'LINGUA',
     },
     hero: {
-      titleLine1: "L'Europa è più vicina,",
-      titleLine2: 'di quanto pensi.',
+      titleLine1: "L'Europa è più vicina",
+      titleLine2: 'di quanto pensi',
       subtitle: 'Trova il viaggio • Prenota online • Paga a bordo',
       suggestCheapest: 'Più economico',
       suggestToday: 'Oggi',
@@ -620,14 +662,18 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       from: 'Da',
       to: 'A',
       date: 'Data di partenza',
+      selectDate: 'Seleziona data',
       search: 'CERCA',
       placeholderFrom: 'Città di partenza...',
       placeholderTo: 'Dove vuoi andare?',
       today: 'OGGI',
+      swap: 'Inverti città',
+      clear: 'Cancella campo',
+      cityNotFound: 'Città non trovata',
     },
     calendar: {
       months: ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'],
-      monthsGenitive: ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'],
+      monthsGenitive: ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'],
       weekdays: ['LU', 'MA', 'ME', 'GI', 'VE', 'SA', 'DO'],
       loading: 'Caricamento...',
       tripsFound: 'Corse trovate',
@@ -636,7 +682,14 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       noTrips: 'Nessuna corsa',
       lowestPrice: 'Prezzo più basso',
       route: 'Percorso',
-      moreRoutes: (c) => `+altri ${c}`,
+      moreRoutes: (c) => `+${c} altri`,
+      ariaLabel: 'Calendario selezione data',
+      prevMonth: 'Mese precedente',
+      nextMonth: 'Mese successivo',
+      selectToday: 'Seleziona data odierna',
+      pastDate: 'data passata',
+      active: 'Attivo',
+      tripsAria: (c) => `${c} corse trovate`,
     },
     popular: {
       badge: 'Destinazioni 2026',
@@ -671,9 +724,12 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       ]
     },
     validation: {
-      header: 'Ci siamo quasi!',
+      header: 'Attenzione!',
+      close: 'Chiudi notifica',
       fillAll: 'Inserisci la città di partenza, la destinazione e la data.',
       sameCities: 'La città di partenza e di arrivo non possono essere uguali.',
+      unknownCity: 'Seleziona una città dalla lista.',
+      pastDate: 'La data di partenza non può essere nel passato.',
       from: 'Da dove parti?',
       to: 'Dove sei diretto?',
       date: 'Quando parti?'
@@ -810,5 +866,10 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
   }
 };
 
-// Backward-compatibility alias for UA
-translations.UA = translations.UK;
+// Backward-compatibility non-enumerable alias for UA (does not pollute Object.keys)
+Object.defineProperty(translations, 'UA', {
+  value: translations.UK,
+  enumerable: false,
+  writable: true,
+  configurable: true,
+});

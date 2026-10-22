@@ -1,76 +1,108 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@busnet/shared/supabase/config';
 import { cities as staticCities, City } from '@busnet/shared/data/cities';
 
-export function useCities() {
-  const [dbCities, setDbCities] = useState<City[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const fetchDbCities = async () => {
-      setLoading(true);
-      try {
-        const { data: routes, error } = await supabase
-          .from('routes')
-          .select('outbound, inbound')
-          .eq('status', 'active');
-
-        if (error) throw error;
-
-        const citySet = new Set<string>();
-        routes?.forEach(route => {
-          const stops = [
-            ...(route.outbound?.stops || []),
-            ...(route.inbound?.stops || [])
-          ];
-          stops.forEach((s: any) => {
-            if (s.city) citySet.add(s.city.trim());
-          });
-        });
-
-        // Конвертуємо назви з БД у формат City
-        const fromDb: City[] = Array.from(citySet).map(cityName => {
-          const existing = staticCities.find(c => 
-            c.names.uk.toLowerCase() === cityName.toLowerCase() ||
-            c.names.en.toLowerCase() === cityName.toLowerCase()
-          );
-
-          if (existing) return { ...existing, fromDb: true };
-
-          return {
-            id: `db-${cityName.toLowerCase().replace(/\s+/g, '-')}`,
-            names: { uk: cityName, en: cityName, it: cityName },
-            countryCode: '??',
-            popular: false,
-            fromDb: true
-          };
-        });
-
-        // Мерджимо зі статичними містами
-        const merged = [...fromDb];
-        staticCities.forEach(sc => {
-          if (!merged.find(c => c.names.uk === sc.names.uk)) {
-            merged.push({ ...sc, fromDb: false });
-          }
-        });
-
-        setDbCities(merged);
-      } catch (e) {
-        console.error("[useCities] Помилка завантаження міст:", e);
-        // У разі помилки показуємо хоча б статику
-        setDbCities(staticCities.map(c => ({ ...c, fromDb: false })));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDbCities();
-  }, []);
-
-  return { dbCities, loading };
-}
-
-// Розширюємо тип City для внутрішнього використання (опціонально)
 export interface ExtendedCity extends City {
   fromDb?: boolean;
+}
+
+const STATIC_CITIES: ExtendedCity[] = staticCities.map((c) => ({ ...c, fromDb: false }));
+
+/** Ключ для зіставлення: регістр, апострофи, пробіли */
+const normalize = (s: string) =>
+  s
+    .normalize('NFC')
+    .replace(/[’ʼ`´]/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+// Індекс статики за всіма мовами (uk / en / it)
+const staticIndex = new Map<string, City>();
+for (const c of staticCities) {
+  for (const name of Object.values(c.names)) {
+    if (name) staticIndex.set(normalize(name), c);
+  }
+}
+
+async function loadCities(): Promise<ExtendedCity[]> {
+  const { data, error } = await supabase
+    .from('routes')
+    .select('outbound, inbound')
+    .eq('status', 'active');
+  if (error) throw error;
+
+  const byId = new Map<string, ExtendedCity>();
+
+  for (const route of data ?? []) {
+    const stops = [route.outbound?.stops, route.inbound?.stops]
+      .filter(Array.isArray)
+      .flat();
+
+    for (const stop of stops) {
+      const raw = typeof stop?.city === 'string' ? stop.city.trim() : '';
+      if (!raw) continue;
+
+      const known = staticIndex.get(normalize(raw));
+      const city: ExtendedCity = known
+        ? { ...known, fromDb: true }
+        : {
+            id: `db-${normalize(raw).replace(/[^\p{L}\p{N}]+/gu, '-')}`,
+            names: { uk: raw, en: raw, it: raw },
+            countryCode: '',
+            popular: false,
+            fromDb: true,
+          };
+
+      if (!byId.has(city.id)) byId.set(city.id, city);
+    }
+  }
+
+  // Статичні міста без активних маршрутів
+  for (const sc of staticCities) {
+    if (!byId.has(sc.id)) byId.set(sc.id, { ...sc, fromDb: false });
+  }
+
+  return [...byId.values()];
+}
+
+// Кэш на рівні модуля: один запит на сесію для всіх компонентів
+let citiesPromise: Promise<ExtendedCity[]> | null = null;
+let resolvedCities: ExtendedCity[] | null = null;
+
+export function useCities() {
+  const [dbCities, setDbCities] = useState<ExtendedCity[]>(resolvedCities ?? STATIC_CITIES);
+  const [isFetched, setIsFetched] = useState(resolvedCities !== null);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (resolvedCities) return;
+    let cancelled = false;
+
+    if (!citiesPromise) {
+      citiesPromise = loadCities().catch((e) => {
+        citiesPromise = null; // дозволяємо повторну спробу при наступному монтуванні
+        throw e;
+      });
+    }
+
+    citiesPromise
+      .then((list) => {
+        resolvedCities = list;
+        if (!cancelled) {
+          setDbCities(list);
+          setIsFetched(true);
+        }
+      })
+      .catch((e) => {
+        console.error('[useCities] Помилка завантаження міст:', e);
+        if (!cancelled) setError(e instanceof Error ? e : new Error(String(e)));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { dbCities, isFetched, error, loading: !isFetched };
 }

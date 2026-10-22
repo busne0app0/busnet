@@ -174,16 +174,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               userData = retried && retried.length > 0 ? retried[0] : null;
             }
 
-            // 4. Fallback — створюємо профіль з метаданих
+            // 4. Fallback — якщо профіль створюється базою із затримкою
             if (!userData) {
               const meta = session.user.user_metadata || {};
-              let role: Role = meta.role || 'passenger';
-              const path = window.location.pathname;
-              if (!meta.role) {
-                if (path.includes('/admin')) role = 'admin';
-                else if (path.includes('/carrier')) role = 'carrier';
-                else if (path.includes('/agent')) role = 'agent';
-              }
+              const role: Role = 'passenger'; // Суворо passenger, роль видається лише базою або адміном
               userData = {
                 uid: session.user.id,
                 email: session.user.email || '',
@@ -193,8 +187,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 phone: meta.phone || '',
                 status: 'active',
               };
-              await supabase.from('users').upsert(userData, { onConflict: 'uid' });
-              console.log('[initAuth] Created fallback profile with role:', role);
+              console.log('[initAuth] Awaiting DB profile sync for:', userData.email);
             }
 
             console.log('[initAuth] ✅ Profile loaded:', userData.email, 'role:', userData.role);

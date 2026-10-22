@@ -92,8 +92,7 @@ export default function Dashboard() {
         try {
           const { data, error } = await supabase
             .from('bookings')
-            // JOIN з routes для отримання назви маршруту
-            .select('*, routes(name)')
+            .select('*')
             .eq('user_id', user.uid)
             .order('created_at', { ascending: false });
 
@@ -107,7 +106,6 @@ export default function Dashboard() {
       };
 
       const fetchNotifications = () => {
-        // Статична назва каналу — без Date.now() щоб не накопичувались підписки
         const channelName = `notifs_${user.uid}`;
         const channel = supabase
           .channel(channelName)
@@ -115,9 +113,8 @@ export default function Dashboard() {
             event: '*',
             schema: 'public',
             table: 'notifications',
-            filter: `userId=eq.${user.uid}`
-          }, (payload) => {
-            // Refetch notifications on change
+            filter: `user_id=eq.${user.uid}`
+          }, () => {
             supabase
               .from('notifications')
               .select('*')
@@ -141,7 +138,6 @@ export default function Dashboard() {
       };
 
       const fetchPassengers = () => {
-        // Статична назва каналу — без Date.now()
         const channelName = `passengers_${user.uid}`;
         const channel = supabase
           .channel(channelName)
@@ -149,16 +145,14 @@ export default function Dashboard() {
             event: '*',
             schema: 'public',
             table: 'passengers',
-            filter: `userId=eq.${user.uid}`
-          }, (payload) => {
-            // Refetch passengers on change
+            filter: `user_id=eq.${user.uid}`
+          }, () => {
             supabase
               .from('passengers')
               .select('*')
               .eq('user_id', user.uid)
               .then(({ data }) => {
                 const results = data || [];
-                // Add primary passenger (user) if not present
                 const hasPrimary = results.some((p: any) => p.role === 'Основний');
                 if (!hasPrimary && user) {
                   results.unshift({
@@ -181,7 +175,6 @@ export default function Dashboard() {
           .eq('user_id', user.uid)
           .then(({ data }) => {
             const results = data || [];
-            // Add primary passenger (user) if not present
             const hasPrimary = results.some((p: any) => p.role === 'Основний');
             if (!hasPrimary && user) {
               results.unshift({
@@ -255,8 +248,9 @@ export default function Dashboard() {
         : (b.created_at ? new Date(b.created_at).toLocaleDateString('uk-UA') : 'В обробці'),
       time: b.departure_time || '—',
       duration: b.arrival_time || '—',
-      seats: `${b.seats || b.passengers?.length || 1} місць`,
+      seats: `${Array.isArray(b.passengers) ? b.passengers.length : (b.seats || 1)} місць`,
       price: b.total_price || 0,
+      currency: b.currency || 'UAH',
       carrier: b.carrier_name || 'Busnet Carrier'
     }));
   }, [realBookings]);
@@ -355,22 +349,21 @@ export default function Dashboard() {
 
   const handleCancelTicket = async (ticketId: string) => {
     try {
-      // 1. Скасовуємо бронювання
-      const { error } = await supabase
-        .from('bookings')
-        .update({ status: 'cancelled' })
-        .eq('id', ticketId);
+      // Rule 10: Скасування через cancel_booking RPC
+      const { data, error } = await supabase.rpc('cancel_booking', {
+        p_booking_id: ticketId
+      });
 
       if (error) throw error;
-
-      // Увага: не чіпаємо trips.seatsBooked —
-      // таблиця trips майже не використовується в продакшні
+      if (!data?.success) {
+        throw new Error(data?.error || 'Помилка скасування');
+      }
 
       setRealBookings(prev => prev.map(b => b.id === ticketId ? { ...b, status: 'cancelled' } : b));
-      toast.success('Білет скасовано');
-    } catch (error) {
+      toast.success('Бронювання успішно скасовано');
+    } catch (error: any) {
       console.error("Error cancelling ticket:", error);
-      toast.error('Помилка скасування');
+      toast.error(error?.message || 'Помилка скасування');
       throw error;
     }
   };

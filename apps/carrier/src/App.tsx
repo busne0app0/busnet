@@ -1,7 +1,7 @@
 import { Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from '@busnet/shared/components/common/ProtectedRoute';
 import { AppShell } from '@busnet/shared/components/common/AppShell';
- 
+
 import CarrierLayout from '@busnet/shared/pages/carrier/CarrierLayout';
 import CarrierDashboard from '@busnet/shared/pages/carrier/CarrierDashboard';
 import LiveTrips from '@busnet/shared/pages/carrier/LiveTrips';
@@ -25,12 +25,12 @@ import SettingsTab from '@busnet/shared/pages/carrier/SettingsTab';
 
 import PortalLogin from '@busnet/shared/components/auth/PortalLogin';
 import { Briefcase } from 'lucide-react';
- 
+
 export default function App() {
   return (
     <AppShell basename="/">
       <Route path="/login" element={
-         <PortalLogin role="carrier" title="BUSNET CRM" subtitle="Екосистема розвитку вашого автопарку" colorClass="bg-orange-500/20 text-orange-400 border-orange-500/30" icon={Briefcase} dashboardRoute="/carrier/" />
+        <PortalLogin role="carrier" title="BUSNET CRM" subtitle="Екосистема розвитку вашого автопарку" colorClass="bg-[#00E5FF]/10 text-[#00E5FF] border-[#00E5FF]/30" icon={Briefcase} dashboardRoute="/" />
       } />
       <Route path="/" element={<ProtectedRoute role="carrier" loginUrl="/login"><CarrierLayout /></ProtectedRoute>}>
         <Route index element={<CarrierDashboard />} />

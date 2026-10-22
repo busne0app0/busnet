@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBookingStore } from '@busnet/shared/store/useBookingStore';
 import Step1Confirmation from './steps/Step1Confirmation';
 import Step2Details from './steps/Step2Details';
 import Step3Success from './steps/Step3Success';
-import { ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { supabase } from '@busnet/shared/supabase/config';
+import { Trip } from '../../busnet/types';
 
 const stepsMeta = [
   { id: 1, label: 'Підтвердження' },
@@ -14,15 +16,120 @@ const stepsMeta = [
 ];
 
 export default function BookingStepper() {
-  const { currentStep, setStep, selectedTrip } = useBookingStore();
+  const { currentStep, setStep, selectedTrip, setTrip } = useBookingStore();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [restoring, setRestoring] = useState(false);
 
-  // If no trip selected, redirect back home
-  React.useEffect(() => {
-    if (!selectedTrip && currentStep < 3) {
+  // Rule 11: Рейс у /booking зберігати в URL: /booking?route=&dir=&from=&to=&date=. На відновленні викликати get_trip_quote.
+  useEffect(() => {
+    if (selectedTrip || currentStep === 3) return;
+
+    const query = new URLSearchParams(location.search);
+    const routeId = query.get('route');
+    const dir = (query.get('dir') || 'outbound') as 'outbound' | 'inbound';
+    const fromStr = query.get('from');
+    const toStr = query.get('to');
+    const dateStr = query.get('date');
+
+    if (!routeId || fromStr === null || toStr === null || !dateStr) {
       navigate('/');
+      return;
     }
-  }, [selectedTrip, currentStep, navigate]);
+
+    const fromIdx = parseInt(fromStr);
+    const toIdx = parseInt(toStr);
+
+    let cancelled = false;
+    setRestoring(true);
+
+    const restore = async () => {
+      try {
+        const { data: routeData, error: routeErr } = await supabase
+          .from('routes')
+          .select('*')
+          .eq('id', routeId)
+          .single();
+
+        if (routeErr || !routeData) {
+          throw new Error('Маршрут не знайдено');
+        }
+
+        const { data: quote, error: quoteErr } = await supabase.rpc('get_trip_quote', {
+          p_route_id: routeId,
+          p_direction: dir,
+          p_from_stop: fromIdx,
+          p_to_stop: toIdx,
+          p_start_date: dateStr
+        });
+
+        if (quoteErr || !quote || quote.ok === false) {
+          throw new Error(quote?.error || 'Помилка розрахунку рейсу');
+        }
+
+        if (cancelled) return;
+
+        const stops = (routeData[dir]?.stops || []);
+        const depCity = quote.from_city || stops[fromIdx]?.city;
+        const arrCity = quote.to_city || stops[toIdx]?.city;
+
+        const restoredTrip: Trip = {
+          id: `${routeId}_${dir}_${fromIdx}_${toIdx}_${dateStr}`,
+          routeId: routeId,
+          direction: dir,
+          fromStopIdx: fromIdx,
+          toStopIdx: toIdx,
+          startDate: dateStr,
+          carrierId: routeData.carrier_id ?? '',
+          carrierName: routeData.operator ?? 'Перевізник',
+          from: depCity,
+          to: arrCity,
+          name: routeData.name ?? `${depCity} - ${arrCity}`,
+          operator: routeData.operator ?? 'Перевізник',
+          departureCity: depCity,
+          arrivalCity: arrCity,
+          departureDate: quote.dep_date || dateStr,
+          arrivalDate: quote.arr_date || quote.dep_date || dateStr,
+          departureTime: quote.dep_time || stops[fromIdx]?.time || '00:00',
+          arrivalTime: quote.arr_time || stops[toIdx]?.time || '00:00',
+          price: quote.price,
+          currency: quote.currency || routeData.currency || 'UAH',
+          availableSeats: quote.available,
+          totalSeats: quote.seats_total ?? (routeData.seats || 50),
+          seatsTotal: quote.seats_total ?? (routeData.seats || 50),
+          seatsBooked: Math.max(0, (quote.seats_total ?? (routeData.seats || 50)) - (quote.available ?? 0)),
+          busInfo: routeData.busInfo ?? 'Комфортабельний автобус',
+          amenities: routeData.amenities ?? [],
+          discounts: routeData.discounts,
+          custom_discounts: routeData.custom_discounts,
+          status: routeData.status,
+          stops
+        };
+
+        setTrip(restoredTrip);
+      } catch (err) {
+        console.error('Failed to restore trip from URL:', err);
+        if (!cancelled) navigate('/');
+      } finally {
+        if (!cancelled) setRestoring(false);
+      }
+    };
+
+    restore();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.search, selectedTrip, currentStep, navigate, setTrip]);
+
+  if (restoring) {
+    return (
+      <div className="w-full max-w-5xl mx-auto px-4 py-24 flex flex-col items-center justify-center gap-4">
+        <Loader2 className="w-12 h-12 text-cyan-400 animate-spin" />
+        <p className="text-white text-xs font-black uppercase tracking-widest">Відновлення даних рейсу...</p>
+      </div>
+    );
+  }
 
   if (!selectedTrip && currentStep < 3) return null;
 

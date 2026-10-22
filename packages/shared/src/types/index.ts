@@ -1,7 +1,7 @@
 export type Role = 'passenger' | 'agent' | 'carrier' | 'admin' | 'driver';
 
 // Уніфіковані статуси — ТІЛЬКИ lowercase, відповідає БД (bookings.status)
-export type TxStatus = 'pending' | 'confirmed' | 'boarded' | 'settled' | 'cancelled' | 'active';
+export type TxStatus = 'pending' | 'confirmed' | 'boarded' | 'settled' | 'cancelled' | 'completed';
 
 export interface User {
   uid: string;
@@ -34,6 +34,10 @@ export interface Trip {
   routeId?: string;
   carrierId: string;
   carrierName: string;
+  direction?: 'outbound' | 'inbound';
+  fromStopIdx?: number;
+  toStopIdx?: number;
+  startDate?: string;
   from: string;
   to: string;
   departureCity?: string;
@@ -47,6 +51,7 @@ export interface Trip {
   date?: string; // YYYY-MM-DD
   arrivalTime: string;
   arrival_time?: string;
+  arrivalDate?: string;
   price: number;
   price_eur?: number;
   carrier_id?: string;
@@ -63,19 +68,26 @@ export interface Trip {
   name?: string;
   operator?: string;
   stops?: any[];
+  discounts?: any;
+  custom_discounts?: any[];
+  rules?: string[];
 }
 
 export interface Booking {
   id: string;
-  tripId: string;
-  userId?: string;
-  passengerId: string;
-  passengerName: string;
-  passengers?: any[];
-  seats: number;
-  totalPrice: number;
+  user_id: string;
+  trip_id?: string;
+  carrier_id?: string | null;
   status: TxStatus;
-  createdAt: any;
+  passengers?: any[];
+  total_price: number;
+  currency?: string;
+  route_from?: string;
+  route_to?: string;
+  departure_date?: string;
+  departure_time?: string;
+  arrival_time?: string;
+  created_at?: any;
 }
 
 export interface Transaction {

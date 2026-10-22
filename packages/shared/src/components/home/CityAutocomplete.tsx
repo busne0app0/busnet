@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useId, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence, useAnimation } from 'framer-motion';
+import type { useAnimation } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Star, Search, Loader2, X } from 'lucide-react';
-import { City } from '@busnet/shared/data/cities';
 import { useLanguage } from '@busnet/shared/context/LanguageContext';
 import { ExtendedCity } from '@busnet/shared/hooks/useCities';
 import { sanitizeCityQuery, normalizeCityName } from '@busnet/shared/lib/cityUtils';
@@ -14,10 +14,13 @@ export interface CityAutocompleteProps {
   icon: React.ReactNode;
   animationControl?: ReturnType<typeof useAnimation>;
   hasError?: boolean;
+  errorId?: string;
   availableCities?: ExtendedCity[];
   isLoading?: boolean;
-  onSelectCity?: () => void;
+  onSelectCity?: (city: ExtendedCity) => void;
+  onEnter?: () => void;
   inputRef?: React.RefObject<HTMLInputElement | null>;
+  enterKeyHint?: 'next' | 'search' | 'done';
 }
 
 export default function CityAutocomplete({
@@ -28,93 +31,107 @@ export default function CityAutocomplete({
   icon,
   animationControl,
   hasError = false,
+  errorId,
   availableCities = [],
   isLoading = false,
   onSelectCity,
+  onEnter,
   inputRef: externalInputRef,
+  enterKeyHint,
 }: CityAutocompleteProps) {
-  const { language = 'uk' } = useLanguage();
+  const { langKey, t } = useLanguage();
   const inputId = useId();
   const listboxId = useId();
 
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [debouncedQuery, setDebouncedQuery] = useState(value);
 
   const internalInputRef = useRef<HTMLInputElement>(null);
   const inputRef = (externalInputRef || internalInputRef) as React.RefObject<HTMLInputElement>;
   const containerRef = useRef<HTMLDivElement>(null);
   const optionsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const scrollOnChange = useRef(false);
 
-  // Дебаунс запиту для оптимізації фільтрації
+  // Закриття списку під час пошуку
   useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedQuery(value);
-    }, 120);
-    return () => clearTimeout(handler);
-  }, [value]);
+    if (isLoading) setIsOpen(false);
+  }, [isLoading]);
 
-  // Закриття при кліку поза полем
+  // Закриття при кліку поза компонентом (pointerdown)
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+    if (!isOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) {
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [isOpen]);
 
-  // Автоскрол до виділеного елемента при клавіатурній навігації (пункт 2)
+  // Локалізована назва міста
+  const getCityName = useCallback(
+    (city: ExtendedCity): string => {
+      const names = city.names as { uk?: string; en?: string; it?: string };
+      return names[langKey] || names.uk || names.en || Object.values(names)[0] || '';
+    },
+    [langKey]
+  );
+
+  // Попередньо обчислений індекс для блискавичного пошуку
+  const searchIndex = useMemo(
+    () =>
+      availableCities.map((city) => ({
+        city,
+        keys: Object.values(city.names).filter(Boolean).map(normalizeCityName),
+      })),
+    [availableCities]
+  );
+
+  // Миттєва фільтрація та ранжування (без затримки дебаунсу для локального масиву)
+  const suggestions = useMemo(() => {
+    const q = normalizeCityName(value.trim());
+    if (!q) return [];
+
+    return searchIndex
+      .map(({ city, keys }) => {
+        let rank = -1;
+        if (keys.some((k) => k === q)) {
+          rank = 0; // Точний збіг
+        } else if (keys.some((k) => k.startsWith(q))) {
+          rank = 1; // Префіксний збіг
+        } else if (keys.some((k) => k.includes(q))) {
+          rank = 2; // Підрядок
+        }
+        return { city, rank };
+      })
+      .filter((x) => x.rank >= 0)
+      .sort((a, b) => {
+        if (a.rank !== b.rank) return a.rank - b.rank;
+        if (!!b.city.popular !== !!a.city.popular) return Number(!!b.city.popular) - Number(!!a.city.popular);
+        return getCityName(a.city).localeCompare(getCityName(b.city), langKey);
+      })
+      .slice(0, 8)
+      .map((x) => x.city);
+  }, [searchIndex, value, getCityName, langKey]);
+
+  // Скидання індексу при зміні списку
   useEffect(() => {
+    setHighlightedIndex(-1);
+    optionsRef.current.length = suggestions.length;
+  }, [suggestions]);
+
+  // Автоскрол тільки при клавіатурній навігації (не при hover)
+  useEffect(() => {
+    if (!scrollOnChange.current) return;
+    scrollOnChange.current = false;
     if (highlightedIndex >= 0 && optionsRef.current[highlightedIndex]) {
       optionsRef.current[highlightedIndex]?.scrollIntoView({
         block: 'nearest',
-        behavior: 'smooth',
+        behavior: 'auto',
       });
     }
   }, [highlightedIndex]);
-
-  // Локалізована назва міста з безпечним мапінгом
-  const getCityName = useCallback((city: City | ExtendedCity): string => {
-    const raw = language?.toLowerCase();
-    const langKey: 'uk' | 'en' | 'it' = raw === 'en' ? 'en' : raw === 'it' ? 'it' : 'uk';
-    const names = city.names as { uk?: string; en?: string; it?: string };
-    return names[langKey] || names.uk || names.en || Object.values(names)[0] || '';
-  }, [language]);
-
-  // Фільтрація та сортування
-  const suggestions = useMemo(() => {
-    const rawVal = debouncedQuery.trim();
-    if (!rawVal) return [];
-
-    const searchStr = normalizeCityName(rawVal);
-    if (!searchStr) return [];
-
-    return availableCities
-      .filter((city) => {
-        const uk = normalizeCityName(city.names.uk || '');
-        const en = normalizeCityName(city.names.en || '');
-        const it = normalizeCityName(city.names.it || '');
-        return uk.includes(searchStr) || en.includes(searchStr) || it.includes(searchStr);
-      })
-      .sort((a, b) => {
-        const aStarts = Object.values(a.names).some((n) =>
-          normalizeCityName(n).startsWith(searchStr)
-        );
-        const bStarts = Object.values(b.names).some((n) =>
-          normalizeCityName(n).startsWith(searchStr)
-        );
-        if (aStarts && !bStarts) return -1;
-        if (!aStarts && bStarts) return 1;
-
-        if (a.popular && !b.popular) return -1;
-        if (!a.popular && b.popular) return 1;
-
-        return 0;
-      })
-      .slice(0, 8);
-  }, [debouncedQuery, availableCities]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const sanitized = sanitizeCityQuery(e.target.value);
@@ -123,12 +140,12 @@ export default function CityAutocomplete({
     setIsOpen(sanitized.trim().length > 0);
   };
 
-  const handleSelect = (city: City | ExtendedCity) => {
+  const handleSelect = (city: ExtendedCity) => {
     const cityName = getCityName(city);
     onChange(cityName);
     setIsOpen(false);
     setHighlightedIndex(-1);
-    onSelectCity?.();
+    onSelectCity?.(city);
   };
 
   const handleClear = (e: React.MouseEvent) => {
@@ -139,20 +156,28 @@ export default function CityAutocomplete({
     inputRef.current?.focus();
   };
 
-  // Виправлена клавіатурна навігація (пункт 1: Escape завжди працює)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Захист від IME композиції
+    if (e.nativeEvent.isComposing) return;
+
     if (e.key === 'Escape') {
-      e.preventDefault();
-      setIsOpen(false);
-      setHighlightedIndex(-1);
+      if (isOpen) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsOpen(false);
+        setHighlightedIndex(-1);
+      }
       return;
     }
 
     if (!isOpen) {
       if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && suggestions.length > 0) {
         setIsOpen(true);
+        scrollOnChange.current = true;
         setHighlightedIndex(0);
         e.preventDefault();
+      } else if (e.key === 'Enter') {
+        onEnter?.();
       }
       return;
     }
@@ -162,42 +187,51 @@ export default function CityAutocomplete({
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
+        scrollOnChange.current = true;
         setHighlightedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
         break;
       case 'ArrowUp':
         e.preventDefault();
+        scrollOnChange.current = true;
         setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
         break;
       case 'Enter':
-        e.preventDefault();
         if (highlightedIndex >= 0 && highlightedIndex < suggestions.length) {
+          e.preventDefault();
           handleSelect(suggestions[highlightedIndex]);
+        } else if (suggestions.length === 1) {
+          e.preventDefault();
+          handleSelect(suggestions[0]);
+        } else {
+          onEnter?.();
         }
+        break;
+      case 'Tab':
+        setIsOpen(false);
+        setHighlightedIndex(-1);
         break;
     }
   };
 
-  const hasNoResults = isOpen && debouncedQuery.trim().length > 0 && suggestions.length === 0 && !isLoading;
-  const notFoundText = (language?.toLowerCase() === 'en' ? 'City not found' : language?.toLowerCase() === 'it' ? 'Città non trovata' : 'Місто не знайдено');
+  const hasNoResults = isOpen && value.trim().length > 0 && suggestions.length === 0;
 
   return (
     <div className="w-full md:flex-1 relative" ref={containerRef}>
       <motion.div
         animate={animationControl}
-        className={`px-4 py-3 md:px-6 cursor-text transition-all rounded-2xl group h-full focus-within:ring-1 focus-within:ring-neon-cyan/50 focus-within:shadow-[0_0_15px_rgba(0,212,255,0.2)] ${
+        className={`px-4 py-3 md:px-6 cursor-text transition-all rounded-2xl h-full focus-within:ring-1 focus-within:ring-neon-cyan/50 focus-within:shadow-[0_0_15px_rgba(0,212,255,0.2)] ${
           hasError ? 'ring-1 ring-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]' : ''
         }`}
         onClick={() => inputRef.current?.focus()}
       >
         <label
           htmlFor={inputId}
-          className="text-[10px] text-slate-400 font-black uppercase block mb-1.5 tracking-widest flex items-center gap-1.5 group-hover:text-neon-cyan transition-colors"
+          className="text-[10px] text-slate-400 font-black uppercase block mb-1.5 tracking-widest flex items-center gap-1.5 transition-colors"
         >
           {icon} <span>{label}</span>
           {isLoading && (
-            <span className="flex items-center gap-1 text-neon-cyan">
+            <span className="flex items-center gap-1 text-neon-cyan" aria-hidden="true">
               <Loader2 size={10} className="animate-spin" />
-              <span className="sr-only">Завантаження міст...</span>
             </span>
           )}
         </label>
@@ -211,37 +245,62 @@ export default function CityAutocomplete({
             aria-autocomplete="list"
             aria-haspopup="listbox"
             aria-expanded={isOpen}
-            aria-controls={isOpen ? listboxId : undefined}
+            aria-controls={isOpen && suggestions.length > 0 ? listboxId : undefined}
             aria-activedescendant={
-              highlightedIndex >= 0 ? `${listboxId}-opt-${highlightedIndex}` : undefined
+              isOpen && highlightedIndex >= 0 && highlightedIndex < suggestions.length
+                ? `${listboxId}-opt-${highlightedIndex}`
+                : undefined
             }
-            disabled={isLoading}
+            aria-invalid={hasError}
+            aria-describedby={hasError && errorId ? errorId : undefined}
+            readOnly={isLoading}
+            maxLength={64}
+            autoCapitalize="words"
+            autoCorrect="off"
+            enterKeyHint={enterKeyHint}
             value={value}
-            onFocus={() => {
+            onClick={() => {
               if (value.trim().length > 0 && suggestions.length > 0) {
                 setIsOpen(true);
+              }
+            }}
+            onBlur={(e) => {
+              // Закриття при виході табуляцією
+              if (!containerRef.current?.contains(e.relatedTarget as Node)) {
+                setIsOpen(false);
               }
             }}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className="w-full bg-transparent border-none text-white text-base sm:text-lg font-black outline-none placeholder:text-slate-500 italic tracking-tight pr-8 disabled:opacity-50 disabled:cursor-not-allowed"
+            autoComplete="off"
+            spellCheck={false}
+            className="w-full bg-transparent border-none text-white text-base sm:text-lg font-black outline-none placeholder:text-slate-500 italic tracking-tight pr-10 read-only:opacity-50 read-only:cursor-not-allowed"
           />
 
           {value && !isLoading && (
             <button
               type="button"
               onClick={handleClear}
-              aria-label={`Очистити поле ${label}`}
-              className="absolute right-0 p-1 text-slate-400 hover:text-white transition-colors rounded-full hover:bg-white/10"
+              aria-label={`${t.search.clear}: ${label}`}
+              className="absolute right-0 p-2.5 -mr-1.5 text-slate-400 hover:text-white transition-colors rounded-full hover:bg-white/10 active:scale-95"
             >
-              <X size={14} />
+              <X size={15} />
             </button>
           )}
         </div>
       </motion.div>
 
-      {/* Dropdown Suggestions (WAI-ARIA 1.2 Combobox compliant) */}
+      {/* Жива область для скринрідерів */}
+      <span className="sr-only" role="status" aria-live="polite">
+        {isOpen && suggestions.length > 0
+          ? `${suggestions.length} міст знайдено`
+          : hasNoResults
+          ? t.search.cityNotFound
+          : ''}
+      </span>
+
+      {/* Dropdown Suggestions */}
       <AnimatePresence>
         {(isOpen && (suggestions.length > 0 || hasNoResults)) && (
           <motion.div
@@ -253,19 +312,20 @@ export default function CityAutocomplete({
           >
             {hasNoResults ? (
               <div className="px-4 py-3.5 text-xs font-semibold text-slate-400 text-center">
-                {notFoundText}
+                {t.search.cityNotFound}
               </div>
             ) : (
               <div
                 id={listboxId}
                 role="listbox"
-                aria-label={`Підказки для ${label}`}
+                aria-label={label}
                 className="max-h-[260px] overflow-y-auto py-1"
-                onMouseDown={(e) => e.preventDefault()} // Запобігає втраті фокусу перед кліком (пункт 5)
+                onMouseDown={(e) => e.preventDefault()}
               >
                 {suggestions.map((city, index) => {
                   const cityName = getCityName(city);
                   const isHighlighted = highlightedIndex === index;
+                  const isSelected = normalizeCityName(cityName) === normalizeCityName(value);
 
                   return (
                     <div
@@ -273,10 +333,13 @@ export default function CityAutocomplete({
                       ref={(el) => { optionsRef.current[index] = el; }}
                       id={`${listboxId}-opt-${index}`}
                       role="option"
-                      aria-selected={isHighlighted}
+                      aria-selected={isSelected}
                       tabIndex={-1}
                       onClick={() => handleSelect(city)}
-                      onMouseEnter={() => setHighlightedIndex(index)}
+                      onMouseEnter={() => {
+                        scrollOnChange.current = false;
+                        setHighlightedIndex(index);
+                      }}
                       className={`w-full text-left px-4 py-2.5 flex items-center justify-between cursor-pointer transition-all ${
                         isHighlighted
                           ? 'bg-neon-cyan/15 text-neon-cyan'
@@ -291,11 +354,11 @@ export default function CityAutocomplete({
                               : 'bg-white/5 text-slate-400 border border-white/10'
                           }`}
                         >
-                          {city.popular ? <Star size={13} /> : <MapPin size={13} />}
+                          {city.popular ? <Star size={13} aria-hidden="true" /> : <MapPin size={13} aria-hidden="true" />}
                         </div>
                         <div>
                           <p className="text-sm font-bold leading-tight">{cityName}</p>
-                          {city.countryCode && (
+                          {city.countryCode && city.countryCode !== '??' && (
                             <span className="text-[10px] text-slate-500 font-semibold tracking-wider">
                               {city.countryCode}
                             </span>
@@ -307,6 +370,7 @@ export default function CityAutocomplete({
                         className={`transition-opacity ${
                           isHighlighted ? 'opacity-100 text-neon-cyan' : 'opacity-0'
                         }`}
+                        aria-hidden="true"
                       />
                     </div>
                   );

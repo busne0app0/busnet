@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import HeroSection from '@busnet/shared/components/home/HeroSection';
-import SearchWidget from '@busnet/shared/components/home/SearchWidget';
 import SearchResults from '@busnet/shared/components/home/SearchResults';
 import PopularDestinations from '@busnet/shared/components/home/PopularDestinations';
 import Ticker from '@busnet/shared/components/home/Ticker';
@@ -92,7 +91,14 @@ export default function HomePage() {
 
   const handleSelectTrip = (trip: Trip) => {
     setTrip(trip);
-    navigate('/booking');
+    const params = new URLSearchParams({
+      route: trip.routeId || trip.id,
+      dir: trip.direction || 'outbound',
+      from: String(trip.fromStopIdx ?? 0),
+      to: String(trip.toStopIdx ?? 1),
+      date: trip.startDate || trip.departureDate || ''
+    });
+    navigate(`/booking?${params.toString()}`);
   };
 
   return (
@@ -114,7 +120,7 @@ export default function HomePage() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full flex flex-col items-center"
             >
-              <HeroSection />
+              <HeroSection onSearch={() => executeSearch()} isLoading={loading} />
             </motion.div>
           ) : (
             <motion.div
@@ -138,8 +144,7 @@ export default function HomePage() {
           )}
         </AnimatePresence>
 
-        {/* Ticket Search Form Widget */}
-        <SearchWidget onSearch={() => executeSearch()} isLoading={loading} />
+
 
         {/* Results with ErrorBoundary or Marketing Landing Sections (item 28) */}
         {showResults ? (

@@ -22,31 +22,12 @@ export default function SearchResults({ trips, loading, onSelect }: SearchResult
   const { searchParams } = useSearch();
 
   const getSegmentDetails = (trip: Trip) => {
-    const from = searchParams.from?.toLowerCase();
-    const to = searchParams.to?.toLowerCase();
-
-    const stops = (trip as any).stops || (trip as any).stopsThere || [];
-    const fromStop = stops.find((s: any) => s.city.toLowerCase() === from) || stops[0] || { time: '--:--', city: '' };
-    const toStop = stops.find((s: any) => s.city.toLowerCase() === to) || stops[stops.length - 1] || { time: '--:--', city: '' };
-
-    // Find indices for price calculation
-    const fromIdx = stops.findIndex((s: any) => s.city.toLowerCase() === from);
-    const toIdx = stops.findIndex((s: any) => s.city.toLowerCase() === to);
-
-    let price = trip.price || 0;
-    if (fromIdx !== -1 && toIdx !== -1 && trip.pricesThere) {
-       const key = `${fromIdx}-${toIdx}`;
-       if (trip.pricesThere[key]) {
-          price = trip.pricesThere[key];
-       }
-    }
-
     return {
-      departureTime: fromStop.time,
-      arrivalTime: toStop.time,
-      fromCity: fromStop.city,
-      toCity: toStop.city,
-      price
+      departureTime: trip.departureTime || '--:--',
+      arrivalTime: trip.arrivalTime || '--:--',
+      fromCity: trip.departureCity || trip.from || '',
+      toCity: trip.arrivalCity || trip.to || '',
+      price: trip.price || 0
     };
   };
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -88,9 +69,9 @@ export default function SearchResults({ trips, loading, onSelect }: SearchResult
         const { error } = await supabase.from('leads').insert({
           name: formData.name,
           phone: formData.phone,
-          from: searchParams.from,
-          to: searchParams.to,
-          date: searchParams.date,
+          from_city: searchParams.from || '',
+          to_city: searchParams.to || '',
+          date: searchParams.date || null,
           status: 'new',
           created_at: new Date().toISOString()
         });
@@ -269,7 +250,7 @@ export default function SearchResults({ trips, loading, onSelect }: SearchResult
                     </div>
                     <div className="flex items-center gap-1.5 mt-1">
                       <Users className="w-3.5 h-3.5 text-slate-500" />
-                      <span className="text-[11px] font-bold text-slate-500">Вільних місць: {trip.seatsTotal - (trip.seatsBooked || 0)}</span>
+                      <span className="text-[11px] font-bold text-slate-500">Вільних місць: {trip.availableSeats ?? (trip.seatsTotal - (trip.seatsBooked || 0))}</span>
                     </div>
                   </div>
 

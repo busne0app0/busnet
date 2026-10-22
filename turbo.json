@@ -2,9 +2,7 @@
   "$schema": "https://turbo.build/schema.json",
   "globalEnv": [
     "VITE_SUPABASE_URL",
-    "VITE_SUPABASE_ANON_KEY",
-    "VITE_ADMIN_MASTER_KEY",
-    "SUPABASE_SERVICE_ROLE_KEY"
+    "VITE_SUPABASE_ANON_KEY"
   ],
   "tasks": {
     "build": {

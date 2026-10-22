@@ -114,7 +114,8 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center relative overflow-hidden p-4 font-sans selection:bg-cyan-500 selection:text-black">
       {/* Import Syne font dynamic */}
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600;700&display=swap');
         .font-syne {
           font-family: 'Syne', sans-serif;
@@ -126,9 +127,9 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
 
       {/* Futuristic Mesh Gradients */}
       <div className={`absolute top-0 left-0 w-full h-full bg-gradient-to-b ${colors.gradientBg} pointer-events-none z-0`} />
-      
+
       {/* Radial neon glow blobs */}
-      <motion.div 
+      <motion.div
         animate={{
           scale: [1, 1.15, 0.95, 1],
           opacity: [0.12, 0.18, 0.14, 0.12],
@@ -140,9 +141,9 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
           repeat: Infinity,
           ease: "easeInOut"
         }}
-        className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full blur-[140px] bg-cyan-500/20 pointer-events-none z-0" 
+        className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full blur-[140px] bg-cyan-500/20 pointer-events-none z-0"
       />
-      <motion.div 
+      <motion.div
         animate={{
           scale: [1, 0.9, 1.1, 1],
           opacity: [0.1, 0.16, 0.12, 0.1],
@@ -154,7 +155,7 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
           repeat: Infinity,
           ease: "easeInOut"
         }}
-        className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] rounded-full blur-[150px] bg-purple-500/25 pointer-events-none z-0" 
+        className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] rounded-full blur-[150px] bg-purple-500/25 pointer-events-none z-0"
       />
 
       {/* Floating Particles */}
@@ -194,7 +195,7 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
 
         <div className="bg-slate-950/70 border border-white/10 p-8 rounded-3xl backdrop-blur-2xl shadow-2xl relative z-10 hover:border-white/15 transition-all duration-500">
           <div className="flex flex-col items-center mb-8">
-            <motion.div 
+            <motion.div
               whileHover={{ scale: 1.08, rotate: 5 }}
               whileTap={{ scale: 0.95 }}
               className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.05)] mb-4 border border-white/15 bg-slate-900/80 cursor-pointer overflow-hidden p-2`}
@@ -337,7 +338,7 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
             </motion.button>
           </form>
 
-          {role !== 'admin' && (
+          {role !== 'admin' && role !== 'driver' && (
             <div className="mt-6 flex justify-center">
               <button
                 type="button"
@@ -350,9 +351,17 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
               </button>
             </div>
           )}
+          {role === 'driver' && (
+            <div className="mt-6 flex justify-center">
+              <p className="text-sm text-slate-500 text-center">
+                Акаунт водія створює перевізник.<br />
+                <span className="text-slate-400">Зверніться до вашої транспортної компанії.</span>
+              </p>
+            </div>
+          )}
 
           <div className="mt-6 pt-6 border-t border-white/10 text-center">
-            <a href="/" className="text-sm text-slate-500 hover:text-slate-300 transition-colors font-medium tracking-wide">
+            <a href={import.meta.env.VITE_LANDING_URL || 'http://localhost:5173'} className="text-sm text-slate-500 hover:text-slate-300 transition-colors font-medium tracking-wide">
               Повернутися на головний сайт BUSNET
             </a>
           </div>

@@ -358,9 +358,9 @@ export const calculateSegments = (
       const key = `${from.toLowerCase()}_${to.toLowerCase()}`;
 
       if (isUA(i) && !isUA(j)) {
-        segments.push({ from, to, price: priceMemory[key] || 0, currency: 'ГРН', key });
+        segments.push({ fromId: outboundStops[i].id, toId: outboundStops[j].id, from, to, price: priceMemory[key] || 0, currency: 'ГРН', key });
       } else if (!isUA(i) && isUA(j)) {
-        segments.push({ from, to, price: priceMemory[key] || 0, currency: 'EUR', key });
+        segments.push({ fromId: outboundStops[i].id, toId: outboundStops[j].id, from, to, price: priceMemory[key] || 0, currency: 'EUR', key });
       }
     }
   }

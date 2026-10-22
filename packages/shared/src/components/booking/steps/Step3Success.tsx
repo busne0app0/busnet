@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useBookingStore } from '@busnet/shared/store/useBookingStore';
-import { Check, Copy, LayoutDashboard, Key, Mail, Sparkles } from 'lucide-react';
+import { Check, Copy, LayoutDashboard, Ticket, Mail, Sparkles, CreditCard } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Step3Success() {
-  const { mainContact, tempPassword } = useBookingStore();
+  const { mainContact, confirmedBooking } = useBookingStore();
   const [copied, setCopied] = useState(false);
   const navigate = useNavigate();
 
+  const bookingId = confirmedBooking?.bookingId || 'ОФОРМЛЕНО';
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(tempPassword);
+    navigator.clipboard.writeText(bookingId);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -34,7 +36,7 @@ export default function Step3Success() {
           <h3 className="text-4xl font-black text-white uppercase tracking-tighter mb-2 italic">
             Вітаємо в <span className="text-cyan-400 not-italic inline-block pr-4 holographic-text">Busnet!</span>
           </h3>
-          <p className="text-slate-400 font-medium">Ваше бронювання підтверджено. Ми створили для вас кабінет.</p>
+          <p className="text-slate-400 font-medium">Ваше бронювання успішно оформлено та збережено в кабінеті.</p>
         </motion.div>
         
         {/* Decorative particles */}
@@ -45,38 +47,50 @@ export default function Step3Success() {
       </div>
 
       <div className="max-w-md mx-auto p-1 bg-gradient-to-br from-cyan-500/20 via-violet-500/20 to-fuchsia-500/20 rounded-[32px] shadow-[0_40px_80px_rgba(0,0,0,0.6)]">
-        <div className="p-8 bg-[#0D111C]/90 backdrop-blur-3xl rounded-[30px] border border-white/5 space-y-8">
-           <div className="space-y-4">
-              <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5 group">
-                <div className="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 shrink-0">
-                  <Mail size={24} />
-                </div>
-                <div className="flex-1">
-                  <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Ваш Логін</p>
-                  <p className="text-lg font-bold text-white tracking-tight">{mainContact.email}</p>
-                </div>
-              </div>
-
+        <div className="p-8 bg-[#0D111C]/90 backdrop-blur-3xl rounded-[30px] border border-white/5 space-y-6">
+           <div className="space-y-3">
               <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5 group relative overflow-hidden">
-                <div className="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 shrink-0">
-                  <Key size={24} />
+                <div className="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 shrink-0">
+                  <Ticket size={24} />
                 </div>
-                <div className="flex-1">
-                  <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Тимчасовий Пароль</p>
-                  <p className="text-lg font-mono font-bold text-white tracking-[0.2em]">{tempPassword}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Номер бронювання</p>
+                  <p className="text-base font-mono font-bold text-white tracking-widest truncate">{bookingId}</p>
                 </div>
                 <button 
                   onClick={handleCopy}
-                  className="p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all active:scale-95 text-slate-400 hover:text-cyan-400"
+                  className="p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all active:scale-95 text-slate-400 hover:text-cyan-400 shrink-0"
+                  title="Скопіювати номер"
                 >
-                  {copied ? <Check size={20} className="text-emerald-400" /> : <Copy size={20} />}
+                  {copied ? <Check size={18} className="text-emerald-400" /> : <Copy size={18} />}
                 </button>
               </div>
-           </div>
 
-           <div className="p-4 bg-rose-500/5 border border-rose-500/10 rounded-2xl text-center">
-              <p className="text-[10px] text-rose-300 font-black uppercase tracking-widest">⚠️ Порада безпеки</p>
-              <p className="text-[11px] text-rose-200/60 mt-1">Змініть цей пароль в особистому кабінеті після входу.</p>
+              {confirmedBooking && (
+                <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0">
+                    <CreditCard size={24} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Сума до сплати / сплачено</p>
+                    <p className="text-lg font-bold text-emerald-400">
+                      {confirmedBooking.totalPrice} <span className="text-xs uppercase">{confirmedBooking.currency}</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {mainContact.email && (
+                <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5 group">
+                  <div className="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 shrink-0">
+                    <Mail size={24} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Контактний Email</p>
+                    <p className="text-sm font-bold text-white truncate">{mainContact.email}</p>
+                  </div>
+                </div>
+              )}
            </div>
 
            <button 
@@ -88,8 +102,6 @@ export default function Step3Success() {
            </button>
         </div>
       </div>
-
-
     </div>
   );
 }

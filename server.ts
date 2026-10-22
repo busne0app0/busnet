@@ -44,6 +44,21 @@ async function startServer() {
       });
       console.log(`🚀 [Gateway] Mounting LIVE DEV ${va.name} app at ${va.route}`);
       app.use(va.route, vite.middlewares);
+      app.use(va.route, async (req, res, next) => {
+        if (req.method !== 'GET' || req.path.includes('.')) return next();
+        try {
+          const indexPath = path.resolve(process.cwd(), 'apps', va.dir, 'index.html');
+          if (fs.existsSync(indexPath)) {
+            let html = fs.readFileSync(indexPath, 'utf-8');
+            html = await vite.transformIndexHtml(req.originalUrl, html);
+            res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
+            return;
+          }
+        } catch (e) {
+          return next(e);
+        }
+        next();
+      });
     } else if (fs.existsSync(distPath)) {
       console.log(`⚡ [Static Prod] ${va.name} @ ${va.route}`);
       app.use(va.route === '/' ? '/' : va.route, express.static(distPath, { setHeaders: (res, path) => { if (path.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); } }));

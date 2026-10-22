@@ -13,6 +13,7 @@ interface Ticket {
   duration: string;
   seats: string;
   price: number;
+  currency?: string;
   carrier: string;
 }
 
@@ -127,7 +128,7 @@ const TicketsTab: React.FC<TicketsTabProps> = ({ tickets, onCancelTicket, setAct
                   </div>
                   <div>
                     <p className="text-[9px] text-[#4a6a85] font-black uppercase tracking-widest mb-1">Ціна</p>
-                    <p className="text-xs font-bold text-white/90">{ticket.price} ₴</p>
+                    <p className="text-xs font-bold text-white/90">{ticket.price} {ticket.currency || '₴'}</p>
                   </div>
                   <div>
                     <p className="text-[9px] text-[#4a6a85] font-black uppercase tracking-widest mb-1">ID</p>
@@ -225,7 +226,7 @@ const TicketsTab: React.FC<TicketsTabProps> = ({ tickets, onCancelTicket, setAct
 
               <div className="bg-white p-6 rounded-3xl mb-10 shadow-[0_0_40px_rgba(0,200,255,0.15)]">
                  <QRCodeSVG 
-                    value={`TICKET_ID:${selectedTicketForQR.id}|ROUTE:${selectedTicketForQR.route}|DATE:${selectedTicketForQR.date}`}
+                    value={selectedTicketForQR.id}
                     size={180}
                     level="H"
                     includeMargin={true}

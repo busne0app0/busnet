@@ -48,54 +48,58 @@ export default function Header() {
       navigate('/auth');
       return;
     }
-    // Redirect to correct cabinet based on role
-    const roleRoutes: Record<string, string> = {
-      admin: '/',
-      carrier: '/',
-      agent: '/',
-      driver: '/',
-      passenger: '/dashboard',
-      user: '/dashboard',
+    const portals: Record<string, string> = {
+      carrier: import.meta.env.VITE_CARRIER_URL || 'http://localhost:3001',
+      admin: import.meta.env.VITE_ADMIN_URL || 'http://localhost:3002',
+      agent: import.meta.env.VITE_AGENT_URL || 'http://localhost:3003',
+      driver: import.meta.env.VITE_DRIVER_URL || 'http://localhost:3004',
     };
-    window.location.href = roleRoutes[user?.role || ''] || '/dashboard';
+    const portal = portals[user?.role || ''];
+    if (portal) {
+      window.location.href = portal;
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   return (
     <>
       <header
-        className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-          isMenuOpen ? 'bg-transparent h-20 md:h-24'
-          : scrolled ? 'bg-busnet-bg/80 backdrop-blur-lg border-b border-white/5 h-16 md:h-20'
-          : 'bg-transparent h-20 md:h-24'
-        }`}
+        className={`fixed top-0 w-full z-50 transition-[background,height,box-shadow] duration-300 ${isMenuOpen
+          ? 'bg-transparent h-20 md:h-24'
+          : scrolled
+            ? 'bg-busnet-bg/85 backdrop-blur-xl shadow-[0_1px_0_rgba(255,255,255,0.06),0_4px_20px_rgba(0,0,0,0.4)] h-16 md:h-20'
+            : 'bg-transparent h-20 md:h-24'
+          }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between gap-4">
-          
+
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 cursor-pointer shrink-0">
             <img src="/icon.png" alt="BUSNET UA" className="w-8 h-8 md:w-9 md:h-9 object-contain rounded-lg drop-shadow-[0_0_10px_rgba(0,212,255,0.4)]" />
-            <span className="text-xl md:text-2xl font-black tracking-tight">
-              <span className="holographic-text uppercase">BUSNET UA</span>
+            <span className="text-lg md:text-xl font-semibold tracking-[0.16em] uppercase">
+              <span className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.15)]">BUSNET</span>
+              <span className="ml-1 text-neon-cyan drop-shadow-[0_0_10px_rgba(0,212,255,0.5)]">UA</span>
             </span>
           </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
-          {navLinks.map((link) => (
-            link.href ? (
-              <Link key={link.name} to={link.href} className="text-sm font-medium text-slate-400 hover:text-neon-cyan transition-colors">
-                {link.name}
-              </Link>
-            ) : (
-              <button
-                key={link.name}
-                onClick={() => handleAnchorClick(link.anchor!)}
-                className="text-sm font-medium text-slate-400 hover:text-neon-cyan transition-colors"
-              >
-                {link.name}
-              </button>
-            )
-          ))}
+            {navLinks.map((link) => (
+              link.href ? (
+                <Link key={link.name} to={link.href} className="text-sm font-medium text-slate-200 hover:text-neon-cyan transition-colors duration-200">
+                  {link.name}
+                </Link>
+              ) : (
+                <button
+                  key={link.name}
+                  onClick={() => handleAnchorClick(link.anchor!)}
+                  className="text-sm font-medium text-slate-200 hover:text-neon-cyan transition-colors duration-200"
+                >
+                  {link.name}
+                </button>
+              )
+            ))}
           </nav>
 
           {/* Desktop Action Group */}
@@ -107,9 +111,8 @@ export default function Header() {
                 <button
                   key={lang}
                   onClick={() => setLanguage(lang)}
-                  className={`px-2 py-1 rounded-full text-[10px] font-bold transition-all ${
-                    language === lang ? 'bg-neon-cyan text-busnet-bg shadow-[0_0_10px_#00D4FF]' : 'text-slate-400 hover:text-white'
-                  }`}
+                  className={`px-2 py-1 rounded-full text-[10px] font-bold transition-all ${language === lang ? 'bg-neon-cyan text-busnet-bg shadow-[0_0_10px_#00D4FF]' : 'text-slate-300 hover:text-white'
+                    }`}
                 >
                   {lang === 'UK' ? 'UA' : lang}
                 </button>
@@ -160,9 +163,8 @@ export default function Header() {
                       <button
                         key={lang}
                         onClick={() => { setLanguage(lang); setIsMobileLangOpen(false); }}
-                        className={`px-3 py-2 rounded-xl text-xs font-black transition-all ${
-                          language === lang ? 'bg-neon-cyan text-busnet-bg' : 'text-slate-400 hover:text-white hover:bg-white/10'
-                        }`}
+                        className={`px-3 py-2 rounded-xl text-xs font-black transition-all ${language === lang ? 'bg-neon-cyan text-busnet-bg' : 'text-slate-400 hover:text-white hover:bg-white/10'
+                          }`}
                       >
                         {lang === 'UK' ? 'UA' : lang}
                       </button>

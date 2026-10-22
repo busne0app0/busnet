@@ -1,54 +1,77 @@
-import React, { createContext, useContext, ReactNode, useEffect } from 'react';
-import { useTranslation, I18nextProvider } from 'react-i18next';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  ReactNode,
+} from 'react';
+import { I18nextProvider } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Language, translations, TranslationSchema } from '@busnet/shared/constants/translations';
 import i18n from '../i18n';
 
+export type LangKey = 'uk' | 'en' | 'it';
+
+export function normalizeLanguage(raw?: string | null): Language {
+  const code = raw?.slice(0, 2).toUpperCase();
+  if (code === 'EN') return 'EN';
+  if (code === 'IT') return 'IT';
+  return 'UK'; // 'UK', легасі 'UA' та всі інші мови
+}
+
+const LOCALES: Record<Language, string> = { UK: 'uk-UA', EN: 'en-GB', IT: 'it-IT' };
+
 interface LanguageContextType {
   language: Language;
+  langKey: LangKey;
+  locale: string;
   setLanguage: (lang: Language | 'UA') => void;
   t: TranslationSchema;
-  i18nT: any;
+  i18nT: TFunction;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const { t: i18nT, i18n: i18nInstance } = useTranslation();
-
-  // Normalize language: 'UK' (or legacy 'UA'), 'EN', 'IT'
-  const rawLang = i18nInstance.language?.toUpperCase().substring(0, 2);
-  let normalizedLang: Language = 'UK';
-  if (rawLang === 'EN') {
-    normalizedLang = 'EN';
-  } else if (rawLang === 'IT') {
-    normalizedLang = 'IT';
-  } else {
-    normalizedLang = 'UK';
-  }
+function LanguageContextProvider({ children }: { children: ReactNode }) {
+  const [language, setLang] = useState<Language>(() => normalizeLanguage(i18n.language));
 
   useEffect(() => {
-    if (i18nInstance.language !== normalizedLang && !i18nInstance.language.startsWith(normalizedLang.toLowerCase())) {
-      i18nInstance.changeLanguage(normalizedLang);
-    }
-  }, [i18nInstance, normalizedLang]);
+    const onChange = (l: string) => setLang(normalizeLanguage(l));
+    i18n.on('languageChanged', onChange);
+    onChange(i18n.language);
+    return () => i18n.off('languageChanged', onChange);
+  }, []);
 
-  const setLanguage = (lang: Language | 'UA') => {
-    const targetLang: Language = lang === 'UA' ? 'UK' : lang;
-    i18nInstance.changeLanguage(targetLang);
-  };
+  useEffect(() => {
+    document.documentElement.lang = language.toLowerCase();
+  }, [language]);
 
-  const value = {
-    language: normalizedLang,
-    setLanguage,
-    t: translations[normalizedLang] || translations.UK,
-    i18nT,
-  };
+  const setLanguage = useCallback((lang: Language | 'UA') => {
+    const target: Language = lang === 'UA' ? 'UK' : lang;
+    i18n.changeLanguage(target.toLowerCase()).catch(console.error);
+  }, []);
 
+  const value = useMemo<LanguageContextType>(
+    () => ({
+      language,
+      langKey: language.toLowerCase() as LangKey,
+      locale: LOCALES[language],
+      setLanguage,
+      t: translations[language] ?? translations.UK,
+      i18nT: i18n.t.bind(i18n),
+    }),
+    [language, setLanguage]
+  );
+
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
+}
+
+export function LanguageProvider({ children }: { children: ReactNode }) {
   return (
     <I18nextProvider i18n={i18n}>
-      <LanguageContext.Provider value={value}>
-        {children}
-      </LanguageContext.Provider>
+      <LanguageContextProvider>{children}</LanguageContextProvider>
     </I18nextProvider>
   );
 }

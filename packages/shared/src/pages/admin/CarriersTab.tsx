@@ -5,6 +5,7 @@ import { supabase } from '@busnet/shared/supabase/config';
 import { exportToCSV } from '@busnet/shared/utils/exportToCSV';
 import { useAdminStore } from '@busnet/shared/store/useAdminStore';
 import { toast } from 'react-hot-toast';
+import { PartnerApplicationsSection } from '../../components/admin/PartnerApplicationsSection';
 
 interface CarrierUser {
   uid: string;
@@ -15,6 +16,7 @@ interface CarrierUser {
 }
 
 const CarriersTab: React.FC = () => {
+  const [activeSubTab, setActiveSubTab] = useState<'matrix' | 'applications'>('matrix');
   const [carriers, setCarriers] = useState<CarrierUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -130,12 +132,40 @@ const CarriersTab: React.FC = () => {
         </div>
       </div>
 
-      <div className="glass-mission-control p-6 rounded-[2rem] flex flex-wrap gap-4 items-center">
-         <div className="relative flex-1 min-w-[300px]">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-            <input 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+      {/* Sub-Tabs Switcher */}
+      <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+        <button
+          onClick={() => setActiveSubTab('matrix')}
+          className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+            activeSubTab === 'matrix'
+              ? 'bg-[#8B5CF6] text-white shadow-lg shadow-[#8B5CF6]/30'
+              : 'text-slate-400 hover:text-white bg-white/5'
+          }`}
+        >
+          Матриця перевізників
+        </button>
+        <button
+          onClick={() => setActiveSubTab('applications')}
+          className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+            activeSubTab === 'applications'
+              ? 'bg-[#8B5CF6] text-white shadow-lg shadow-[#8B5CF6]/30'
+              : 'text-slate-400 hover:text-white bg-white/5'
+          }`}
+        >
+          Заявки на партнерство
+        </button>
+      </div>
+
+      {activeSubTab === 'applications' ? (
+        <PartnerApplicationsSection />
+      ) : (
+        <>
+          <div className="glass-mission-control p-6 rounded-[2rem] flex flex-wrap gap-4 items-center">
+             <div className="relative flex-1 min-w-[300px]">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                <input 
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
               placeholder="Query matrix by name or identifier..." 
               className="w-full bg-black/40 border border-white/5 rounded-2xl pl-12 pr-4 py-3 text-xs text-white focus:border-[#8B5CF6] outline-none transition-all placeholder:text-slate-600"
             />
@@ -303,6 +333,8 @@ const CarriersTab: React.FC = () => {
             </div>
          </div>
       </div>
+        </>
+      )}
     </div>
   );
 };

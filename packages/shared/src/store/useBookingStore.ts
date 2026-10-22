@@ -5,7 +5,13 @@ import { Trip } from '../busnet/types';
 export interface Passenger {
   firstName: string;
   lastName: string;
-  discountType: 'none' | 'child' | 'student';
+  discountType: string;
+}
+
+export interface ConfirmedBooking {
+  bookingId: string;
+  totalPrice: number;
+  currency: string;
 }
 
 interface BookingState {
@@ -16,7 +22,7 @@ interface BookingState {
     phone: string;
   };
   passengers: Passenger[];
-  tempPassword: string;
+  confirmedBooking: ConfirmedBooking | null;
   loading: boolean;
   error: string | null;
   
@@ -27,9 +33,8 @@ interface BookingState {
   removePassenger: (index: number) => void;
   updatePassenger: (index: number, data: Partial<Passenger>) => void;
   updateContact: (data: Partial<{ email: string; phone: string }>) => void;
-  generatePassword: () => string;
   resetBooking: () => void;
-  confirmBooking: () => Promise<void>;
+  confirmBooking: () => Promise<boolean>;
 }
 
 export const useBookingStore = create<BookingState>((set, get) => ({
@@ -37,12 +42,12 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   selectedTrip: null,
   mainContact: { email: '', phone: '' },
   passengers: [{ firstName: '', lastName: '', discountType: 'none' }],
-  tempPassword: '',
+  confirmedBooking: null,
   loading: false,
   error: null,
 
   setStep: (step) => set({ currentStep: step }),
-  setTrip: (trip) => set({ selectedTrip: trip, currentStep: 1 }),
+  setTrip: (trip) => set({ selectedTrip: trip, currentStep: 1, error: null }),
   addPassenger: () => set((state) => ({ 
     passengers: [...state.passengers, { firstName: '', lastName: '', discountType: 'none' }] 
   })),
@@ -57,17 +62,12 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   updateContact: (data) => set((state) => ({ 
     mainContact: { ...state.mainContact, ...data } 
   })),
-  generatePassword: () => {
-    const password = "BN-" + Math.random().toString(36).slice(-6).toUpperCase();
-    set({ tempPassword: password });
-    return password;
-  },
   resetBooking: () => set({
     currentStep: 1,
     selectedTrip: null,
     mainContact: { email: '', phone: '' },
     passengers: [{ firstName: '', lastName: '', discountType: 'none' }],
-    tempPassword: '',
+    confirmedBooking: null,
     loading: false,
     error: null
   }),
@@ -80,68 +80,54 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     
     if (!selectedTrip || !user) {
       set({ error: "Будь ласка, увійдіть в систему, щоб продовжити бронювання." });
-      return;
+      return false;
     }
 
     set({ loading: true, error: null });
     try {
-      const basePrice = selectedTrip.price;
-      const totalPrice = passengers.reduce((total, p) => {
-        let price = basePrice;
-        if (p.discountType === 'child') price *= 0.5;
-        if (p.discountType === 'student') price *= 0.8;
-        return total + price;
-      }, 0);
+      const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-      const requestedSeats = passengers.length;
-
-      // Атомарна операція через RPC
-      const { data: bookResult, error: rpcError } = await supabase
-        .rpc('book_seats', {
-          p_trip_id: selectedTrip.id,
-          p_seats_count: requestedSeats,
-        });
+      // Rule 9: Створення броні лише через create_booking RPC
+      const { data, error: rpcError } = await supabase.rpc('create_booking', {
+        p_route_id: selectedTrip.routeId || selectedTrip.id,
+        p_direction: selectedTrip.direction || 'outbound',
+        p_from_stop: selectedTrip.fromStopIdx ?? 0,
+        p_to_stop: selectedTrip.toStopIdx ?? 1,
+        p_start_date: selectedTrip.startDate || selectedTrip.departureDate,
+        p_passengers: passengers.map(p => ({
+          firstName: p.firstName.trim(),
+          lastName: p.lastName.trim(),
+          discountType: p.discountType || 'none'
+        })),
+        p_contact: {
+          email: mainContact.email.trim(),
+          phone: mainContact.phone.trim()
+        },
+        p_idempotency_key: idempotencyKey
+      });
 
       if (rpcError) throw new Error(rpcError.message);
-      if (!bookResult?.success) {
-        throw new Error(bookResult?.error || 'Не вдалося забронювати місця');
+      if (!data || !data.success) {
+        throw new Error(data?.error || 'Помилка створення бронювання');
       }
 
-      // Отримуємо дані рейсу для збереження в бронюванні
-      // Таблиця routes використовує carrier_id (snake)
-      const { data: tripData } = await supabase
-        .from('routes')
-        .select('carrier_id, name, outbound')
-        .eq('id', selectedTrip.routeId || (selectedTrip as any).route_id || selectedTrip.id)
-        .single();
-
-      // Створюємо бронювання згідно з реальною схемою (все в snake_case)
-      const bookingId = "BK-" + Math.random().toString(36).substring(2, 9).toUpperCase();
-      const { error: insertError } = await supabase
-        .from('bookings')
-        .insert({
-          id: bookingId,
-          user_id: user.id,
-          trip_id: selectedTrip.id,
-          status: 'confirmed',
-          passengers: passengers,
-          total_price: totalPrice,
-          carrier_id: tripData?.carrier_id || null,
-          route_from: selectedTrip.departureCity || (tripData as any)?.departureCity || '',
-          route_to: selectedTrip.arrivalCity || (tripData as any)?.arrivalCity || '',
-          departure_date: selectedTrip.departureDate || (tripData as any)?.departureDate || null,
-          departure_time: selectedTrip.departureTime || (tripData as any)?.departureTime || null,
-          arrival_time: selectedTrip.arrivalTime || (tripData as any)?.arrivalTime || null,
-        });
-
-      if (insertError) {
-        throw new Error("Помилка створення бронювання: " + insertError.message);
-      }
-
-      set({ loading: false, currentStep: 3 });
+      set({
+        loading: false,
+        error: null,
+        confirmedBooking: {
+          bookingId: data.booking_id,
+          totalPrice: data.total_price,
+          currency: data.currency
+        },
+        currentStep: 3
+      });
+      return true;
     } catch (err: any) {
-      set({ loading: false, error: err.message });
       console.error('Booking Error:', err);
+      set({ loading: false, error: err.message || 'Помилка створення бронювання' });
+      return false;
     }
   }
 }));

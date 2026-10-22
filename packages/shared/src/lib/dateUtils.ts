@@ -57,6 +57,17 @@ export function formatISODate(year: number, month: number, day: number): string 
 }
 
 /**
+ * Add or subtract days from an ISO date string (YYYY-MM-DD) without timezone drift.
+ */
+export function addDays(dateStr: string, days: number): string {
+  const parts = parseISODateParts(dateStr);
+  if (!parts) return dateStr;
+  const d = new Date(parts.year, parts.month - 1, parts.day, 12, 0, 0);
+  d.setDate(d.getDate() + days);
+  return formatISODate(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+
+/**
  * Get Ukrainian day of week string ('ПН', 'ВТ', ...) from YYYY-MM-DD without UTC timezone drift.
  */
 export function getUaDayOfWeek(dateString: string): string {
