@@ -69,14 +69,14 @@ const DestinationCard = ({ item, onClick }: { item: Destination; onClick: (from:
       viewport={{ once: true }}
       whileHover={{ scale: 1.02 }}
       onClick={() => onClick(item.from, item.to)}
-      className="relative w-[85vw] min-w-[280px] max-w-[340px] h-[220px] sm:w-auto sm:min-w-[340px] cursor-pointer group shrink-0 snap-center"
+      className="relative w-[85vw] min-w-[280px] max-w-[340px] h-[196px] sm:w-auto sm:min-w-[340px] cursor-pointer group shrink-0 snap-center sm:snap-start"
     >
       {/* Скляний фон (Glassmorphism) */}
       <div className="absolute inset-0 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl transition-all group-hover:bg-white/10 group-hover:border-white/20" />
 
       {/* Нейронне свічення */}
-      <div 
-        className="absolute -inset-1 rounded-3xl opacity-0 group-hover:opacity-20 blur-2xl transition-opacity duration-500" 
+      <div
+        className="absolute -inset-1 rounded-3xl opacity-0 group-hover:opacity-20 blur-2xl transition-opacity duration-500"
         style={{ background: `radial-gradient(circle at center, ${item.accentColor}, transparent)` }}
       />
 
@@ -98,11 +98,11 @@ const DestinationCard = ({ item, onClick }: { item: Destination; onClick: (from:
         </div>
 
         {/* Голографічна лінія маршруту */}
-        <div className="relative h-14 my-2">
+        <div className="relative h-10">
           <svg className="w-full h-full overflow-visible">
             <line x1="5%" y1="50%" x2="95%" y2="50%" stroke="rgba(255,255,255,0.05)" strokeWidth="1" strokeDasharray="4 4" />
             <motion.path
-              d="M 20 30 Q 160 -10 300 30"
+              d="M 15 30 Q 146 -10 277 30"
               fill="none"
               stroke={item.accentColor}
               strokeWidth="2"
@@ -112,9 +112,9 @@ const DestinationCard = ({ item, onClick }: { item: Destination; onClick: (from:
               className="drop-shadow-[0_0_12px_rgba(0,212,255,0.6)]"
             />
             <circle cx="5%" cy="50%" r="3" className="fill-white/20" />
-            <motion.circle 
-              cx="95%" cy="50%" r="4" 
-              className="fill-neon-cyan" 
+            <motion.circle
+              cx="95%" cy="50%" r="4"
+              className="fill-neon-cyan"
               animate={{ scale: [1, 1.5, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
             />
@@ -147,15 +147,15 @@ export default function PopularDestinations() {
   const handleCardClick = (from: string, to: string) => {
     // 1. Slow Motion Scroll up to the form
     slowMotionScroll(0, 1000);
-    
+
     // 2. Update search params (default date to today if empty)
     const today = new Date().toISOString().split('T')[0];
     setSearchParams({ from, to, date: today });
-    
+
     // 3. Highlight date field after scroll starts
     setTimeout(() => {
       setHighlightDate(true);
-      
+
       // We skip manual dateInput?.focus() because it causes unwanted selection of 'dd' format
       // The neon pulse glow is sufficient to guide the user's attention.
 
@@ -165,26 +165,26 @@ export default function PopularDestinations() {
   };
 
   return (
-    <section className="pt-24 pb-12 relative overflow-hidden w-full text-white">
+    <section className="pt-16 pb-6 relative overflow-hidden w-full text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-white">
         {/* Заголовок секції */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: -20 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
-          className="mb-14 pr-4"
+          className="mb-8"
         >
           <div className="flex items-center gap-3 mb-4">
-             <div className="h-[2px] w-12 bg-neon-cyan shadow-[0_0_10px_#00D4FF]" />
-             <span className="text-neon-cyan font-black text-[10px] uppercase tracking-[0.4em]">{t.popular.badge}</span>
+            <div className="h-[2px] w-12 bg-neon-cyan shadow-[0_0_10px_#00D4FF]" />
+            <span className="text-neon-cyan font-black text-[10px] uppercase tracking-[0.4em]">{t.popular.badge}</span>
           </div>
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-white tracking-tight uppercase italic leading-[1.1] pr-10">
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-white tracking-tight uppercase italic leading-[1.1]">
             {t.popular.title} <span className="neon-gradient-text uppercase not-italic inline-block pr-6">{t.popular.titleAccent}</span>
           </h2>
         </motion.div>
 
         {/* Контейнер зі скроллом */}
-        <div className="flex gap-4 sm:gap-6 md:gap-10 overflow-x-auto pb-16 scrollbar-hide perspective-1000 px-4 sm:px-8 md:px-12 mask-linear-fade snap-x snap-mandatory">
+        <div className="flex gap-4 sm:gap-6 overflow-x-auto pt-4 pb-6 scrollbar-hide perspective-1000 mask-linear-fade snap-x snap-mandatory">
           {DESTINATIONS.map((item) => (
             <DestinationCard key={item.id} item={item} onClick={handleCardClick} />
           ))}
