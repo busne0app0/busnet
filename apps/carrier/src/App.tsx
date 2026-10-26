@@ -28,7 +28,7 @@ import { Briefcase } from 'lucide-react';
 
 export default function App() {
   return (
-    <AppShell basename="/">
+    <AppShell basename={import.meta.env.BASE_URL}>
       <Route path="/login" element={
         <PortalLogin role="carrier" title="BUSNET CRM" subtitle="Екосистема розвитку вашого автопарку" colorClass="bg-[#00E5FF]/10 text-[#00E5FF] border-[#00E5FF]/30" icon={Briefcase} dashboardRoute="/" />
       } />

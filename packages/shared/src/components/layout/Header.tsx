@@ -5,6 +5,8 @@ import { useLanguage } from '@busnet/shared/context/LanguageContext';
 import { Language } from '@busnet/shared/constants/translations';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { Link, useNavigate } from 'react-router-dom';
+import { getPostLoginTarget } from '@busnet/shared/constants/roleRoutes';
+import toast from 'react-hot-toast';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -48,18 +50,23 @@ export default function Header() {
       navigate('/auth');
       return;
     }
-    const portals: Record<string, string> = {
-      carrier: import.meta.env.VITE_CARRIER_URL || 'http://localhost:3001',
-      admin: import.meta.env.VITE_ADMIN_URL || 'http://localhost:3002',
-      agent: import.meta.env.VITE_AGENT_URL || 'http://localhost:3003',
-      driver: import.meta.env.VITE_DRIVER_URL || 'http://localhost:3004',
-    };
-    const portal = portals[user?.role || ''];
-    if (portal) {
-      window.location.href = portal;
-    } else {
+    const t = getPostLoginTarget(user?.role || '');
+    if (t.error || !t.shouldRedirect) return;
+    // Для пасажира на лендингу використовуємо клієнтський роутер, для кабінетів — повну навігацію
+    if (t.url === '/dashboard') {
       navigate('/dashboard');
+    } else {
+      window.location.assign(t.url);
     }
+  };
+
+  const getProfileButtonLabel = () => {
+    if (!isAuthenticated) return t.header.login;
+    if (user?.role === 'carrier') return `КАБІНЕТ: ${user?.companyName || 'ПЕРЕВІЗНИК'}`;
+    if (user?.role === 'admin') return 'АДМІН-ПАНЕЛЬ';
+    if (user?.role === 'agent') return 'КАБІНЕТ АГЕНТА';
+    if (user?.role === 'driver') return 'КАБІНЕТ ВОДІЯ';
+    return user?.firstName ? `ПРОФІЛЬ: ${user.firstName}` : 'ОСОБИСТИЙ КАБІНЕТ';
   };
 
   return (
@@ -125,7 +132,7 @@ export default function Header() {
               className="flex items-center gap-2 px-5 py-2 rounded-full border border-neon-cyan/40 text-sm font-bold text-white hover:bg-neon-cyan/10 transition-all backdrop-blur-sm"
             >
               <User className="w-4 h-4 text-neon-cyan" />
-              {isAuthenticated ? (user?.firstName || user?.companyName || 'ПРОФІЛЬ') : t.header.login}
+              {getProfileButtonLabel()}
             </button>
 
             {/* Logout */}
@@ -221,7 +228,7 @@ export default function Header() {
                 className="flex items-center justify-center gap-3 w-full py-5 rounded-2xl neon-gradient-btn text-lg font-black tracking-widest"
               >
                 <User className="w-5 h-5" />
-                {isAuthenticated ? (user?.firstName || user?.companyName || 'ПРОФІЛЬ') : t.header.login}
+                {getProfileButtonLabel()}
               </button>
 
               {isAuthenticated && (

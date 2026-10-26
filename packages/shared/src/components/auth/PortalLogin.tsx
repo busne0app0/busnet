@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Lock, Mail, AlertCircle, User, Phone, Building, Loader2 } from 'lucide-react';
+import { ArrowRight, Lock, Mail, AlertCircle, User, Phone, Building, Loader2, Send } from 'lucide-react';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
+import { getPostLoginTarget } from '@busnet/shared/constants/roleRoutes';
+import { PartnerApplicationModal } from '@busnet/shared/components/auth/PartnerApplicationModal';
 
 // ── Переклади форми ────────────────────────────────────────────────────────────
 type Lang = 'UK' | 'EN' | 'IT';
@@ -125,6 +127,7 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
   const [phone, setPhone] = useState('');
   const [localError, setLocalError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showApplicationModal, setShowApplicationModal] = useState(false);
 
   // ✅ Визначаємо мову один раз при рендері
   const lang = detectLang();
@@ -134,10 +137,10 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
 
   React.useEffect(() => {
     if (!authLoading && isAuthenticated && user) {
-      const targetUrl = role === 'admin' || role === 'carrier' || role === 'agent' || role === 'driver' ? '/' : '/dashboard';
-      if (window.location.pathname !== targetUrl) {
-        window.location.href = targetUrl;
-      }
+      // Роль завжди з профілю Supabase, ніколи не зі сторінки
+      const t = getPostLoginTarget(user.role);
+      if (t.error || !t.shouldRedirect) return;
+      window.location.assign(t.url);
     }
   }, [isAuthenticated, authLoading, user]);
 
@@ -145,24 +148,20 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
     e.preventDefault();
     setLocalError('');
     setSubmitting(true);
-
     try {
       if (isLogin) {
         await login(email, password);
       } else {
-        if (role === 'carrier') {
-          if (!companyName || !phone) throw new Error(t.requiredFields);
-          await registerCarrier({ companyName, email, phone }, password);
-        } else {
-          if (!firstName || !lastName) throw new Error(t.requiredFields);
-          await registerUser({ email, firstName, lastName, phone, role }, password);
-        }
+        // Реєстрація тільки для passenger — carrier/agent реєструються через заявку
+        if (!firstName || !lastName) throw new Error(t.requiredFields);
+        await registerUser({ email, firstName, lastName, phone, role: 'passenger' }, password);
       }
     } catch (err: any) {
       setLocalError(err.message || t.authError);
       setSubmitting(false);
     }
   };
+
 
   const baseColorName = colorClass.match(/text-([a-z]+)-/)?.[1] || 'cyan';
 
@@ -270,32 +269,22 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
 
             <div className="flex flex-col gap-4">
               <AnimatePresence mode="wait">
-                {!isLogin && (
+                {!isLogin && role !== 'carrier' && role !== 'agent' && (
                   <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }} className="flex flex-col gap-4">
-                    {role === 'carrier' ? (
-                      <div className="relative">
+                    <div className="flex gap-3">
+                      <div className="relative flex-1">
                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                          <Building size={18} className="text-slate-400" />
+                          <User size={18} className="text-slate-400" />
                         </div>
-                        <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)}
-                          required placeholder={t.companyName} className={inputClass} />
+                        <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)}
+                          required placeholder={t.firstName}
+                          className={`w-full bg-slate-950/60 border border-white/10 rounded-xl py-3.5 pl-10 pr-3 text-white placeholder-slate-500 focus:outline-none focus:bg-slate-900/50 ${colors.borderFocus} transition-all font-medium`} />
                       </div>
-                    ) : (
-                      <div className="flex gap-3">
-                        <div className="relative flex-1">
-                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                            <User size={18} className="text-slate-400" />
-                          </div>
-                          <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)}
-                            required placeholder={t.firstName}
-                            className={`w-full bg-slate-950/60 border border-white/10 rounded-xl py-3.5 pl-10 pr-3 text-white placeholder-slate-500 focus:outline-none focus:bg-slate-900/50 ${colors.borderFocus} transition-all font-medium`} />
-                        </div>
-                        <input type="text" value={lastName} onChange={e => setLastName(e.target.value)}
-                          required placeholder={t.lastName}
-                          className={`flex-1 bg-slate-950/60 border border-white/10 rounded-xl py-3.5 px-4 text-white placeholder-slate-500 focus:outline-none focus:bg-slate-900/50 ${colors.borderFocus} transition-all font-medium`} />
-                      </div>
-                    )}
+                      <input type="text" value={lastName} onChange={e => setLastName(e.target.value)}
+                        required placeholder={t.lastName}
+                        className={`flex-1 bg-slate-950/60 border border-white/10 rounded-xl py-3.5 px-4 text-white placeholder-slate-500 focus:outline-none focus:bg-slate-900/50 ${colors.borderFocus} transition-all font-medium`} />
+                    </div>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                         <Phone size={18} className="text-slate-400" />
@@ -341,7 +330,21 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
             </motion.button>
           </form>
 
-          {role !== 'admin' && role !== 'driver' && (
+          {(role === 'carrier' || role === 'agent') ? (
+            <div className="mt-6 flex flex-col items-center gap-2">
+              <p className="text-xs text-slate-400">
+                {role === 'carrier' ? 'Бажаєте підключитися як перевізник?' : 'Бажаєте стати агентом мережі?'}
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowApplicationModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/15 text-white rounded-xl text-sm font-medium transition-colors border border-white/10"
+              >
+                <Send size={15} />
+                <span>{role === 'carrier' ? 'Подати заявку перевізника' : 'Подати заявку агента'}</span>
+              </button>
+            </div>
+          ) : role !== 'admin' && role !== 'driver' ? (
             <div className="mt-6 flex justify-center">
               <button type="button" onClick={() => { setIsLogin(!isLogin); setLocalError(''); }}
                 className="text-sm text-slate-400 hover:text-white transition-colors py-1.5 px-3 rounded-lg hover:bg-white/5">
@@ -350,7 +353,7 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
                   : <span>{t.hasAccount} <strong className={colors.textGlow}>{t.signIn}</strong></span>}
               </button>
             </div>
-          )}
+          ) : null}
 
           {role === 'driver' && (
             <div className="mt-6 flex justify-center">
@@ -362,13 +365,19 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
           )}
 
           <div className="mt-6 pt-6 border-t border-white/10 text-center">
-            <a href={import.meta.env.VITE_LANDING_URL || 'http://localhost:5173'}
+            <a href={import.meta.env.VITE_LANDING_URL || (import.meta.env.DEV ? 'http://localhost:5173' : 'https://busnet-ua.vercel.app')}
               className="text-sm text-slate-500 hover:text-slate-300 transition-colors font-medium tracking-wide">
               {t.backToSite}
             </a>
           </div>
         </div>
       </motion.div>
+
+      <PartnerApplicationModal
+        isOpen={showApplicationModal}
+        onClose={() => setShowApplicationModal(false)}
+        initialType={role === 'agent' ? 'agent' : 'carrier'}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-export type Role = 'passenger' | 'agent' | 'carrier' | 'admin' | 'driver';
+export type Role = 'passenger' | 'agent' | 'carrier' | 'admin' | 'driver' | 'user';
 
 // Уніфіковані статуси — ТІЛЬКИ lowercase, відповідає БД (bookings.status)
 export type TxStatus = 'pending' | 'confirmed' | 'boarded' | 'settled' | 'cancelled' | 'completed';

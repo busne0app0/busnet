@@ -8,13 +8,15 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { ForumPage } from '../../pages';
 
 interface AppShellProps {
-  basename: string;
+  basename?: string;
   children: React.ReactNode;
 }
 
-export function AppShell({ basename, children }: AppShellProps) {
+export function AppShell({ basename = '/', children }: AppShellProps) {
   const initAuth = useAuthStore(state => state.initAuth);
-  
+  // BrowserRouter вимагає basename БЕЗ кінцевого слеша (крім кореня '/')
+  const normalizedBasename = !basename || basename === '/' ? '/' : basename.replace(/\/+$/, '');
+
   useEffect(() => {
     const unsubscribe = initAuth();
     return () => {
@@ -26,7 +28,7 @@ export function AppShell({ basename, children }: AppShellProps) {
     <ErrorBoundary>
       <LanguageProvider>
         <SearchProvider>
-          <BrowserRouter basename={basename}>
+          <BrowserRouter basename={normalizedBasename}>
             <Toaster position="top-center" toastOptions={{ style: { background: '#111520', color: '#fff' } }} />
             <Routes>
               <Route path="/forum" element={<ForumPage />} />
@@ -38,3 +40,4 @@ export function AppShell({ basename, children }: AppShellProps) {
     </ErrorBoundary>
   );
 }
+

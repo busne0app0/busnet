@@ -141,60 +141,56 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           try {
             console.log('[initAuth] Loading profile for UID:', session.user.id);
 
-            // 1. Шукаємо по uid
-            let { data: users } = await supabase
-              .from('users')
-              .select('*')
-              .eq('uid', session.user.id)
-              .limit(1);
-
-            let userData = users && users.length > 0 ? users[0] : null;
-
-            // 2. Шукаємо по email якщо uid не знайдено
-            if (!userData && session.user.email) {
-              const { data: byEmail } = await supabase
+            // Завантажуємо профіль з таблиці users по UID з повторними спробами (до 5 разів з паузою 1с)
+            let userData: any = null;
+            for (let attempt = 1; attempt <= 5; attempt++) {
+              const { data: users, error: userError } = await supabase
                 .from('users')
                 .select('*')
-                .eq('email', session.user.email)
+                .eq('uid', session.user.id)
                 .limit(1);
-              
-              if (byEmail && byEmail.length > 0) {
-                // Оновлюємо uid
-                await supabase.from('users').update({ uid: session.user.id }).eq('email', session.user.email);
-                userData = { ...byEmail[0], uid: session.user.id };
+
+              if (userError) {
+                console.warn(`[initAuth] Error querying profile (attempt ${attempt}/5):`, userError.message);
+              }
+
+              if (users && users.length > 0) {
+                userData = users[0];
+                break;
+              }
+
+              if (attempt < 5) {
+                console.log(`[initAuth] Profile not found on attempt ${attempt}/5, waiting 1s...`);
+                await new Promise(r => setTimeout(r, 1000));
               }
             }
 
-            // 3. Якщо профіль ще не знайдено — чекаємо 2с (register вставляє його)
-            if (!userData) {
-              console.log('[initAuth] Profile not found, waiting 2s for register to insert...');
-              await new Promise(r => setTimeout(r, 2000));
-              const { data: retried } = await supabase
-                .from('users').select('*').eq('uid', session.user.id).limit(1);
-              userData = retried && retried.length > 0 ? retried[0] : null;
+            const VALID_ROLES = ['user', 'passenger', 'carrier', 'agent', 'admin', 'driver'];
+
+            // Якщо профіль так і не знайдено, або роль не з дозволеного списку — скидаємо сесію і показуємо помилку
+            if (!userData || !userData.role || !VALID_ROLES.includes(userData.role)) {
+              console.error('[initAuth] Profile not found or invalid role:', userData?.role);
+              await supabase.auth.signOut();
+              set({
+                user: null,
+                isAuthenticated: false,
+                activeRole: null,
+                loading: false,
+                initInProgress: false,
+                isInitialized: true,
+                error: 'Профіль не знайдено або роль недійсна. Зверніться до підтримки.',
+              });
+              return;
             }
 
-            // 4. Fallback — якщо профіль створюється базою із затримкою
-            if (!userData) {
-              const meta = session.user.user_metadata || {};
-              const role: Role = 'passenger'; // Суворо passenger, роль видається лише базою або адміном
-              userData = {
-                uid: session.user.id,
-                email: session.user.email || '',
-                role,
-                firstName: meta.firstName || meta.full_name?.split(' ')[0] || '',
-                lastName: meta.lastName || meta.full_name?.split(' ').slice(1).join(' ') || '',
-                phone: meta.phone || '',
-                status: 'active',
-              };
-              console.log('[initAuth] Awaiting DB profile sync for:', userData.email);
-            }
+            // Роль 'user' обробляємо як 'passenger'
+            const effectiveRole = (userData.role === 'user' ? 'passenger' : userData.role) as Role;
+            console.log('[initAuth] ✅ Profile loaded:', userData.email, 'role:', userData.role, 'effectiveRole:', effectiveRole);
 
-            console.log('[initAuth] ✅ Profile loaded:', userData.email, 'role:', userData.role);
             set({
               user: userData as User,
               isAuthenticated: true,
-              activeRole: (userData.role as Role) || 'passenger',
+              activeRole: effectiveRole,
               loading: false,
               error: null,
               initInProgress: false,
@@ -241,19 +237,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   registerUser: async (userData, password) => {
     set({ loading: true, error: null });
     try {
+      // Завжди роль 'passenger' — клієнт не може призначати собі іншу роль
       const { data, error } = await supabase.auth.signUp({
         email: userData.email,
         password,
-        options: { data: { ...userData, role: userData.role || 'passenger' } },
+        options: { data: { ...userData, role: 'passenger' } },
       });
       if (error) throw error;
       if (data.user) {
-        const newUser = { uid: data.user.id, ...userData, role: userData.role || 'passenger', status: 'active' };
-        // Вставляємо профіль одразу — initAuth перевірить DB через 2 секунди
+        const newUser = { uid: data.user.id, ...userData, role: 'passenger', status: 'active' };
+        // Upsert профілю (тригер БД вже міг створити базовий запис)
         const { error: insertError } = await supabase.from('users').upsert(newUser, { onConflict: 'uid' });
-        if (insertError) console.warn('[registerUser] Profile insert warning:', insertError.message);
+        if (insertError) console.warn('[registerUser] Profile upsert warning:', insertError.message);
         console.log('[registerUser] Profile saved for:', userData.email);
-        // loading скинеться через onAuthStateChange → initAuth
       }
     } catch (err: any) {
       set({ error: err.message, loading: false });
@@ -261,6 +257,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  // УВАГА: не використовувати для прямої реєстрації — роль carrier видає тільки адмін після схвалення заявки partner_applications
   registerCarrier: async (companyData, password) => {
     set({ loading: true, error: null });
     try {
@@ -281,7 +278,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const { error: insertError } = await supabase.from('users').upsert(newCarrier, { onConflict: 'uid' });
         if (insertError) console.warn('[registerCarrier] Profile insert warning:', insertError.message);
         console.log('[registerCarrier] Carrier profile saved for:', companyData.email);
-        // loading скинеться через onAuthStateChange → initAuth
       }
     } catch (err: any) {
       set({ error: err.message, loading: false });
@@ -292,6 +288,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   registerFromBooking: async (userData, password) => {
     set({ loading: true, error: null });
     try {
+      // Завжди роль 'passenger'
       const { data, error } = await supabase.auth.signUp({
         email: userData.email,
         password: password || Math.random().toString(36).slice(-12),
@@ -301,7 +298,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (data.user) {
         const newPassenger = { uid: data.user.id, ...userData, role: 'passenger', status: 'active' };
         await new Promise(resolve => setTimeout(resolve, 500));
-        await supabase.from('users').insert(newPassenger);
+        // Upsert, оскільки профіль вже може створювати тригер БД
+        await supabase.from('users').upsert(newPassenger, { onConflict: 'uid' });
       }
     } catch (err: any) {
       set({ error: err.message, loading: false });

@@ -12,6 +12,11 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  // Redirect sub-apps without trailing slash → with trailing slash (302 = not cached)
+  ['carrier', 'admin', 'agent', 'driver'].forEach(name => {
+    app.get(`/${name}`, (req, res) => res.redirect(302, `/${name}/`));
+  });
+
   // Apps configuration - ORDER MATTERS! landing ('/') must be last.
   const viteApps = [
     { name: 'carrier', route: '/carrier', dir: 'carrier' },
@@ -61,8 +66,8 @@ async function startServer() {
       });
     } else if (fs.existsSync(distPath)) {
       console.log(`⚡ [Static Prod] ${va.name} @ ${va.route}`);
-      app.use(va.route === '/' ? '/' : va.route, express.static(distPath, { setHeaders: (res, path) => { if (path.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); } }));
-      
+      app.use(va.route === '/' ? '/' : va.route, express.static(distPath, { setHeaders: (res, filePath) => { if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); } }));
+
       // This is the absolute fallback for any SPA routes to prevent 404
       app.get([va.route, `${va.route}/*`], (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');

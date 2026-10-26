@@ -9,7 +9,7 @@ import { toast } from 'react-hot-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Role } from '../types';
 import { supabase } from '../supabase/config';
-import { getAbsoluteRoleRoute } from '../constants/roleRoutes';
+import { getPostLoginTarget } from '../constants/roleRoutes';
 import { PartnerApplicationModal } from '../components/auth/PartnerApplicationModal';
 
 // ─── Floating particle data ───────────────────────────────────────────────────
@@ -110,12 +110,16 @@ export default function AuthPage() {
 
   React.useEffect(() => {
     if (!authLoading && isAuthenticated && user) {
-      const targetUrl = getAbsoluteRoleRoute(user.role);
-      if (window.location.href !== targetUrl) {
-        window.location.href = targetUrl;
+      const t = getPostLoginTarget(user.role);
+      if (!t.error && t.shouldRedirect) {
+        if (t.url === '/dashboard') {
+          navigate('/dashboard');
+        } else {
+          window.location.assign(t.url);
+        }
       }
     }
-  }, [isAuthenticated, authLoading, user]);
+  }, [isAuthenticated, authLoading, user, navigate]);
 
   const handleResetPassword = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -143,8 +147,13 @@ export default function AuthPage() {
     setLoading(true);
     const loadingTimeout = setTimeout(() => {
       const state = useAuthStore.getState();
-      if (state.isAuthenticated && state.user) { window.location.href = getAbsoluteRoleRoute(state.user.role); }
-      else if (!state.isAuthenticated) { setLoading(false); setAuthLoading(false); }
+      if (state.isAuthenticated && state.user) {
+        const t = getPostLoginTarget(state.user.role);
+        if (!t.error && t.shouldRedirect) window.location.assign(t.url);
+      } else if (!state.isAuthenticated) {
+        setLoading(false);
+        setAuthLoading(false);
+      }
     }, 6000);
     try {
       if (mode === 'login') {

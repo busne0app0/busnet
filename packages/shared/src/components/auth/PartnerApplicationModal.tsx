@@ -7,10 +7,15 @@ import { toast } from 'react-hot-toast';
 interface PartnerApplicationModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialType?: 'carrier' | 'agent';
 }
 
-export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = ({ isOpen, onClose }) => {
-  const [partnerType, setPartnerType] = useState<'carrier' | 'agent'>('carrier');
+export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = ({ isOpen, onClose, initialType }) => {
+  const [partnerType, setPartnerType] = useState<'carrier' | 'agent'>(initialType || 'carrier');
+
+  React.useEffect(() => {
+    if (initialType) setPartnerType(initialType);
+  }, [initialType]);
   const [companyName, setCompanyName] = useState('');
   const [contactName, setContactName] = useState('');
   const [phone, setPhone] = useState('');

@@ -23,6 +23,7 @@ import NotificationsTab from '../components/dashboard/NotificationsTab';
 import ForumTab from '../components/dashboard/ForumTab';
 import SupportTab from '../components/dashboard/SupportTab';
 import SearchTab from '../components/dashboard/SearchTab';
+import { getPostLoginTarget } from '../constants/roleRoutes';
 
 
 
@@ -305,16 +306,13 @@ export default function Dashboard() {
         const check = () => {
           const state = useAuthStore.getState();
           if (!state.loading && state.user) {
-            const roleRoutes: Record<string, string> = {
-              admin: '/',
-              carrier: '/',
-              agent: '/',
-              driver: '/',
-              passenger: '/dashboard',
-            };
-            const target = roleRoutes[state.user.role];
-            if (target && target !== '/dashboard') {
-              window.location.href = target;
+            const role = state.user.role as string;
+            if (role && role !== 'passenger' && role !== 'user') {
+              const t = getPostLoginTarget(role);
+              if (!t.error && t.shouldRedirect) {
+                window.location.assign(t.url);
+              }
+              return;
             }
             return;
           }

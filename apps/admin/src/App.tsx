@@ -13,7 +13,7 @@ import { Shield } from 'lucide-react';
 
 export default function App() {
   return (
-    <AppShell basename="/">
+    <AppShell basename={import.meta.env.BASE_URL}>
       <Route path="/login" element={
         <PortalLogin
           role="admin"
