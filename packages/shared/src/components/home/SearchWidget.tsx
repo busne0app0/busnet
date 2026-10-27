@@ -134,7 +134,7 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
     setCalendarOpensUp(below < needed && above > below);
   }, [isCalendarOpen]);
 
-  // Close calendar on outside pointerdown
+  // Close calendar on outside pointerdown and on scroll
   useEffect(() => {
     if (!isCalendarOpen) return;
     const handlePointerDown = (event: PointerEvent) => {
@@ -146,8 +146,15 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
         setIsCalendarOpen(false);
       }
     };
+    const handleScroll = () => {
+      setIsCalendarOpen(false);
+    };
     document.addEventListener('pointerdown', handlePointerDown);
-    return () => document.removeEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, [isCalendarOpen]);
 
   const triggerValidationError = (message: string, fields: { from?: boolean; to?: boolean; date?: boolean }) => {
