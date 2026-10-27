@@ -226,7 +226,7 @@ export default function CityAutocomplete({
       >
         <label
           htmlFor={inputId}
-          className="text-xs text-slate-300 font-bold uppercase block mb-1 tracking-wider flex items-center gap-1.5 transition-colors"
+          className="text-xs text-slate-300 font-bold uppercase mb-1 tracking-wider flex items-center gap-1.5 transition-colors"
         >
           {icon} <span>{label}</span>
           {isLoading && (
@@ -308,7 +308,7 @@ export default function CityAutocomplete({
             animate={{ opacity: 1, y: 4, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
             transition={{ duration: 0.15 }}
-            className="absolute left-0 right-0 top-full mt-2 w-full min-w-[260px] bg-[#0a0f1a]/98 border border-white/15 rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-2xl"
+            className="absolute left-0 right-0 top-full mt-2 w-full lg:min-w-[260px] bg-[#0a0f1a]/98 border border-white/15 rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-2xl"
           >
             {hasNoResults ? (
               <div className="px-4 py-3.5 text-xs font-semibold text-slate-400 text-center">

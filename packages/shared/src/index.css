@@ -47,6 +47,10 @@
 }
 
 @layer base {
+  html {
+    scroll-padding-top: 5rem;
+  }
+
   html, body {
     scroll-behavior: smooth;
     max-width: 100%;
@@ -86,11 +90,13 @@
   }
 
   /* Utility for completely hiding scrollbar on specific elements */
-  .scrollbar-hide {
+  .scrollbar-hide,
+  .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  .scrollbar-hide::-webkit-scrollbar {
+  .scrollbar-hide::-webkit-scrollbar,
+  .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
 

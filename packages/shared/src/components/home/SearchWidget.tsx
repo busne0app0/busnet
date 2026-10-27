@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useId, useMemo } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useId, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, MapPin, Calendar, ChevronDown, ArrowLeftRight, ArrowUpDown, AlertCircle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearch } from '@busnet/shared/context/SearchContext';
 import { useLanguage } from '@busnet/shared/context/LanguageContext';
 import { useCities, ExtendedCity } from '@busnet/shared/hooks/useCities';
+import { useMediaQuery } from '@busnet/shared/hooks/useMediaQuery';
 import CityAutocomplete from './CityAutocomplete';
 import BusnetCalendar from '../common/BusnetCalendar';
 import { normalizeCityName } from '@busnet/shared/lib/cityUtils';
@@ -25,7 +27,10 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
   const { searchParams, updateParam, swapCities, highlightDate } = useSearch();
   const { language, langKey, t } = useLanguage();
   const { dbCities } = useCities();
-  
+
+  // Sheet mode: small screen OR any touch/coarse pointer device
+  const isSheet = useMediaQuery('(max-width: 1023px), (pointer: coarse)');
+
   const alertId = useId();
   const calendarId = useId();
 
@@ -119,9 +124,15 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
     }
   }, [isLoading, isCalendarOpen]);
 
-  // Measure calendar height and decide flip direction
+  // Stable close callback — always returns focus to the trigger button
+  const closeCalendar = useCallback(() => {
+    setIsCalendarOpen(false);
+    dateButtonRef.current?.focus();
+  }, []);
+
+  // Measure calendar height and decide flip direction (popover / desktop only)
   useLayoutEffect(() => {
-    if (!isCalendarOpen) return;
+    if (!isCalendarOpen || isSheet) return;
     const trigger = calendarTriggerRef.current;
     const cal = calendarContainerRef.current;
     if (!trigger || !cal) return;
@@ -132,30 +143,28 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
     const above = rect.top - HEADER_OFFSET;
 
     setCalendarOpensUp(below < needed && above > below);
-  }, [isCalendarOpen]);
+  }, [isCalendarOpen, isSheet]);
 
-  // Close calendar on outside pointerdown and on scroll
+  // Sheet: lock body scroll. Popover: close on outside pointerdown.
   useEffect(() => {
     if (!isCalendarOpen) return;
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (
-        calendarTriggerRef.current &&
-        !calendarTriggerRef.current.contains(target)
-      ) {
+
+    if (isSheet) {
+      // Lock body scroll while sheet is open
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = prev; };
+    }
+
+    // Desktop popover — close on click outside the trigger+calendar area
+    const onDown = (e: PointerEvent) => {
+      if (!calendarTriggerRef.current?.contains(e.target as Node)) {
         setIsCalendarOpen(false);
       }
     };
-    const handleScroll = () => {
-      setIsCalendarOpen(false);
-    };
-    document.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, [isCalendarOpen]);
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [isCalendarOpen, isSheet]);
 
   const triggerValidationError = (message: string, fields: { from?: boolean; to?: boolean; date?: boolean }) => {
     setValidationMessage(message);
@@ -216,12 +225,32 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
 
   const displayDate = formatLocalizedDate(searchParams.date, language);
 
-  return (
+  // Shared BusnetCalendar node reused in both popover and sheet portals
+  const calendarNode = (
+    <BusnetCalendar
+      variant={isSheet ? 'sheet' : 'popover'}
+      selectedDate={searchParams.date}
+      onSelect={(val) => {
+        updateParam('date', val);
+        closeCalendar();
+      }}
+      tripContext={
+        resolvedFrom && resolvedTo
+          ? {
+              from: resolvedFrom.names[langKey] ?? resolvedFrom.names.uk,
+              to:   resolvedTo.names[langKey]   ?? resolvedTo.names.uk,
+            }
+          : undefined
+      }
+      onClose={closeCalendar}
+    />
+  );
+
   return (
     <div className="w-full bg-[#141928] border border-white/10 rounded-2xl md:rounded-[28px] lg:rounded-[32px] p-2 md:p-2.5 lg:p-3 shadow-[0_12px_30px_rgba(0,0,0,0.5)] lg:shadow-[0_35px_60px_rgba(0,0,0,0.6)] relative z-20 flex flex-col lg:flex-row items-stretch lg:items-center gap-1.5 lg:gap-0">
-      
-      {/* Validation Alert */}
-      <div className="absolute left-0 right-0 top-full mt-2 flex justify-center pointer-events-none z-50">
+
+      {/* Validation Alert — inline on mobile, absolute on desktop */}
+      <div className="flex justify-center z-50 lg:absolute lg:left-0 lg:right-0 lg:top-full lg:mt-2 lg:pointer-events-none">
         <AnimatePresence>
           {validationMessage && (
             <motion.div
@@ -230,7 +259,7 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
               initial={{ opacity: 0, y: -6, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -6, scale: 0.98 }}
-              className="pointer-events-auto w-[90%] max-w-[440px] p-3.5 bg-rose-950/95 border border-rose-500/80 rounded-2xl shadow-[0_0_30px_rgba(244,63,94,0.35)] text-left flex items-center justify-between gap-3"
+              className="pointer-events-auto w-full lg:w-[90%] max-w-[440px] p-3.5 bg-rose-950/95 border border-rose-500/80 rounded-2xl shadow-[0_0_30px_rgba(244,63,94,0.35)] text-left flex items-center justify-between gap-3"
             >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-rose-500/80 flex items-center justify-center shrink-0">
@@ -349,7 +378,7 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
           aria-describedby={errorFields.date ? alertId : undefined}
           className="w-full text-left cursor-pointer outline-none"
         >
-          <span className="text-xs text-slate-300 font-bold uppercase block mb-1 tracking-wider flex items-center gap-1.5 group-hover/date:text-neon-cyan transition-colors">
+          <span className="text-xs text-slate-300 font-bold uppercase mb-1 tracking-wider flex items-center gap-1.5 group-hover/date:text-neon-cyan transition-colors">
             <Calendar size={12} /> {t.search.date}
           </span>
           <div className="flex items-center justify-between">
@@ -369,47 +398,30 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
           </div>
         </button>
 
-        {/* Floating Calendar */}
-        <AnimatePresence>
-          {isCalendarOpen && (
-            <motion.div
-              id={calendarId}
-              ref={calendarContainerRef}
-              role="dialog"
-              aria-modal="true"
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ duration: 0.15 }}
-              className={`absolute left-0 right-0 mx-auto lg:mx-0 lg:left-auto lg:right-0 z-[100] w-[calc(100vw-1.5rem)] sm:w-auto max-w-[325px] sm:max-w-none flex justify-center ${
-                calendarOpensUp
-                  ? 'bottom-full mb-2 origin-bottom lg:origin-bottom-right'
-                  : 'top-full mt-2 origin-top lg:origin-top-right'
-              }`}
-            >
-              <BusnetCalendar
-                selectedDate={searchParams.date}
-                onSelect={(val) => {
-                  updateParam('date', val);
-                  setIsCalendarOpen(false);
-                  dateButtonRef.current?.focus();
-                }}
-                tripContext={
-                  resolvedFrom && resolvedTo
-                    ? {
-                        from: resolvedFrom.names[langKey] ?? resolvedFrom.names.uk,
-                        to:   resolvedTo.names[langKey]   ?? resolvedTo.names.uk,
-                      }
-                    : undefined
-                }
-                onClose={() => {
-                  setIsCalendarOpen(false);
-                  dateButtonRef.current?.focus();
-                }}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Desktop popover calendar */}
+        {!isSheet && (
+          <AnimatePresence>
+            {isCalendarOpen && (
+              <motion.div
+                id={calendarId}
+                ref={calendarContainerRef}
+                role="dialog"
+                aria-label={t.search.date}
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: 0.15 }}
+                className={`absolute left-0 right-0 mx-auto lg:mx-0 lg:left-auto lg:right-0 z-[100] w-[calc(100vw-1.5rem)] sm:w-auto max-w-[325px] sm:max-w-none flex justify-center ${
+                  calendarOpensUp
+                    ? 'bottom-full mb-2 origin-bottom lg:origin-bottom-right'
+                    : 'top-full mt-2 origin-top lg:origin-top-right'
+                }`}
+              >
+                {calendarNode}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
       </div>
 
       {/* Search Button */}
@@ -429,6 +441,38 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
           {isLoading ? `${t.search.search}...` : t.search.search}
         </span>
       </button>
+
+      {/* Mobile / touch: bottom sheet via portal */}
+      {isSheet && createPortal(
+        <AnimatePresence>
+          {isCalendarOpen && (
+            <motion.div
+              className="fixed inset-0 z-[200] flex items-end bg-black/60"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => { if (e.target === e.currentTarget) closeCalendar(); }}
+            >
+              <motion.div
+                id={calendarId}
+                role="dialog"
+                aria-modal="true"
+                aria-label={t.search.date}
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'tween', duration: 0.22 }}
+                className="w-full max-h-[90dvh] overflow-y-auto overscroll-contain px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {calendarNode}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
     </div>
   );

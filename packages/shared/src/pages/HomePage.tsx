@@ -21,7 +21,7 @@ import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
 export default function HomePage() {
   const [showResults, setShowResults] = useState(false);
-  const { trips, loading, fetchTrips } = useTrips();
+  const { trips, loading, error, fetchTrips } = useTrips();
   const { searchParams, setSearchParams, triggerSearch, setTriggerSearch } = useSearch();
   const { setTrip } = useBookingStore();
   const navigate = useNavigate();
@@ -31,18 +31,16 @@ export default function HomePage() {
   const resultsRef = useRef<HTMLDivElement>(null);
   const initialSyncDone = useRef(false);
 
-  // Smooth scroll to anchor passed via router location state
+  // Smooth scroll to anchor passed via router location state without race conditions
   useEffect(() => {
-    if (location.state?.scrollTo) {
-      const anchor = location.state.scrollTo;
-      const el = document.getElementById(anchor);
-      if (el) {
-        setTimeout(() => {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
-      }
-    }
-  }, [location.state]);
+    const id = location.state?.scrollTo;
+    if (!id) return;
+    const raf = requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      navigate(location.pathname, { replace: true, state: null });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [location.state, location.pathname, navigate]);
 
   // Sync state from URL query parameters on initial mount (items 5, 83)
   useEffect(() => {
@@ -178,7 +176,15 @@ export default function HomePage() {
                 </div>
               }
             >
-              <SearchResults trips={trips} loading={loading} onSelect={handleSelectTrip} />
+              <SearchResults
+                key={`${searchParams.from}-${searchParams.to}-${searchParams.date}`}
+                trips={trips}
+                loading={loading}
+                error={error}
+                query={searchParams}
+                onSelect={handleSelectTrip}
+                onRetry={() => executeSearch()}
+              />
             </ErrorBoundary>
           </div>
         ) : (

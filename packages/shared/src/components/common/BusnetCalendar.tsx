@@ -1,25 +1,22 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, useId } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Bus, Tag, MapPin, X } from 'lucide-react';
 import { useLanguage } from '@busnet/shared/context/LanguageContext';
 import { useCalendarSchedule, CalendarDayInfo } from '@busnet/shared/hooks/useCalendarSchedule';
-import { formatISODate, isPastDate } from '@busnet/shared/lib/dateUtils';
+import { formatISODate } from '@busnet/shared/lib/dateUtils';
 
 export interface BusnetCalendarProps {
   selectedDate: string; // Format: YYYY-MM-DD
   onSelect: (date: string) => void;
   tripContext?: { from: string; to: string };
   onClose?: () => void;
+  variant?: 'popover' | 'sheet';
 }
 
-const TOOLTIP_WIDTH = 210;
+import { normalizeAmenities, getAmenityLabel } from '@busnet/shared/constants/amenities';
 
-// Multilingual amenity names (UK / EN / IT)
-const AMENITY_LABELS: Record<string, Record<string, string>> = {
-  uk: { wifi: 'Wi-Fi', usb: 'USB', ac: 'Клімат', toilet: 'WC', coffee: 'Кава', tv: 'TV' },
-  en: { wifi: 'Wi-Fi', usb: 'USB', ac: 'A/C', toilet: 'WC', coffee: 'Coffee', tv: 'TV' },
-  it: { wifi: 'Wi-Fi', usb: 'USB', ac: 'Clima', toilet: 'WC', coffee: 'Caffè', tv: 'TV' },
-};
+const TOOLTIP_WIDTH = 210;
+const MAX_MONTHS_AHEAD = 6;
 
 /** Safe parser for YYYY-MM-DD into local Date object without UTC timezone shifts */
 function parseLocalDate(dateString: string): Date {
@@ -47,10 +44,11 @@ export default function BusnetCalendar({
   onSelect,
   tripContext,
   onClose,
+  variant = 'popover',
 }: BusnetCalendarProps) {
   const { langKey, t } = useLanguage();
-  const amenityMap = AMENITY_LABELS[langKey] || AMENITY_LABELS.uk;
   const calText = t.calendar;
+  const headingId = useId();
 
   // Initialize year and month without timezone drift
   const initDate = useMemo(() => {
@@ -74,16 +72,18 @@ export default function BusnetCalendar({
     }
   }, [selectedDate]);
 
-  // Close calendar on Escape key
+  // Close calendar on Escape key if focused or in modal sheet
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && onClose) {
-        onClose();
+        if (variant === 'sheet' || containerRef.current?.contains(document.activeElement)) {
+          onClose();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [onClose, variant]);
 
   // Fetch schedule with query caching
   const { monthTrips, loading } = useCalendarSchedule({
@@ -106,6 +106,12 @@ export default function BusnetCalendar({
     viewYear < todayNow.getFullYear() ||
     (viewYear === todayNow.getFullYear() && viewMonth <= todayNow.getMonth());
 
+  // Upper boundary: max 6 months forward sales window
+  const maxSaleMonth = new Date(todayNow.getFullYear(), todayNow.getMonth() + MAX_MONTHS_AHEAD, 1);
+  const isMaxMonth =
+    viewYear > maxSaleMonth.getFullYear() ||
+    (viewYear === maxSaleMonth.getFullYear() && viewMonth >= maxSaleMonth.getMonth());
+
   // Deterministic month shift without Date arithmetic overflow
   const shiftMonth = useCallback((delta: number) => {
     setView(({ year, month }) => {
@@ -127,7 +133,9 @@ export default function BusnetCalendar({
     if (!isPastMonth) shiftMonth(-1);
   }, [isPastMonth, shiftMonth]);
 
-  const handleNextMonth = useCallback(() => shiftMonth(1), [shiftMonth]);
+  const handleNextMonth = useCallback(() => {
+    if (!isMaxMonth) shiftMonth(1);
+  }, [isMaxMonth, shiftMonth]);
 
   // Select "Today" button
   const handleSelectToday = useCallback(() => {
@@ -159,7 +167,7 @@ export default function BusnetCalendar({
         monthOffset: -1,
         date: dateStr,
         isToday: dateStr === todayIso,
-        isPast: isPastDate(dateStr),
+        isPast: dateStr < todayIso,
         trip: null,
         key: `prev-${dayNum}`,
       });
@@ -173,7 +181,7 @@ export default function BusnetCalendar({
         monthOffset: 0,
         date: dateStr,
         isToday: dateStr === todayIso,
-        isPast: isPastDate(dateStr),
+        isPast: dateStr < todayIso,
         trip: monthTrips[d] || null,
         key: `curr-${d}`,
       });
@@ -191,7 +199,7 @@ export default function BusnetCalendar({
         monthOffset: 1,
         date: dateStr,
         isToday: dateStr === todayIso,
-        isPast: isPastDate(dateStr),
+        isPast: dateStr < todayIso,
         trip: null,
         key: `next-${i}`,
       });
@@ -201,7 +209,7 @@ export default function BusnetCalendar({
   }, [viewYear, viewMonth, monthTrips, todayIso]);
 
   const onCellClick = (cell: GridCell) => {
-    if (cell.isPast) return;
+    if (cell.isPast || cell.monthOffset !== 0) return;
     onSelect(cell.date);
     if (onClose) onClose();
   };
@@ -210,7 +218,8 @@ export default function BusnetCalendar({
     e: React.MouseEvent<HTMLButtonElement> | React.FocusEvent<HTMLButtonElement>,
     cell: GridCell
   ) => {
-    if (cell.monthOffset !== 0 || !cell.trip) {
+    // Disable hover tooltip in sheet mode or on touch devices
+    if (variant === 'sheet' || cell.monthOffset !== 0 || !cell.trip) {
       setTooltip(null);
       return;
     }
@@ -225,12 +234,12 @@ export default function BusnetCalendar({
     const halfTooltip = TOOLTIP_WIDTH / 2;
     const safeX = Math.max(halfTooltip + 8, Math.min(rawX, contRect.width - halfTooltip - 8));
 
-    // Dynamic height calculation: flip above cell if near bottom of card container
+    // Dynamic height calculation: flip above cell if near bottom of container
     const spaceBelowCell = contRect.bottom - cellRect.bottom;
-    const estimatedHeight = 150;
+    const estimatedHeight = 170;
     const showAbove = spaceBelowCell < estimatedHeight + 10;
     const safeY = showAbove
-      ? cellRect.top - contRect.top - estimatedHeight - 8
+      ? Math.max(8, cellRect.top - contRect.top - estimatedHeight - 8)
       : cellRect.top - contRect.top + cellRect.height + 6;
 
     setTooltip({
@@ -245,21 +254,44 @@ export default function BusnetCalendar({
     [monthTrips]
   );
 
+  const isSheet = variant === 'sheet';
+
+  // Auto-focus container on mount so Escape key works immediately (popover mode)
+  useEffect(() => {
+    if (!isSheet) {
+      containerRef.current?.focus({ preventScroll: true });
+    }
+  }, [isSheet]);
+
   return (
     <div
-      className="cal-wrapper select-none w-full max-w-[310px] sm:max-w-[325px] focus:outline-none"
+      className={`cal-wrapper select-none w-full outline-none ${
+        isSheet ? 'max-w-none' : 'max-w-[310px] sm:max-w-[325px]'
+      }`}
       ref={containerRef}
       role="region"
       aria-label={calText.ariaLabel}
+      tabIndex={isSheet ? undefined : -1}
     >
-      <div className="bg-[#0b101b] border border-white/10 rounded-2xl p-3 sm:p-3.5 shadow-[0_20px_50px_rgba(0,0,0,0.85)] relative backdrop-blur-2xl">
+      <div
+        className={`bg-[#0b101b] border border-white/10 rounded-2xl relative ${
+          isSheet ? 'p-3 sm:p-5' : 'p-3 sm:p-3.5 shadow-[0_20px_50px_rgba(0,0,0,0.85)]'
+        }`}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between mb-2.5">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex flex-col">
-            <h2 className="text-white font-black text-sm sm:text-base uppercase tracking-tight font-sans">
-              {calText.months[viewMonth]} <span className="text-slate-400 font-semibold text-xs sm:text-sm">{viewYear}</span>
+            <h2
+              id={headingId}
+              aria-live="polite"
+              className={`text-white font-black uppercase tracking-tight font-sans ${
+                isSheet ? 'text-base sm:text-lg' : 'text-sm sm:text-base'
+              }`}
+            >
+              {calText.months[viewMonth]}{' '}
+              <span className="text-slate-400 font-semibold text-xs sm:text-sm">{viewYear}</span>
             </h2>
-            <div className="text-slate-400 text-[9px] font-bold uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
+            <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan shadow-[0_0_6px_#00D4FF]" aria-hidden="true" />
               {loading
                 ? calText.loading
@@ -273,36 +305,47 @@ export default function BusnetCalendar({
               onClick={handlePrevMonth}
               disabled={isPastMonth}
               aria-label={calText.prevMonth}
-              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-all ${
+              className={`${
+                isSheet ? 'w-10 h-10 sm:w-11 sm:h-11' : 'w-7 h-7 sm:w-8 sm:h-8'
+              } rounded-lg flex items-center justify-center transition-colors ${
                 isPastMonth
                   ? 'opacity-25 cursor-not-allowed text-slate-600'
                   : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 active:scale-95 focus-visible:ring-1 focus-visible:ring-neon-cyan'
               }`}
             >
-              <ChevronLeft size={14} aria-hidden="true" />
+              <ChevronLeft size={isSheet ? 18 : 14} aria-hidden="true" />
             </button>
             <button
               type="button"
               onClick={handleSelectToday}
               aria-label={calText.selectToday}
-              className="px-2 h-7 sm:h-8 rounded-lg bg-neon-cyan/10 border border-neon-cyan/30 flex items-center justify-center text-neon-cyan text-[9px] font-black uppercase tracking-wider hover:bg-neon-cyan/20 transition-all active:scale-95 focus-visible:ring-1 focus-visible:ring-neon-cyan"
+              className={`${
+                isSheet ? 'h-10 sm:h-11 px-3 text-xs' : 'h-7 sm:h-8 px-2 text-[9px]'
+              } rounded-lg bg-neon-cyan/10 border border-neon-cyan/30 flex items-center justify-center text-neon-cyan font-black uppercase tracking-wider hover:bg-neon-cyan/20 transition-colors active:scale-95 focus-visible:ring-1 focus-visible:ring-neon-cyan`}
             >
               {t.search.today}
             </button>
             <button
               type="button"
               onClick={handleNextMonth}
+              disabled={isMaxMonth}
               aria-label={calText.nextMonth}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-95 focus-visible:ring-1 focus-visible:ring-neon-cyan"
+              className={`${
+                isSheet ? 'w-10 h-10 sm:w-11 sm:h-11' : 'w-7 h-7 sm:w-8 sm:h-8'
+              } rounded-lg flex items-center justify-center transition-colors ${
+                isMaxMonth
+                  ? 'opacity-25 cursor-not-allowed text-slate-600'
+                  : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 active:scale-95 focus-visible:ring-1 focus-visible:ring-neon-cyan'
+              }`}
             >
-              <ChevronRight size={14} aria-hidden="true" />
+              <ChevronRight size={isSheet ? 18 : 14} aria-hidden="true" />
             </button>
-            {onClose && (
+            {onClose && !isSheet && (
               <button
                 type="button"
                 onClick={onClose}
                 aria-label={t.validation.close}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 ml-0.5"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-colors active:scale-95 ml-0.5"
               >
                 <X size={14} aria-hidden="true" />
               </button>
@@ -311,11 +354,13 @@ export default function BusnetCalendar({
         </div>
 
         {/* Weekdays */}
-        <div className="grid grid-cols-7 mb-1 border-b border-white/5 pb-1">
+        <div className="grid grid-cols-7 mb-1.5 border-b border-white/5 pb-1">
           {calText.weekdays.map((wd, idx) => (
             <div
               key={`${wd}-${idx}`}
-              className="text-center text-[9px] font-extrabold text-slate-400 tracking-wider py-0.5"
+              className={`text-center font-extrabold text-slate-400 tracking-wider py-0.5 ${
+                isSheet ? 'text-[11px]' : 'text-[9px]'
+              }`}
             >
               {wd}
             </div>
@@ -324,26 +369,40 @@ export default function BusnetCalendar({
 
         {/* Grid Container */}
         <div className="relative">
-          <AnimatePresence mode="popLayout">
+          <AnimatePresence mode="wait">
             <motion.div
               key={`${viewYear}-${viewMonth}`}
+              role="group"
+              aria-labelledby={headingId}
               initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              animate={{ opacity: loading ? 0.6 : 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
+              transition={{ duration: 0.12 }}
               className="grid grid-cols-7 gap-1"
             >
               {cells.map((cell) => {
+                // Neighbor month days: render as invisible spacer to keep exact 42-cell geometry without confusing "no trips" state
+                if (cell.monthOffset !== 0) {
+                  return (
+                    <div
+                      key={cell.key}
+                      aria-hidden="true"
+                      className={`w-full mx-auto pointer-events-none invisible ${
+                        isSheet ? 'h-12' : 'h-[30px] sm:h-8 max-w-[36px]'
+                      }`}
+                    />
+                  );
+                }
+
                 const isSelected = selectedDate === cell.date;
                 const hasTrip = !!cell.trip && cell.trip.count > 0;
-                const isOtherMonth = cell.monthOffset !== 0;
+                const cellYear = cell.date.split('-')[0];
 
-                // Month calculation for neighbor days
-                const cellMonth = parseInt(cell.date.split('-')[1], 10) - 1;
                 const labelParts = [
-                  `${cell.day} ${calText.monthsGenitive[cellMonth]}`,
+                  `${cell.day} ${calText.monthsGenitive[viewMonth]} ${cellYear}`,
                   cell.isPast ? `(${calText.pastDate})` : '',
                   hasTrip ? calText.tripsAria(cell.trip?.count ?? 0) : '',
+                  hasTrip && cell.trip?.minPrice ? `${cell.trip.minPrice} ${cell.trip.currency}` : '',
                 ].filter(Boolean);
 
                 return (
@@ -359,36 +418,45 @@ export default function BusnetCalendar({
                     aria-label={labelParts.join(', ')}
                     aria-pressed={isSelected}
                     className={`
-                      relative h-[30px] sm:h-8 w-full max-w-[36px] mx-auto flex items-center justify-center rounded-lg transition-all group overflow-visible focus-visible:ring-1 focus-visible:ring-neon-cyan focus-visible:z-30 outline-none
+                      relative w-full mx-auto flex flex-col items-center justify-center rounded-lg transition-colors group outline-none focus-visible:ring-1 focus-visible:ring-neon-cyan focus-visible:z-30
+                      ${isSheet ? 'h-12' : 'h-[30px] sm:h-8 max-w-[36px]'}
                       ${cell.isPast ? 'opacity-25 cursor-not-allowed text-slate-600' : 'cursor-pointer'}
-                      ${isOtherMonth && !cell.isPast ? 'opacity-35 hover:opacity-80' : ''}
-                      ${hasTrip && !cell.isPast ? 'hover:scale-105 z-10' : ''}
                       ${cell.isToday && !isSelected ? 'ring-1 ring-neon-cyan/40 bg-neon-cyan/5 text-neon-cyan' : ''}
-                      ${isSelected ? 'bg-neon-cyan text-slate-950 font-black shadow-[0_0_14px_rgba(0,212,255,0.5)] scale-105 z-20' : ''}
+                      ${isSelected ? 'bg-neon-cyan text-slate-950 font-black shadow-[0_0_14px_rgba(0,212,255,0.5)] z-20' : ''}
                       ${hasTrip && !isSelected && !cell.isPast ? 'hover:bg-white/10' : ''}
                     `}
                   >
                     <span
                       className={`
-                        text-[11px] sm:text-xs font-bold leading-none
+                        font-bold leading-none
+                        ${isSheet ? 'text-xs sm:text-sm' : 'text-[11px] sm:text-xs'}
                         ${isSelected ? 'text-slate-950 font-black' : ''}
                         ${!isSelected && hasTrip ? 'text-neon-cyan' : ''}
-                        ${!isSelected && !hasTrip && !isOtherMonth && !cell.isPast ? 'text-slate-200' : ''}
-                        ${isOtherMonth && !isSelected ? 'text-slate-500' : ''}
+                        ${!isSelected && !hasTrip && !cell.isPast ? 'text-slate-200' : ''}
                       `}
                     >
                       {cell.day}
                     </span>
 
-                    {/* Dot indicator */}
-                    {hasTrip && !cell.isPast && (
+                    {/* Price in cell for bottom sheet mode */}
+                    {isSheet && hasTrip && !cell.isPast && cell.trip && cell.trip.minPrice > 0 ? (
+                      <span
+                        className={`text-[10px] font-bold leading-none mt-0.5 tracking-tight ${
+                          isSelected ? 'text-slate-950 font-black' : 'text-emerald-400'
+                        }`}
+                      >
+                        {cell.trip.minPrice}
+                      </span>
+                    ) : hasTrip && !cell.isPast ? (
                       <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2">
                         <div
-                          className={`w-1 h-1 rounded-full ${isSelected ? 'bg-slate-950' : 'bg-neon-cyan shadow-[0_0_4px_#00D4FF]'}`}
+                          className={`w-1 h-1 rounded-full ${
+                            isSelected ? 'bg-slate-950' : 'bg-neon-cyan shadow-[0_0_4px_#00D4FF]'
+                          }`}
                           aria-hidden="true"
                         />
                       </div>
-                    )}
+                    ) : null}
                   </button>
                 );
               })}
@@ -397,7 +465,7 @@ export default function BusnetCalendar({
         </div>
 
         {/* Legend */}
-        <div className="mt-2 pt-1.5 border-t border-white/5 flex items-center justify-between text-[9px] font-semibold text-slate-400">
+        <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-semibold text-slate-400">
           <div className="flex items-center gap-1.5 uppercase tracking-wider">
             <div className="w-1.5 h-1.5 rounded-full bg-neon-cyan shadow-[0_0_5px_#00D4FF]" aria-hidden="true" />
             <span>{calText.availableTrips}</span>
@@ -408,9 +476,9 @@ export default function BusnetCalendar({
           </div>
         </div>
 
-        {/* Dynamic Tooltip: wrapped in outer positioning container to avoid transform collision */}
+        {/* Dynamic Tooltip: only for desktop popover */}
         <AnimatePresence>
-          {tooltip && monthTrips[tooltip.day] && (
+          {!isSheet && tooltip && monthTrips[tooltip.day] && (
             <div
               style={{
                 left: tooltip.x,
@@ -422,10 +490,11 @@ export default function BusnetCalendar({
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="w-[210px] bg-[#0a0f1a]/98 border border-neon-cyan/30 rounded-xl p-3 shadow-2xl backdrop-blur-2xl"
+                transition={{ duration: 0.12 }}
+                className="w-[210px] bg-[#0a0f1a] border border-neon-cyan/30 rounded-xl p-3 shadow-2xl"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-white font-black text-xs italic tracking-tight">
+                  <div className="text-white font-black text-xs tracking-tight">
                     {tooltip.day} {calText.monthsGenitive[viewMonth]}
                   </div>
                   <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-neon-cyan/10 border border-neon-cyan/20">
@@ -440,7 +509,7 @@ export default function BusnetCalendar({
                       <Bus size={11} className="text-neon-cyan" aria-hidden="true" />
                       <span className="text-[9px] font-black uppercase tracking-widest">{calText.tripsFound}</span>
                     </div>
-                    <div className="text-white font-black italic">{monthTrips[tooltip.day].count}</div>
+                    <div className="text-white font-black">{monthTrips[tooltip.day].count}</div>
                   </div>
 
                   {monthTrips[tooltip.day].minPrice > 0 && (
@@ -449,7 +518,7 @@ export default function BusnetCalendar({
                         <Tag size={11} className="text-emerald-400" aria-hidden="true" />
                         <span className="text-[9px] font-black uppercase tracking-widest">{calText.lowestPrice}</span>
                       </div>
-                      <div className="text-emerald-400 font-black italic">
+                      <div className="text-emerald-400 font-black">
                         {monthTrips[tooltip.day].minPrice} {monthTrips[tooltip.day].currency}
                       </div>
                     </div>
@@ -460,7 +529,7 @@ export default function BusnetCalendar({
                       <div className="text-slate-400 text-[9px] font-black uppercase tracking-widest mb-0.5 flex items-center gap-1">
                         <MapPin size={9} className="text-neon-cyan" aria-hidden="true" /> {calText.route}
                       </div>
-                      <div className="text-white/90 font-bold text-[10px] italic leading-tight break-words">
+                      <div className="text-white/90 font-bold text-[10px] leading-tight break-words">
                         {monthTrips[tooltip.day].routes[0]}
                       </div>
                       {monthTrips[tooltip.day].routes.length > 1 && (
@@ -473,12 +542,12 @@ export default function BusnetCalendar({
 
                   {monthTrips[tooltip.day].amenities.length > 0 && (
                     <div className="flex flex-wrap gap-1 pt-1">
-                      {monthTrips[tooltip.day].amenities.slice(0, 4).map((a) => (
+                      {normalizeAmenities(monthTrips[tooltip.day].amenities).slice(0, 4).map((id) => (
                         <span
-                          key={a}
+                          key={id}
                           className="px-1.5 py-0.5 rounded-md bg-neon-cyan/5 text-neon-cyan text-[8px] font-bold uppercase border border-neon-cyan/15"
                         >
-                          {amenityMap[a] || a}
+                          {getAmenityLabel(id, langKey, true)}
                         </span>
                       ))}
                     </div>

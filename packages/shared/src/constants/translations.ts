@@ -8,11 +8,24 @@ export interface TranslationSchema {
     bookingBadge: string;
     login: string;
     langLabel: string;
+    logout: string;
+    logoutFull: string;
+    openMenu: string;
+    closeMenu: string;
+    changeLanguage: string;
+    cabinet: string;
+    cabinetCarrier: (company: string) => string;
+    cabinetAdmin: string;
+    cabinetAgent: string;
+    cabinetDriver: string;
+    profileOf: (name: string) => string;
+    cabinetUnavailable: string;
   };
   hero: {
     titleLine1: string;
     titleLine2: string;
     subtitle: string;
+    subtitleItems: string[];
     suggestCheapest: string;
     suggestToday: string;
     suggestFastest: string;
@@ -37,6 +50,9 @@ export interface TranslationSchema {
     swap: string;
     clear: string;
     cityNotFound: string;
+    citiesFound: (count: number) => string;
+    loadingCities: string;
+    popularCities: string;
   };
   calendar: {
     months: string[];
@@ -57,6 +73,37 @@ export interface TranslationSchema {
     pastDate: string;
     active: string;
     tripsAria: (count: number) => string;
+  };
+  results: {
+    notFound: string;
+    leadIntro: string;
+    name: string;
+    phone: string;
+    send: string;
+    sending: string;
+    leadSent: string;
+    leadError: string;
+    found: (count: number) => string;
+    perPassenger: string;
+    inTransit: string;
+    inRoad: string;
+    seatsLeft: (count: number) => string;
+    availableSeatsCount: (count: number) => string;
+    soldOut: string;
+    select: string;
+    noTripsTitle: string;
+    noTripsSubtitle: string;
+    namePlaceholder: string;
+    phonePlaceholder: string;
+    sendRequest: string;
+    sentTitle: string;
+    sentDesc: string;
+    privacyNotice: string;
+    privacyLink: string;
+    retry: string;
+    loadError: string;
+    dayPlus: (days: number) => string;
+    priceOnRequest: string;
   };
   popular: {
     badge: string;
@@ -92,6 +139,9 @@ export interface TranslationSchema {
     about: string;
     contacts: string;
     terms: string;
+    navLabel: string;
+    privacy: string;
+    cookies: string;
   };
   advantages: {
     badge: string;
@@ -150,6 +200,10 @@ export interface TranslationSchema {
     iosHintGotIt: string;
     modulesModalTitle: string;
     modulesModalText: string;
+    inAppTitle: string;
+    inAppText: string;
+    manualTitle: string;
+    manualText: string;
   };
   confidence: {
     title: string;
@@ -168,14 +222,27 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       routes: 'Маршрути',
       partners: 'Партнерам',
       forum: 'Форум',
-      bookingBadge: 'БРОНЮВАННЯ 24/7',
-      login: 'УВІЙТИ',
-      langLabel: 'МОВА',
+      bookingBadge: 'Бронювання 24/7',
+      login: 'Увійти',
+      langLabel: 'Мова',
+      logout: 'Вихід',
+      logoutFull: 'Вийти з акаунта',
+      openMenu: 'Відкрити меню',
+      closeMenu: 'Закрити меню',
+      changeLanguage: 'Змінити мову',
+      cabinet: 'Особистий кабінет',
+      cabinetCarrier: (c) => `Кабінет: ${c}`,
+      cabinetAdmin: 'Панель адміністратора',
+      cabinetAgent: 'Кабінет агента',
+      cabinetDriver: 'Кабінет водія',
+      profileOf: (n) => `Профіль: ${n}`,
+      cabinetUnavailable: 'Кабінет тимчасово недоступний',
     },
     hero: {
       titleLine1: 'Європа ближче',
       titleLine2: 'ніж здається',
       subtitle: 'Знайди рейс • Бронюй онлайн • Оплачуй при посадці',
+      subtitleItems: ['Знайди рейс', 'Бронюй онлайн', 'Оплачуй при посадці'],
       suggestCheapest: 'Найдешевше',
       suggestToday: 'Сьогодні',
       suggestFastest: 'Найшвидше',
@@ -193,13 +260,16 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       to: 'Куди',
       date: 'Дата відправлення',
       selectDate: 'Оберіть дату',
-      search: 'ПОШУК',
+      search: 'Пошук',
       placeholderFrom: 'Місто відправлення...',
       placeholderTo: 'Куди прямуєте?',
-      today: 'СЬОГОДНІ',
+      today: 'Сьогодні',
       swap: 'Поміняти місцями',
       clear: 'Очистити поле',
       cityNotFound: 'Місто не знайдено',
+      citiesFound: (n) => `Знайдено міст: ${n}`,
+      loadingCities: 'Завантаження міст...',
+      popularCities: 'Популярні міста',
     },
     calendar: {
       months: ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'],
@@ -226,6 +296,37 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       pastDate: 'минула дата',
       active: 'Активний',
       tripsAria: (c) => `знайдено рейсів: ${c}`,
+    },
+    results: {
+      notFound: 'Рейсів не знайдено',
+      leadIntro: 'Введіть ваші дані, і оператор підбере найкращий варіант перевезення.',
+      name: "Ваше ім'я",
+      phone: 'Номер телефону',
+      send: 'ВІДПРАВИТИ ЗАПИТ',
+      sending: 'Відправка...',
+      leadSent: "Запит надіслано! Оператор зв'яжеться з вами найближчим часом.",
+      leadError: 'Не вдалося надіслати запит. Перевірте зʼєднання або зателефонуйте нам.',
+      found: (c) => `Знайдено результатів: ${c}`,
+      perPassenger: 'Ціни вказані за 1 пасажира',
+      inTransit: 'в дорозі',
+      inRoad: 'в дорозі',
+      seatsLeft: (c) => `Залишилось місць: ${c}`,
+      availableSeatsCount: (c) => `Вільних місць: ${c}`,
+      soldOut: 'Місць немає',
+      select: 'ВИБРАТИ',
+      noTripsTitle: 'Рейсів не знайдено',
+      noTripsSubtitle: 'Введіть ваші дані, і оператор підбере найкращий варіант перевезення.',
+      namePlaceholder: "Ваше ім'я",
+      phonePlaceholder: '+380 або міжнародний номер',
+      sendRequest: 'ВІДПРАВИТИ ЗАПИТ',
+      sentTitle: 'Запит надіслано!',
+      sentDesc: "Наш оператор зв'яжеться з вами найближчим часом для підбору рейсу.",
+      privacyNotice: 'Натискаючи кнопку, ви погоджуєтеся на обробку персональних даних згідно з',
+      privacyLink: 'Політикою конфіденційності',
+      retry: 'Спробувати знову',
+      loadError: 'Не вдалося завантажити рейси. Виникла помилка зʼєднання.',
+      dayPlus: (d) => `+${d} д.`,
+      priceOnRequest: 'Уточнюйте',
     },
     popular: {
       badge: 'Напрямки 2026',
@@ -271,10 +372,13 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       date: 'Коли в дорогу?'
     },
     footer: {
-      rights: '© 2026 Всі права захищені',
+      rights: `© ${new Date().getFullYear()} BUSNET UA. Всі права захищені.`,
       about: 'Про нас',
       contacts: 'Контакти',
-      terms: 'Угода користувача',
+      terms: 'Умови сервісу',
+      navLabel: 'Навігація сайтом',
+      privacy: 'Політика конфіденційності',
+      cookies: 'Файли cookie',
     },
     advantages: {
       badge: 'Переваги платформи',
@@ -380,11 +484,15 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       btnEcoModules: 'ІНШІ МОДУЛІ',
       iosHintTitle: 'Встановити на iPhone',
       iosHintText: 'Щоб додати BUSNET на "Початковий екран", виконайте 2 прості кроки:',
-      iosHintStep1: '1. Натисніть кнопку "Поділитися" на панелі Safari',
-      iosHintStep2: '2. Оберіть "На початковий екран" зі списку дій',
+      iosHintStep1: 'Натисніть кнопку "Поділитися" на панелі Safari',
+      iosHintStep2: 'Оберіть "На початковий екран" зі списку дій',
       iosHintGotIt: 'Зрозуміло',
       modulesModalTitle: 'Модулі екосистеми',
       modulesModalText: 'BUSNET — це єдина платформа мікросервісів. Відкрийте потрібне посилання на телефоні для встановлення PWA:',
+      inAppTitle: 'Відкрийте у браузері',
+      inAppText: 'Щоб встановити додаток, відкрийте цю сторінку в Safari (iOS) або Chrome (Android).',
+      manualTitle: 'Встановлення додатка',
+      manualText: 'Для встановлення на комп’ютері натисніть значок встановлення в адресному рядку браузера.',
     },
     confidence: {
       title: 'БЕЗПЕКА ТА',
@@ -406,14 +514,27 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       routes: 'Routes',
       partners: 'Partners',
       forum: 'Forum',
-      bookingBadge: '24/7 BOOKING',
-      login: 'LOGIN',
-      langLabel: 'LANG',
+      bookingBadge: 'Booking 24/7',
+      login: 'Log in',
+      langLabel: 'Language',
+      logout: 'Log out',
+      logoutFull: 'Log out of account',
+      openMenu: 'Open menu',
+      closeMenu: 'Close menu',
+      changeLanguage: 'Change language',
+      cabinet: 'Personal Cabinet',
+      cabinetCarrier: (c) => `Carrier: ${c}`,
+      cabinetAdmin: 'Admin Panel',
+      cabinetAgent: 'Agent Cabinet',
+      cabinetDriver: 'Driver Cabinet',
+      profileOf: (n) => `Profile: ${n}`,
+      cabinetUnavailable: 'Cabinet is temporarily unavailable',
     },
     hero: {
       titleLine1: 'Europe is closer',
       titleLine2: 'than you think',
       subtitle: 'Find a trip • Book online • Pay on boarding',
+      subtitleItems: ['Find a trip', 'Book online', 'Pay on boarding'],
       suggestCheapest: 'Cheapest',
       suggestToday: 'Today',
       suggestFastest: 'Fastest',
@@ -431,13 +552,16 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       to: 'To',
       date: 'Departure Date',
       selectDate: 'Select date',
-      search: 'SEARCH',
+      search: 'Search',
       placeholderFrom: 'Departure city...',
       placeholderTo: 'Where are you going?',
-      today: 'TODAY',
+      today: 'Today',
       swap: 'Swap cities',
       clear: 'Clear field',
       cityNotFound: 'City not found',
+      citiesFound: (n) => `Cities found: ${n}`,
+      loadingCities: 'Loading cities...',
+      popularCities: 'Popular cities',
     },
     calendar: {
       months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
@@ -458,6 +582,37 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       pastDate: 'past date',
       active: 'Active',
       tripsAria: (c) => `${c} trips found`,
+    },
+    results: {
+      notFound: 'No routes found',
+      leadIntro: 'Enter your details and our operator will find the best option for you.',
+      name: 'Your name',
+      phone: 'Phone number',
+      send: 'Send request',
+      sending: 'Sending...',
+      leadSent: 'Request sent! Our operator will contact you shortly.',
+      leadError: 'Failed to send request. Please check your connection or call us.',
+      found: (c) => `Results found: ${c}`,
+      perPassenger: 'Prices are per 1 passenger',
+      inTransit: 'in travel',
+      inRoad: 'in travel',
+      seatsLeft: (c) => `Only ${c} seats left`,
+      availableSeatsCount: (c) => `Available seats: ${c}`,
+      soldOut: 'Sold out',
+      select: 'Select',
+      noTripsTitle: 'No routes found',
+      noTripsSubtitle: 'Enter your details and our operator will find the best option for you.',
+      namePlaceholder: 'Your name',
+      phonePlaceholder: '+380 or international number',
+      sendRequest: 'Send request',
+      sentTitle: 'Request sent!',
+      sentDesc: 'Our operator will contact you shortly to select the best route.',
+      privacyNotice: 'By submitting, you agree to the processing of personal data under our',
+      privacyLink: 'Privacy Policy',
+      retry: 'Try again',
+      loadError: 'Failed to load routes. Connection error.',
+      dayPlus: (d) => `+${d} d.`,
+      priceOnRequest: 'On request',
     },
     popular: {
       badge: '2026 Destinations',
@@ -503,10 +658,13 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       date: 'When to go?'
     },
     footer: {
-      rights: '© 2026 All rights reserved',
+      rights: `© ${new Date().getFullYear()} BUSNET UA. All rights reserved.`,
       about: 'About Us',
       contacts: 'Contacts',
       terms: 'Terms of Service',
+      navLabel: 'Site navigation',
+      privacy: 'Privacy Policy',
+      cookies: 'Cookie Policy',
     },
     advantages: {
       badge: 'Platform Advantages',
@@ -612,11 +770,15 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       btnEcoModules: 'OTHER MODULES',
       iosHintTitle: 'Install on iPhone',
       iosHintText: 'To add BUSNET to your Home Screen, complete 2 quick steps:',
-      iosHintStep1: '1. Tap the "Share" button at the bottom of Safari',
-      iosHintStep2: '2. Choose "Add to Home Screen" from the menu',
+      iosHintStep1: 'Tap the "Share" button at the bottom of Safari',
+      iosHintStep2: 'Choose "Add to Home Screen" from the menu',
       iosHintGotIt: 'Got it',
       modulesModalTitle: 'Ecosystem Modules',
       modulesModalText: 'BUSNET is a unified microservice platform. Open this page on your phone to install:',
+      inAppTitle: 'Open in browser',
+      inAppText: 'To install the app, open this page in Safari (iOS) or Chrome (Android).',
+      manualTitle: 'Install app',
+      manualText: 'To install on desktop, click the install icon in your browser address bar.',
     },
     confidence: {
       title: 'SAFETY AND',
@@ -638,14 +800,27 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       routes: 'Tratte',
       partners: 'Partner',
       forum: 'Forum',
-      bookingBadge: 'PRENOTAZIONI 24/7',
-      login: 'ACCEDI',
-      langLabel: 'LINGUA',
+      bookingBadge: 'Prenotazioni 24/7',
+      login: 'Accedi',
+      langLabel: 'Lingua',
+      logout: 'Esci',
+      logoutFull: "Esci dall'account",
+      openMenu: 'Apri menu',
+      closeMenu: 'Chiudi menu',
+      changeLanguage: 'Cambia lingua',
+      cabinet: 'Area personale',
+      cabinetCarrier: (c) => `Vettore: ${c}`,
+      cabinetAdmin: 'Pannello di controllo',
+      cabinetAgent: 'Area Agente',
+      cabinetDriver: 'Area Autista',
+      profileOf: (n) => `Profilo: ${n}`,
+      cabinetUnavailable: 'Area personale temporaneamente non disponibile',
     },
     hero: {
       titleLine1: "L'Europa è più vicina",
       titleLine2: 'di quanto pensi',
       subtitle: 'Trova il viaggio • Prenota online • Paga a bordo',
+      subtitleItems: ['Trova il viaggio', 'Prenota online', 'Paga a bordo'],
       suggestCheapest: 'Più economico',
       suggestToday: 'Oggi',
       suggestFastest: 'Più veloce',
@@ -663,13 +838,16 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       to: 'A',
       date: 'Data di partenza',
       selectDate: 'Seleziona data',
-      search: 'CERCA',
+      search: 'Cerca',
       placeholderFrom: 'Città di partenza...',
       placeholderTo: 'Dove vuoi andare?',
-      today: 'OGGI',
+      today: 'Oggi',
       swap: 'Inverti città',
       clear: 'Cancella campo',
       cityNotFound: 'Città non trovata',
+      citiesFound: (n) => `Città trovate: ${n}`,
+      loadingCities: 'Caricamento città...',
+      popularCities: 'Città popolari',
     },
     calendar: {
       months: ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'],
@@ -690,6 +868,37 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       pastDate: 'data passata',
       active: 'Attivo',
       tripsAria: (c) => `${c} corse trovate`,
+    },
+    results: {
+      notFound: 'Nessun viaggio trovato',
+      leadIntro: "Inserisci i tuoi dati e il nostro operatore troverà l'opzione migliore per te.",
+      name: 'Il tuo nome',
+      phone: 'Numero di telefono',
+      send: 'Invia richiesta',
+      sending: 'Invio in corso...',
+      leadSent: 'Richiesta inviata! Il nostro operatore ti contatterà al più presto.',
+      leadError: 'Impossibile inviare la richiesta. Verifica la connessione o contattaci.',
+      found: (c) => `Risultati trovati: ${c}`,
+      perPassenger: 'Prezzi per 1 passeggero',
+      inTransit: 'durata',
+      inRoad: 'durata',
+      seatsLeft: (c) => `Solo ${c} posti rimasti`,
+      availableSeatsCount: (c) => `Posti liberi: ${c}`,
+      soldOut: 'Esaurito',
+      select: 'Seleziona',
+      noTripsTitle: 'Nessun viaggio trovato',
+      noTripsSubtitle: "Inserisci i tuoi dati e il nostro operatore troverà l'opzione migliore per te.",
+      namePlaceholder: 'Il tuo nome',
+      phonePlaceholder: '+39 o numero internazionale',
+      sendRequest: 'Invia richiesta',
+      sentTitle: 'Richiesta inviata!',
+      sentDesc: 'Il nostro operatore ti contatterà al più presto per trovare il percorso ideale.',
+      privacyNotice: 'Inviando la richiesta accetti il trattamento dei dati personali secondo la',
+      privacyLink: 'Privacy Policy',
+      retry: 'Riprova',
+      loadError: 'Impossibile caricare i viaggi. Errore di connessione.',
+      dayPlus: (d) => `+${d} g.`,
+      priceOnRequest: 'Su richiesta',
     },
     popular: {
       badge: 'Destinazioni 2026',
@@ -735,10 +944,13 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       date: 'Quando parti?'
     },
     footer: {
-      rights: '© 2026 Tutti i diritti riservati',
+      rights: `© ${new Date().getFullYear()} BUSNET UA. Tutti i diritti riservati.`,
       about: 'Chi siamo',
       contacts: 'Contatti',
       terms: 'Termini di servizio',
+      navLabel: 'Navigazione sito',
+      privacy: 'Informativa sulla privacy',
+      cookies: 'Politica sui cookie',
     },
     advantages: {
       badge: 'Vantaggi della Piattaforma',
@@ -844,11 +1056,15 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       btnEcoModules: 'ALTRI MODULI',
       iosHintTitle: 'Installa su iPhone',
       iosHintText: 'Per aggiungere BUSNET alla schermata Home bastano 2 passaggi:',
-      iosHintStep1: '1. Tocca l\'icona "Condividi" in basso su Safari',
-      iosHintStep2: '2. Seleziona "Aggiungi a schermata Home"',
+      iosHintStep1: 'Tocca l\'icona "Condividi" in basso su Safari',
+      iosHintStep2: 'Seleziona "Aggiungi a schermata Home"',
       iosHintGotIt: 'Ho capito',
       modulesModalTitle: 'Moduli dell\'ecosistema',
       modulesModalText: 'BUSNET è una piattaforma unica. Apri questo indirizzo sul telefono per installare la PWA:',
+      inAppTitle: 'Apri nel browser',
+      inAppText: 'Per installare l\'app, apri questa pagina in Safari (iOS) o Chrome (Android).',
+      manualTitle: 'Installazione dell\'app',
+      manualText: 'Per installare sul computer, fai clic sull\'icona di installazione nella barra degli indirizzi.',
     },
     confidence: {
       title: 'SICUREZZA E',

@@ -156,9 +156,17 @@ export default function HeroSection({ onSearch, isLoading = false }: HeroSection
             </h1>
 
             {/* Subtitle */}
-            <p className="mt-2 sm:mt-4 max-w-[480px] mx-auto text-sm sm:text-base font-normal leading-relaxed text-slate-200 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
-              {t.hero.subtitle}
-            </p>
+            {Array.isArray(t.hero.subtitleItems) && t.hero.subtitleItems.length > 0 ? (
+              <ul className="mt-2 sm:mt-4 max-w-[560px] mx-auto flex flex-col sm:flex-row sm:gap-3 items-center justify-center text-sm sm:text-base font-normal text-slate-200 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
+                {t.hero.subtitleItems.map((s) => (
+                  <li key={s} className="sm:after:content-['•'] sm:after:ml-3 sm:last:after:content-none">{s}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 sm:mt-4 max-w-[480px] mx-auto text-sm sm:text-base font-normal leading-relaxed text-slate-200 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
+                {t.hero.subtitle}
+              </p>
+            )}
           </div>
         </div>
       </div>
