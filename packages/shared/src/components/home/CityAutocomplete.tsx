@@ -219,14 +219,14 @@ export default function CityAutocomplete({
     <div className="w-full md:flex-1 relative" ref={containerRef}>
       <motion.div
         animate={animationControl}
-        className={`px-4 py-3 md:px-6 cursor-text transition-all rounded-2xl h-full focus-within:ring-1 focus-within:ring-neon-cyan/50 focus-within:shadow-[0_0_15px_rgba(0,212,255,0.2)] ${
+        className={`px-3 py-2 sm:px-4 sm:py-2.5 md:px-6 md:py-3 cursor-text transition-all rounded-xl sm:rounded-2xl h-full focus-within:ring-1 focus-within:ring-neon-cyan/50 focus-within:shadow-[0_0_15px_rgba(0,212,255,0.2)] ${
           hasError ? 'ring-1 ring-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]' : ''
         }`}
         onClick={() => inputRef.current?.focus()}
       >
         <label
           htmlFor={inputId}
-          className="text-[10px] text-slate-400 font-black uppercase block mb-1.5 tracking-widest flex items-center gap-1.5 transition-colors"
+          className="text-xs text-slate-300 font-bold uppercase block mb-1 tracking-wider flex items-center gap-1.5 transition-colors"
         >
           {icon} <span>{label}</span>
           {isLoading && (
@@ -275,7 +275,7 @@ export default function CityAutocomplete({
             placeholder={placeholder}
             autoComplete="off"
             spellCheck={false}
-            className="w-full bg-transparent border-none text-white text-base sm:text-lg font-black outline-none placeholder:text-slate-500 italic tracking-tight pr-10 read-only:opacity-50 read-only:cursor-not-allowed"
+            className="w-full bg-transparent border-none text-white text-base font-bold outline-none placeholder:text-slate-400 placeholder:font-normal tracking-tight pr-10 read-only:opacity-50 read-only:cursor-not-allowed"
           />
 
           {value && !isLoading && (

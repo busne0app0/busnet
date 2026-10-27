@@ -9,23 +9,23 @@ export const ReviewsSection = () => {
   const { t } = useLanguage();
 
   return (
-    <section className="py-24 relative overflow-hidden w-full">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-12 sm:py-24 relative overflow-hidden w-full">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         
         {/* Заголовок */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-8 sm:mb-16">
           <motion.h2 
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="text-4xl md:text-5xl font-black text-white uppercase tracking-tight italic pr-4"
+            className="text-2xl sm:text-4xl md:text-5xl font-black text-white uppercase tracking-tight italic"
           >
-            {t.reviews.title} <span className="neon-gradient-text not-italic inline-block pr-6">{t.reviews.titleAccent}</span>
+            {t.reviews.title} <span className="neon-gradient-text not-italic inline-block">{t.reviews.titleAccent}</span>
           </motion.h2>
         </div>
 
         {/* Хмара відгуків */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
           {t.reviews.items.map((rev: any, index: number) => {
             const rotation = ROTATIONS[index % ROTATIONS.length];
             
@@ -37,7 +37,7 @@ export const ReviewsSection = () => {
                 whileHover={{ rotate: "0deg", scale: 1.05, y: -10 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1, type: "spring", stiffness: 100 }}
-                className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-[30px] shadow-2xl relative group transition-all duration-300"
+                className="bg-white/5 backdrop-blur-xl border border-white/10 p-5 sm:p-8 rounded-2xl sm:rounded-[30px] shadow-2xl relative group transition-all duration-300"
               >
                 {/* Аватарка з неоновим колом */}
                 <div className="mb-6 relative w-20 h-20">

@@ -210,7 +210,7 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
   const displayDate = formatLocalizedDate(searchParams.date, language);
 
   return (
-    <div className="w-full max-w-[1120px] mx-auto mt-2 bg-[#141928]/90 backdrop-blur-2xl border border-white/10 rounded-[28px] sm:rounded-[32px] p-2.5 sm:p-3 shadow-[0_35px_60px_rgba(0,0,0,0.6)] relative z-20 flex flex-col md:flex-row items-center gap-2 md:gap-0">
+    <div className="w-full max-w-[1120px] mx-auto mt-1 sm:mt-2 bg-[#141928]/95 backdrop-blur-2xl border border-white/10 rounded-2xl sm:rounded-[28px] md:rounded-[32px] p-2 sm:p-2.5 md:p-3 shadow-[0_35px_60px_rgba(0,0,0,0.6)] relative z-20 flex flex-col md:flex-row items-center gap-1 sm:gap-1.5 md:gap-0">
       
       {/* Validation Alert (centered, without premature WCAG auto-dismiss) */}
       <div className="absolute left-0 right-0 top-full mt-3 flex justify-center pointer-events-none z-50">
@@ -276,14 +276,14 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
       />
 
       {/* Swap Button */}
-      <div className="relative flex items-center justify-center shrink-0 my-1 md:my-0 md:-mx-2 z-30">
+      <div className="relative flex items-center justify-center shrink-0 my-0.5 md:my-0 md:-mx-2 z-30">
         <button
           type="button"
           onClick={handleSwapCities}
           disabled={isLoading || (!searchParams.from && !searchParams.to)}
           aria-label={t.search.swap}
           title={t.search.swap}
-          className="w-9 h-9 rounded-full bg-[#1b2236] border border-white/15 hover:border-neon-cyan/50 text-slate-300 hover:text-neon-cyan flex items-center justify-center transition-all shadow-md active:scale-90 hover:scale-105 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-neon-cyan"
+          className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-[#1b2236] border border-white/15 hover:border-neon-cyan/50 text-slate-300 hover:text-neon-cyan flex items-center justify-center transition-all shadow-md active:scale-90 hover:scale-105 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-neon-cyan"
         >
           <ArrowLeftRight
             size={14}
@@ -325,7 +325,7 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
       {/* Date Picker Trigger */}
       <div
         ref={calendarTriggerRef}
-        className={`w-full md:flex-1 relative px-4 py-3 md:px-6 transition-all duration-300 rounded-2xl group/date focus-within:ring-1 focus-within:ring-neon-cyan/50 focus-within:shadow-[0_0_15px_rgba(0,212,255,0.2)] ${
+        className={`w-full md:flex-1 relative px-3 py-2 sm:px-4 sm:py-2.5 md:px-6 md:py-3 transition-all duration-300 rounded-xl sm:rounded-2xl group/date focus-within:ring-1 focus-within:ring-neon-cyan/50 focus-within:shadow-[0_0_15px_rgba(0,212,255,0.2)] ${
           errorFields.date ? 'ring-1 ring-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]' : ''
         } ${highlightDate ? 'neon-pulse-glow z-20' : ''}`}
       >
@@ -341,13 +341,13 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
           aria-describedby={errorFields.date ? alertId : undefined}
           className="w-full text-left cursor-pointer outline-none"
         >
-          <span className="text-[10px] text-slate-400 font-black uppercase block mb-1.5 tracking-widest flex items-center gap-1.5 group-hover/date:text-neon-cyan transition-colors">
-            <Calendar size={10} /> {t.search.date}
+          <span className="text-xs text-slate-300 font-bold uppercase block mb-1 tracking-wider flex items-center gap-1.5 group-hover/date:text-neon-cyan transition-colors">
+            <Calendar size={12} /> {t.search.date}
           </span>
           <div className="flex items-center justify-between">
             <span
-              className={`text-base sm:text-lg font-black italic tracking-tight pr-4 ${
-                searchParams.date ? 'text-white' : 'text-slate-500'
+              className={`text-base font-bold tracking-tight pr-4 ${
+                searchParams.date ? 'text-white' : 'text-slate-400'
               }`}
             >
               {displayDate || t.search.selectDate}
@@ -408,7 +408,7 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
         onClick={handleSearchClick}
         disabled={isLoading}
         aria-busy={isLoading}
-        className="w-full md:w-auto md:ml-3 neon-gradient-btn px-8 sm:px-10 py-3.5 sm:py-4 md:py-5 rounded-[22px] sm:rounded-[24px] text-base font-black uppercase tracking-wider shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 active:scale-95 transition-transform"
+        className="w-full md:w-auto md:ml-3 min-h-[48px] sm:min-h-[52px] neon-gradient-btn px-6 sm:px-10 py-3 sm:py-3.5 md:py-5 rounded-xl sm:rounded-[22px] md:rounded-[24px] text-base font-black uppercase tracking-wider shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 active:scale-95 transition-transform"
       >
         {isLoading ? (
           <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden="true" />

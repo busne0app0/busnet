@@ -1,22 +1,31 @@
 .busnet-hero {
   --busnet-hero-bg: #030712;
+  --header-h: 4rem;
+  --gutter: max(0.75rem, env(safe-area-inset-left), env(safe-area-inset-right));
   position: relative;
   isolation: isolate;
   background: var(--busnet-hero-bg);
-  /* Full viewport so content + form always fit above the fold */
+  /* Full viewport with fallback so content + form always fit above the fold */
+  min-height: 100vh;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
-  /* NO overflow: hidden here — it would clip city autocomplete & calendar dropdowns.
-     The photo is clipped inside .busnet-hero__media which has its own overflow: hidden. */
+  /* z-index ensures city autocomplete and date dropdowns float over subsequent sections */
+  z-index: 10;
   overflow: visible;
+}
+
+@media (min-width: 768px) {
+  .busnet-hero {
+    --header-h: 5rem;
+  }
 }
 
 /* ─────────────── Media stage ───────────────
  * .busnet-hero__media is a size container. The stage inside it behaves like
  * `object-fit: cover` with a focal point, but holds BOTH the photo and the
  * route svg, so they are always cropped and moved identically.
- * Uses container query units for locked aspect ratios.
+ * Uses container query units for locked aspect ratios with safe 100% fallback.
  */
 .busnet-hero__media {
   position: absolute;
@@ -34,6 +43,7 @@
   position: absolute;
   left: var(--fx);
   top: var(--fy);
+  width: 100%;
   width: max(100cqw, calc(var(--r) * 100cqh));
   aspect-ratio: var(--r) / 1;
   transform: translate(calc(var(--fx) * -1), calc(var(--fy) * -1));
@@ -131,8 +141,7 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  /* Header is ~80px; give text breathing room */
-  padding: 5.5rem 1.25rem 1rem;
+  padding: calc(var(--header-h) + 1.25rem) 1.25rem 0.75rem;
 }
 
 /* ─── Suggestions: horizontal scroll strip, always centred ─── */
@@ -146,18 +155,6 @@
   justify-content: center;
   margin-left: auto;
   margin-right: auto;
-}
-
-/* Mobile: allow scroll if items overflow, still prefer center */
-@media (max-width: 640px) {
-  .busnet-hero__suggestions {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    justify-content: safe center;
-  }
-  .busnet-hero__suggestions::-webkit-scrollbar { display: none; }
 }
 
 /* ─── SearchWidget wrapper anchored at bottom of hero ─── */
@@ -221,13 +218,24 @@
   }
 
   .busnet-hero__content {
-    padding: 4.5rem 0.875rem 0.5rem;
+    padding: calc(var(--header-h) + 0.75rem) var(--gutter) 0.25rem;
     justify-content: flex-start;
   }
 
-  /* Suggestions centering on mobile — handled above in responsive block */
-
   .busnet-hero__search-wrap {
-    padding: 0 0.75rem 1.5rem;
+    padding: 0 var(--gutter) max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .busnet-hero__suggestions {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    justify-content: flex-start;
+    padding: 0.5rem 0.25rem;
+    gap: 0.5rem;
+  }
+
+  .busnet-hero__suggestions::-webkit-scrollbar {
+    display: none;
   }
 }

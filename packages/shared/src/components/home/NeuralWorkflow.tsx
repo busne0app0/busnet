@@ -54,19 +54,19 @@ export default function NeuralWorkflow() {
   };
 
   return (
-    <section className="py-24 relative overflow-hidden w-full flex flex-col items-center">
+    <section className="py-12 sm:py-24 relative overflow-hidden w-full flex flex-col items-center">
       
       {/* Background Glow Blobs */}
       <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[100px] -z-10" />
       <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-cyan-500/10 rounded-full blur-[100px] -z-10" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
-        <div className="text-center mb-24">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 relative z-10 w-full">
+        <div className="text-center mb-8 sm:mb-24">
           <motion.h2 
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-4xl md:text-6xl font-black uppercase tracking-tight italic text-gradient-silver pr-6"
+            className="text-2xl sm:text-5xl md:text-6xl font-black uppercase tracking-tight italic text-gradient-silver"
           >
             {t.neuralWorkflow.title} {t.neuralWorkflow.titleAccent}?
           </motion.h2>
@@ -80,7 +80,7 @@ export default function NeuralWorkflow() {
              <div className="absolute inset-0 w-40 h-full bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-move-line" />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 lg:gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
             {workflowSteps.map((step, index) => (
               <motion.div
                 key={step.id}
@@ -91,19 +91,19 @@ export default function NeuralWorkflow() {
                 className="flex flex-col items-center group relative"
               >
                 {/* Node Section */}
-                <div className="relative mb-12 lg:mb-20">
+                <div className="relative mb-6 sm:mb-12 lg:mb-20">
                   {/* Step Number Badge */}
-                  <div className="absolute -top-4 -left-4 w-9 h-9 rounded-full bg-black/80 border border-white/10 flex items-center justify-center z-30 shadow-xl">
-                    <span className="text-[10px] font-black font-mono text-cyan-400 tracking-tighter">{step.id}</span>
+                  <div className="absolute -top-3 -left-3 sm:-top-4 sm:-left-4 w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-black/80 border border-white/10 flex items-center justify-center z-30 shadow-xl">
+                    <span className="text-[9px] sm:text-[10px] font-black font-mono text-cyan-400 tracking-tighter">{step.id}</span>
                   </div>
 
                   {/* Main Node Circle */}
                   <motion.div 
                     whileHover={{ scale: 1.1, rotateY: 20 }}
-                    className={`w-36 h-36 rounded-full flex items-center justify-center bg-white/[0.03] backdrop-blur-2xl border border-white/10 relative shadow-2xl transition-all duration-300 group-hover:border-white/20`}
+                    className={`w-24 h-24 sm:w-36 sm:h-36 rounded-full flex items-center justify-center bg-white/[0.03] backdrop-blur-2xl border border-white/10 relative shadow-2xl transition-all duration-300 group-hover:border-white/20`}
                   >
                     <div className={`absolute inset-0 rounded-full transition-opacity duration-300 opacity-0 group-hover:opacity-100 ${step.glow} blur-2xl`} />
-                    <step.icon className={`w-16 h-16 ${step.color} relative z-10 drop-shadow-[0_0_15px_rgba(0,0,0,0.5)]`} strokeWidth={1.5} />
+                    <step.icon className={`w-10 h-10 sm:w-16 sm:h-16 ${step.color} relative z-10 drop-shadow-[0_0_15px_rgba(0,0,0,0.5)]`} strokeWidth={1.5} />
                     
                     {/* Lightning Bolts on Line Interaction (Hidden on mobile) */}
                     <div className="hidden lg:flex absolute -bottom-8 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-black/60 border border-white/10 items-center justify-center z-20">
@@ -115,7 +115,7 @@ export default function NeuralWorkflow() {
                 {/* Card Section */}
                 <motion.div 
                   whileHover={{ y: -10 }}
-                  className="w-full bg-glass-card p-8 rounded-[2.5rem] relative overflow-hidden group-hover:border-indigo-500/50 transition-all duration-500"
+                  className="w-full bg-glass-card p-5 sm:p-8 rounded-2xl sm:rounded-[2.5rem] relative overflow-hidden group-hover:border-indigo-500/50 transition-all duration-500"
                 >
                   {/* Background Number (Decorative) */}
                   <div className="absolute -right-4 -top-8 text-[120px] font-black text-white/[0.03] select-none pointer-events-none">

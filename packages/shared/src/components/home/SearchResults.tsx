@@ -213,15 +213,15 @@ export default function SearchResults({ trips, loading, onSelect }: SearchResult
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="group relative bg-[#141928]/40 backdrop-blur-xl border border-white/10 hover:border-neon-cyan/40 rounded-[32px] overflow-hidden transition-all duration-300"
+              className="group relative bg-[#141928]/40 backdrop-blur-xl border border-white/10 hover:border-neon-cyan/40 rounded-2xl sm:rounded-[32px] overflow-hidden transition-all duration-300"
             >
-              <div className="p-6 md:p-8 flex flex-col md:flex-row gap-6 items-center">
+              <div className="p-4 sm:p-6 md:p-8 flex flex-col md:flex-row gap-4 sm:gap-6 items-center">
                 
                 {/* Timing & Carrier */}
-                <div className="flex-1 w-full grid grid-cols-2 md:grid-cols-3 gap-4 items-center">
+                <div className="flex-1 w-full grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 items-center">
                   <div className="flex flex-col">
-                    <div className="text-3xl font-black text-white">{details.departureTime}</div>
-                    <div className="flex items-center gap-1 text-slate-400 text-sm mt-1 min-w-0">
+                    <div className="text-2xl sm:text-3xl font-black text-white">{details.departureTime}</div>
+                    <div className="flex items-center gap-1 text-slate-400 text-xs sm:text-sm mt-1 min-w-0">
                       <MapPin className="w-3 h-3 shrink-0" /> <span className="truncate">{details.fromCity}</span>
                     </div>
                   </div>
@@ -234,29 +234,29 @@ export default function SearchResults({ trips, loading, onSelect }: SearchResult
                   </div>
 
                   <div className="flex flex-col text-right md:text-left">
-                    <div className="text-3xl font-black text-white">{details.arrivalTime}</div>
-                    <div className="flex items-center gap-1 text-slate-400 text-sm mt-1 md:justify-start justify-end min-w-0">
+                    <div className="text-2xl sm:text-3xl font-black text-white">{details.arrivalTime}</div>
+                    <div className="flex items-center gap-1 text-slate-400 text-xs sm:text-sm mt-1 md:justify-start justify-end min-w-0">
                       <MapPin className="w-3 h-3 shrink-0" /> <span className="truncate">{details.toCity}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Price & Action */}
-                <div className="w-full md:w-auto md:min-w-[200px] flex md:flex-col items-center justify-between gap-4 md:border-l border-white/10 md:pl-8">
+                <div className="w-full md:w-auto md:min-w-[200px] flex md:flex-col items-center justify-between gap-3 sm:gap-4 md:border-l border-white/10 md:pl-8 pt-3 md:pt-0 border-t md:border-t-0">
                   <div className="flex flex-col md:items-end">
-                    <div className="text-sm text-slate-400 font-medium">{trip.carrierName}</div>
-                    <div className="text-2xl font-bold text-neon-cyan">
-                      {details.price} <span className="text-sm uppercase">{trip.currency}</span>
+                    <div className="text-xs sm:text-sm text-slate-400 font-medium">{trip.carrierName}</div>
+                    <div className="text-xl sm:text-2xl font-bold text-neon-cyan">
+                      {details.price} <span className="text-xs sm:text-sm uppercase">{trip.currency}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 mt-1">
+                    <div className="flex items-center gap-1.5 mt-0.5 sm:mt-1">
                       <Users className="w-3.5 h-3.5 text-slate-500" />
-                      <span className="text-[11px] font-bold text-slate-500">Вільних місць: {trip.availableSeats ?? (trip.seatsTotal - (trip.seatsBooked || 0))}</span>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-500">Вільних місць: {trip.availableSeats ?? (trip.seatsTotal - (trip.seatsBooked || 0))}</span>
                     </div>
                   </div>
 
                   <button 
                     onClick={() => onSelect(trip)}
-                    className="neon-gradient-btn px-6 py-3 rounded-2xl flex items-center gap-2 group-hover:px-8 transition-all"
+                    className="neon-gradient-btn px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl flex items-center gap-2 group-hover:px-8 transition-all text-sm sm:text-base font-black shrink-0"
                   >
                     ВИБРАТИ
                     <ChevronRight className="w-4 h-4" />
@@ -267,7 +267,7 @@ export default function SearchResults({ trips, loading, onSelect }: SearchResult
               
               {/* Amenities Footer */}
               {Array.isArray(trip.amenities) && trip.amenities.length > 0 && (
-                <div className="px-8 py-3 bg-white/[0.02] border-t border-white/5 flex gap-4 overflow-x-auto no-scrollbar">
+                <div className="px-4 sm:px-8 py-2.5 sm:py-3 bg-white/[0.02] border-t border-white/5 flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar">
                   {trip.amenities.map(a => (
                     <span key={a} className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
                       ⚡️ {a}

@@ -34,13 +34,13 @@ export const AppEcoSection = () => {
   };
 
   return (
-    <section className="py-24 relative overflow-hidden w-full selection:bg-cyan-500/20">
+    <section className="py-12 sm:py-24 relative overflow-hidden w-full selection:bg-cyan-500/20">
       
       {/* Глибокий фоновий декор 2026 */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1400px] h-[1400px] rounded-full bg-gradient-to-r from-cyan-600/10 via-violet-600/10 to-fuchsia-600/10 blur-[180px] -z-10 animate-pulse"></div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 relative z-10">
+        <div className="flex flex-col lg:flex-row items-center gap-8 sm:gap-16 lg:gap-24">
           
           {/* Контентна частина (зліва на десктопі) */}
           <div className="w-full lg:w-3/5">
@@ -50,14 +50,14 @@ export const AppEcoSection = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
             >
-              <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mb-8 leading-tight tracking-tight uppercase italic pr-6">
+              <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-4 sm:mb-8 leading-tight tracking-tight uppercase italic">
                 {t.appEco.title} <br /> 
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-violet-400 to-fuchsia-400 shadow-cyan-500/50 not-italic inline-block pr-6">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-violet-400 to-fuchsia-400 shadow-cyan-500/50 not-italic inline-block">
                   {t.appEco.titleAccent}
                 </span>
               </h2>
               
-              <p className="text-slate-400 text-lg md:text-xl mb-12 leading-relaxed max-w-2xl">
+              <p className="text-slate-300 text-sm sm:text-lg md:text-xl mb-6 sm:mb-12 leading-relaxed max-w-2xl">
                 {t.appEco.desc}
               </p>
 

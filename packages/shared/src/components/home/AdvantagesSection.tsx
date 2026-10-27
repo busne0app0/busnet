@@ -38,14 +38,14 @@ export const AdvantagesSection = () => {
   };
 
   return (
-    <section className="relative pt-6 pb-24 px-4 max-w-7xl mx-auto z-10 overflow-hidden -mt-12">
+    <section className="relative pt-4 sm:pt-6 pb-12 sm:pb-24 px-3 sm:px-4 max-w-7xl mx-auto z-10 overflow-hidden -mt-4 sm:-mt-12">
       {/* Заголовок */}
-      <div className="text-center mb-16">
+      <div className="text-center mb-8 sm:mb-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-neon-cyan text-sm font-medium mb-4"
+          className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white/5 border border-white/10 text-neon-cyan text-xs sm:text-sm font-medium mb-3 sm:mb-4"
         >
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-cyan opacity-75"></span>
@@ -59,9 +59,9 @@ export const AdvantagesSection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.1 }}
-          className="text-4xl md:text-5xl font-black uppercase tracking-tight italic pr-4"
+          className="text-2xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight italic"
         >
-          {t.advantages.title} <span className="neon-gradient-text not-italic inline-block pr-6">{t.advantages.titleAccent}</span>
+          {t.advantages.title} <span className="neon-gradient-text not-italic inline-block">{t.advantages.titleAccent}</span>
         </motion.h2>
       </div>
 
@@ -71,7 +71,7 @@ export const AdvantagesSection = () => {
         variants={containerVariants}
         initial="hidden"
         animate={isInView ? "visible" : "hidden"}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-6"
       >
         {t.advantages.items.map((item: any, index: number) => {
           const Icon = ICON_MAP[index];
@@ -80,21 +80,21 @@ export const AdvantagesSection = () => {
               <SpotlightCard className="h-full group cursor-default">
                 
                 {/* Іконка з неоновим світінням */}
-                <div className="mb-6 relative inline-block">
-                  <div className="absolute inset-0 bg-neon-cyan blur-xl opacity-0 group-hover:opacity-40 transition-opacity duration-500 rounded-full" />
-                  <div className="relative bg-black/50 p-4 rounded-2xl border border-white/10 group-hover:border-neon-cyan/50 transition-colors">
-                    <Icon className="w-8 h-8 text-neon-cyan" />
+                <div className="mb-4 sm:mb-6 relative inline-block">
+                  <div className="absolute inset-0 bg-neon-cyan blur-lg opacity-0 group-hover:opacity-40 transition-opacity duration-500 rounded-full" />
+                  <div className="relative bg-white/5 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border border-white/10 group-hover:border-neon-cyan/50 transition-colors">
+                    <Icon className="w-5 h-5 sm:w-7 sm:h-7 text-neon-cyan" />
                   </div>
                 </div>
 
                 {/* Текст */}
-                <h3 className="text-2xl font-black text-white mb-1 uppercase tracking-normal pr-2">
+                <h3 className="text-lg sm:text-2xl font-black text-white mb-1 uppercase tracking-tight">
                   {item.title}
                 </h3>
-                <p className="text-neon-cyan font-black text-[10px] mb-4 uppercase tracking-[0.2em]">
+                <p className="text-neon-cyan font-black text-[10px] mb-2 sm:mb-3 uppercase tracking-[0.15em]">
                   {item.subtitle}
                 </p>
-                <p className="text-slate-400 leading-relaxed text-sm group-hover:text-slate-200 transition-colors">
+                <p className="text-slate-300 leading-relaxed text-xs sm:text-sm group-hover:text-white transition-colors">
                   {item.desc}
                 </p>
 

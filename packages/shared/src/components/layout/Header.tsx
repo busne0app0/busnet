@@ -4,9 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@busnet/shared/context/LanguageContext';
 import { Language } from '@busnet/shared/constants/translations';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { getPostLoginTarget } from '@busnet/shared/constants/roleRoutes';
-import toast from 'react-hot-toast';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -15,12 +14,67 @@ export default function Header() {
   const { language, setLanguage, t } = useLanguage();
   const { isAuthenticated, user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
 
+  // Scroll listener with initial call and passive flag
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Lock body scroll and listen for Escape key when mobile menu is open
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMenuOpen(false);
+        setIsMobileLangOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isMenuOpen]);
+
+  // Close menus on route change
+  useEffect(() => {
+    setIsMenuOpen(false);
+    setIsMobileLangOpen(false);
+  }, [location.pathname]);
+
+  // Close mobile menu on desktop breakpoint resize
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const onChange = () => {
+      if (mq.matches) {
+        setIsMenuOpen(false);
+        setIsMobileLangOpen(false);
+      }
+    };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  // Click outside to close mobile language dropdown
+  useEffect(() => {
+    if (!isMobileLangOpen) return;
+    const onClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.mobile-lang-container')) {
+        setIsMobileLangOpen(false);
+      }
+    };
+    document.addEventListener('click', onClickOutside);
+    return () => document.removeEventListener('click', onClickOutside);
+  }, [isMobileLangOpen]);
 
   const navLinks = [
     { name: t.header.routes, anchor: 'routes', icon: <Map className="w-5 h-5" /> },
@@ -29,18 +83,13 @@ export default function Header() {
   ];
 
   const handleAnchorClick = (anchor: string) => {
-    // Якщо вже на головній — плавно скролимо
-    if (window.location.pathname === '/') {
+    setIsMenuOpen(false);
+    if (location.pathname === '/') {
       const el = document.getElementById(anchor);
       el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
-      // На іншій сторінці — переходимо на головну і скролимо
-      navigate('/');
-      setTimeout(() => {
-        document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 500);
+      navigate('/', { state: { scrollTo: anchor } });
     }
-    setIsMenuOpen(false);
   };
 
   const languages: Language[] = ['UK', 'EN', 'IT'];
@@ -50,13 +99,13 @@ export default function Header() {
       navigate('/auth');
       return;
     }
-    const t = getPostLoginTarget(user?.role || '');
-    if (t.error || !t.shouldRedirect) return;
-    // Для пасажира на лендингу використовуємо клієнтський роутер, для кабінетів — повну навігацію
-    if (t.url === '/dashboard') {
+    const target = getPostLoginTarget(user?.role || '');
+    if (target.error || !target.shouldRedirect) return;
+    // For passenger on landing use SPA router, for dashboards use cross-app navigation
+    if (target.url === '/dashboard') {
       navigate('/dashboard');
     } else {
-      window.location.assign(t.url);
+      window.location.assign(target.url);
     }
   };
 
@@ -69,22 +118,25 @@ export default function Header() {
     return user?.firstName ? `ПРОФІЛЬ: ${user.firstName}` : 'ОСОБИСТИЙ КАБІНЕТ';
   };
 
+  const logoutLabel = language === 'EN' ? 'Log out' : language === 'IT' ? 'Esci' : 'Вихід';
+  const logoutFullLabel = language === 'EN' ? 'Sign out of account' : language === 'IT' ? 'Esci dal conto' : 'Вийти з акаунта';
+
   return (
     <>
       <header
-        className={`fixed top-0 w-full z-50 transition-[background,height,box-shadow] duration-300 ${isMenuOpen
-          ? 'bg-transparent h-20 md:h-24'
+        className={`fixed top-0 w-full z-50 transition-[background,box-shadow] duration-300 ${isMenuOpen
+          ? 'bg-transparent h-16 md:h-20'
           : scrolled
-            ? 'bg-busnet-bg/85 backdrop-blur-xl shadow-[0_1px_0_rgba(255,255,255,0.06),0_4px_20px_rgba(0,0,0,0.4)] h-16 md:h-20'
-            : 'bg-transparent h-20 md:h-24'
+            ? 'bg-busnet-bg/90 backdrop-blur-xl shadow-[0_1px_0_rgba(255,255,255,0.06),0_4px_20px_rgba(0,0,0,0.4)] h-16 md:h-20'
+            : 'bg-transparent h-16 md:h-20'
           }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-full flex items-center justify-between gap-2 sm:gap-4">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 cursor-pointer shrink-0">
-            <img src="/icon.png" alt="BUSNET UA" className="w-8 h-8 md:w-9 md:h-9 object-contain rounded-lg drop-shadow-[0_0_10px_rgba(0,212,255,0.4)]" />
-            <span className="text-lg md:text-xl font-semibold tracking-[0.16em] uppercase">
+          <Link to="/" className="flex items-center gap-2 cursor-pointer shrink min-w-0">
+            <img src="/icon.png" alt="BUSNET UA" className="w-8 h-8 md:w-9 md:h-9 object-contain shrink-0 rounded-lg drop-shadow-[0_0_8px_rgba(0,212,255,0.35)]" />
+            <span className="text-base sm:text-xl font-semibold tracking-[0.14em] uppercase truncate">
               <span className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.15)]">BUSNET</span>
               <span className="ml-1 text-neon-cyan drop-shadow-[0_0_10px_rgba(0,212,255,0.5)]">UA</span>
             </span>
@@ -129,10 +181,10 @@ export default function Header() {
             {/* Profile Button */}
             <button
               onClick={handleProfileClick}
-              className="flex items-center gap-2 px-5 py-2 rounded-full border border-neon-cyan/40 text-sm font-bold text-white hover:bg-neon-cyan/10 transition-all backdrop-blur-sm"
+              className="flex items-center gap-2 px-5 py-2 rounded-full border border-neon-cyan/40 text-sm font-bold text-white hover:bg-neon-cyan/10 transition-all backdrop-blur-sm max-w-[240px]"
             >
-              <User className="w-4 h-4 text-neon-cyan" />
-              {getProfileButtonLabel()}
+              <User className="w-4 h-4 text-neon-cyan shrink-0" />
+              <span className="truncate">{getProfileButtonLabel()}</span>
             </button>
 
             {/* Logout */}
@@ -141,20 +193,23 @@ export default function Header() {
                 onClick={async () => { await logout(); navigate('/'); }}
                 className="px-3 py-2 text-xs font-bold text-slate-500 hover:text-red-400 transition-colors uppercase tracking-widest"
               >
-                Вихід
+                {logoutLabel}
               </button>
             )}
           </div>
 
           {/* Mobile Actions */}
-          <div className="lg:hidden flex items-center gap-4">
-            <div className="relative">
+          <div className="lg:hidden flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <div className="relative mobile-lang-container">
               <button
+                type="button"
                 onClick={() => setIsMobileLangOpen(!isMobileLangOpen)}
-                className="p-2 relative flex items-center justify-center min-w-[44px] min-h-[44px] rounded-full hover:bg-white/10 transition-all"
+                aria-label="Change language"
+                aria-expanded={isMobileLangOpen}
+                className="p-2 relative flex items-center justify-center min-w-[44px] min-h-[44px] rounded-full hover:bg-white/10 active:scale-95 transition-all"
               >
-                <Globe className="w-5 h-5 text-slate-400" />
-                <span className="absolute -bottom-1 -right-1 bg-busnet-bg border border-neon-cyan/30 text-neon-cyan text-[8px] font-black px-1 rounded-sm">
+                <Globe className="w-5 h-5 text-slate-300" />
+                <span className="absolute -bottom-0.5 -right-0.5 bg-busnet-bg border border-neon-cyan/40 text-neon-cyan text-[9px] font-black px-1 rounded-sm shadow-sm">
                   {language === 'UK' ? 'UA' : language}
                 </span>
               </button>
@@ -164,13 +219,14 @@ export default function Header() {
                     initial={{ opacity: 0, y: -8, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -8, scale: 0.95 }}
-                    className="absolute top-full right-0 mt-2 bg-[#0A0D14]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-2 flex gap-1 shadow-xl z-[60]"
+                    className="absolute top-full right-0 mt-2 bg-[#0A0D14]/98 backdrop-blur-xl border border-white/15 rounded-2xl p-2 flex gap-1 shadow-2xl z-[60]"
                   >
                     {languages.map((lang) => (
                       <button
                         key={lang}
+                        type="button"
                         onClick={() => { setLanguage(lang); setIsMobileLangOpen(false); }}
-                        className={`px-3 py-2 rounded-xl text-xs font-black transition-all ${language === lang ? 'bg-neon-cyan text-busnet-bg' : 'text-slate-400 hover:text-white hover:bg-white/10'
+                        className={`min-h-[40px] px-3 py-2 rounded-xl text-xs font-black transition-all ${language === lang ? 'bg-neon-cyan text-busnet-bg' : 'text-slate-400 hover:text-white hover:bg-white/10'
                           }`}
                       >
                         {lang === 'UK' ? 'UA' : lang}
@@ -180,8 +236,14 @@ export default function Header() {
                 )}
               </AnimatePresence>
             </div>
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-white focus:outline-none p-2 relative z-50">
-              {isMenuOpen ? <X className="w-8 h-8 text-neon-cyan" /> : <Menu className="w-8 h-8" />}
+            <button
+              type="button"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label={isMenuOpen ? "Закрити меню" : "Відкрити меню"}
+              aria-expanded={isMenuOpen}
+              className="text-white focus:outline-none min-w-[44px] min-h-[44px] w-11 h-11 shrink-0 grid place-items-center rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 active:scale-95 transition-all relative z-50"
+            >
+              {isMenuOpen ? <X className="w-6 h-6 text-neon-cyan" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
         </div>
@@ -191,11 +253,11 @@ export default function Header() {
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-[#030712]/98 backdrop-blur-3xl z-40 lg:hidden flex flex-col p-6 pt-24 gap-8"
+            className="fixed inset-0 bg-[#030712]/98 z-40 lg:hidden flex flex-col p-6 pt-24 gap-6 overflow-y-auto pb-[max(2rem,env(safe-area-inset-bottom))]"
           >
             <nav className="flex flex-col gap-4">
               {navLinks.map((link) => (
@@ -204,7 +266,7 @@ export default function Header() {
                     key={link.name}
                     to={link.href}
                     onClick={() => setIsMenuOpen(false)}
-                    className="text-xl font-bold text-slate-200 hover:text-neon-cyan flex items-center gap-4 border-b border-white/5 pb-4"
+                    className="min-h-[44px] text-xl font-bold text-slate-200 hover:text-neon-cyan flex items-center gap-4 border-b border-white/5 pb-4"
                   >
                     <span className="text-neon-cyan">{link.icon}</span>
                     {link.name}
@@ -213,7 +275,7 @@ export default function Header() {
                   <button
                     key={link.name}
                     onClick={() => handleAnchorClick(link.anchor!)}
-                    className="text-xl font-bold text-slate-200 hover:text-neon-cyan flex items-center gap-4 border-b border-white/5 pb-4 w-full text-left"
+                    className="min-h-[44px] text-xl font-bold text-slate-200 hover:text-neon-cyan flex items-center gap-4 border-b border-white/5 pb-4 w-full text-left"
                   >
                     <span className="text-neon-cyan">{link.icon}</span>
                     {link.name}
@@ -225,18 +287,18 @@ export default function Header() {
             <div className="flex flex-col gap-4 mt-auto">
               <button
                 onClick={() => { setIsMenuOpen(false); handleProfileClick(); }}
-                className="flex items-center justify-center gap-3 w-full py-5 rounded-2xl neon-gradient-btn text-lg font-black tracking-widest"
+                className="flex items-center justify-center gap-3 w-full min-h-[52px] py-4 rounded-2xl neon-gradient-btn text-base sm:text-lg font-black tracking-widest"
               >
                 <User className="w-5 h-5" />
-                {getProfileButtonLabel()}
+                <span className="truncate">{getProfileButtonLabel()}</span>
               </button>
 
               {isAuthenticated && (
                 <button
                   onClick={async () => { setIsMenuOpen(false); await logout(); navigate('/'); }}
-                  className="py-3 text-slate-500 font-bold uppercase tracking-widest"
+                  className="min-h-[44px] py-3 text-slate-500 hover:text-red-400 font-bold uppercase tracking-widest text-center"
                 >
-                  Вийти з акаунта
+                  {logoutFullLabel}
                 </button>
               )}
             </div>

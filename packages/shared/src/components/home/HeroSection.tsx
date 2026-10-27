@@ -141,7 +141,7 @@ export default function HeroSection({ onSearch, isLoading = false }: HeroSection
             initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="mb-3 sm:mb-5 inline-flex items-center gap-2 rounded-full border border-neon-cyan/25 bg-[#030712]/70 px-3 py-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] text-slate-100 backdrop-blur-md shadow-[0_0_15px_rgba(0,212,255,0.15)]"
+            className="mb-2 sm:mb-4 inline-flex items-center gap-2 rounded-full border border-neon-cyan/25 bg-[#030712]/70 px-3 py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] text-slate-100 backdrop-blur-md shadow-[0_0_15px_rgba(0,212,255,0.15)]"
           >
             <span className="relative flex h-2 w-2">
               <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-cyan opacity-75" />
@@ -157,19 +157,19 @@ export default function HeroSection({ onSearch, isLoading = false }: HeroSection
             transition={{ duration: 0.65, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
             className="w-full"
           >
-            <h1 className="leading-[1.02] text-white [text-wrap:balance]">
+            <h1 className="leading-[1.05] text-white [text-wrap:balance]">
               <span className="sr-only">BUSNET UA — </span>
-              <span className="block text-[clamp(2.15rem,6.4vw,4.9rem)] font-black tracking-[-0.04em] drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+              <span className="block text-[clamp(1.75rem,6.8vw,4.5rem)] font-black tracking-[-0.03em] drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
                 {titleLine1}
               </span>
               {/* Cyan accent line — matches brand neon, styled smaller per design hierarchy */}
-              <span className="block text-[clamp(1.35rem,3.8vw,2.9rem)] font-extrabold tracking-[-0.02em] text-transparent bg-clip-text bg-gradient-to-r from-[#00D4FF] via-[#38E8FF] to-[#00BFEA] drop-shadow-[0_0_28px_rgba(0,212,255,0.45)] mt-1 sm:mt-1.5">
+              <span className="block text-[clamp(1.15rem,3.6vw,2.5rem)] font-extrabold tracking-[-0.02em] text-transparent bg-clip-text bg-gradient-to-r from-[#00D4FF] via-[#38E8FF] to-[#00BFEA] drop-shadow-[0_0_28px_rgba(0,212,255,0.45)] mt-1 sm:mt-1.5">
                 {titleLine2}
               </span>
             </h1>
 
             {/* Subtitle */}
-            <p className="mt-3 sm:mt-5 max-w-[480px] mx-auto text-[13px] sm:text-base lg:text-lg font-normal leading-relaxed text-slate-300 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
+            <p className="mt-2 sm:mt-4 max-w-[480px] mx-auto text-xs sm:text-base font-normal leading-relaxed text-slate-200 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
               {t.hero.subtitle}
             </p>
           </motion.div>
@@ -204,7 +204,7 @@ export default function HeroSection({ onSearch, isLoading = false }: HeroSection
                   whileHover={shouldReduceMotion ? undefined : { y: -2 }}
                   whileTap={shouldReduceMotion  ? undefined : { scale: 0.98 }}
                   onClick={() => handleSuggestionClick(item.from, item.to)}
-                  className="group flex shrink-0 items-center gap-2.5 rounded-2xl border border-white/[0.11] bg-[#030712]/55 px-3.5 py-2 text-left backdrop-blur-md transition-all duration-200 hover:border-neon-cyan/50 hover:bg-[#071322]/75 hover:shadow-[0_0_18px_rgba(0,212,255,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-[#030712]"
+                  className="group flex shrink-0 min-w-[230px] sm:min-w-0 items-center gap-2.5 rounded-2xl border border-white/[0.11] bg-[#030712]/55 px-3.5 py-2 text-left backdrop-blur-md transition-all duration-200 hover:border-neon-cyan/50 hover:bg-[#071322]/75 hover:shadow-[0_0_18px_rgba(0,212,255,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-[#030712]"
                 >
                   {/* Arrow icon — cyan */}
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-neon-cyan/20 bg-neon-cyan/[0.07] text-neon-cyan/70 transition-colors group-hover:border-neon-cyan/45 group-hover:text-neon-cyan group-hover:bg-neon-cyan/12">

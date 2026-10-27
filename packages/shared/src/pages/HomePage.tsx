@@ -17,7 +17,7 @@ import { Trip } from '../busnet/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { slowMotionScroll } from '@busnet/shared/lib/scrollUtils';
 import { useBookingStore } from '@busnet/shared/store/useBookingStore';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
 export default function HomePage() {
   const [showResults, setShowResults] = useState(false);
@@ -26,9 +26,23 @@ export default function HomePage() {
   const { setTrip } = useBookingStore();
   const navigate = useNavigate();
   const [urlParams, setUrlParams] = useSearchParams();
+  const location = useLocation();
 
   const resultsRef = useRef<HTMLDivElement>(null);
   const initialSyncDone = useRef(false);
+
+  // Smooth scroll to anchor passed via router location state
+  useEffect(() => {
+    if (location.state?.scrollTo) {
+      const anchor = location.state.scrollTo;
+      const el = document.getElementById(anchor);
+      if (el) {
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
+    }
+  }, [location.state]);
 
   // Sync state from URL query parameters on initial mount (items 5, 83)
   useEffect(() => {
@@ -169,13 +183,23 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="w-full flex flex-col items-center">
-            <PopularDestinations />
+            <div id="routes" className="w-full flex justify-center scroll-mt-20">
+              <PopularDestinations />
+            </div>
             <Ticker />
-            <AboutSection />
-            <AdvantagesSection />
-            <ReviewsSection />
+            <div id="about" className="w-full flex justify-center scroll-mt-20">
+              <AboutSection />
+            </div>
+            <div id="advantages" className="w-full flex justify-center scroll-mt-20">
+              <AdvantagesSection />
+            </div>
+            <div id="partners" className="w-full flex justify-center scroll-mt-20">
+              <ReviewsSection />
+            </div>
             <ConfidenceSection />
-            <AppEcoSection />
+            <div id="contacts" className="w-full flex justify-center scroll-mt-20">
+              <AppEcoSection />
+            </div>
             <NeuralWorkflow />
             <SEOFooterSection />
           </div>

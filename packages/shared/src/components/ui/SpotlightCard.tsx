@@ -31,7 +31,7 @@ export const SpotlightCard: React.FC<SpotlightCardProps> = ({ children, classNam
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 px-8 py-10 transition-colors duration-500 hover:border-neon-cyan/30 ${className}`}
+      className={`relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-8 md:px-8 md:py-10 transition-colors duration-500 hover:border-neon-cyan/30 ${className}`}
     >
       {/* Spotlight Effect - Hidden on touch devices or static glow if desired */}
       <div

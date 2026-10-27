@@ -134,15 +134,15 @@ export default function BookingStepper() {
   if (!selectedTrip && currentStep < 3) return null;
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 py-8">
+    <div className="w-full max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
       {/* Header with back button */}
-      <div className="flex items-center justify-between mb-10">
+      <div className="flex items-center justify-between mb-6 sm:mb-10">
         <button 
           onClick={() => currentStep > 1 && currentStep < 3 ? setStep(currentStep - 1) : navigate('/')}
-          className="flex items-center gap-2 text-slate-500 hover:text-cyan-400 transition-colors group px-3 py-2 rounded-full border border-white/5 hover:border-cyan-500/30"
+          className="flex items-center gap-2 text-slate-400 hover:text-cyan-400 transition-colors group px-3 py-2 rounded-full border border-white/10 hover:border-cyan-500/30"
         >
           <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-          <span className="text-[10px] font-black uppercase tracking-widest hidden sm:block">{currentStep === 3 ? 'На головну' : 'Назад'}</span>
+          <span className="text-[10px] font-black uppercase tracking-widest">{currentStep === 3 ? 'На головну' : 'Назад'}</span>
         </button>
 
         <div className="flex items-center gap-4 sm:gap-10">
@@ -177,8 +177,8 @@ export default function BookingStepper() {
       </div>
 
       {/* Footer support notice */}
-      <div className="mt-20 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 opacity-30 hover:opacity-100 transition-opacity">
-        <div className="flex items-center gap-4">
+      <div className="mt-10 sm:mt-20 pt-6 sm:pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 sm:gap-6 opacity-40 hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-3 sm:gap-4">
            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-slate-400">
              <span className="text-[10px] font-bold">24/7</span>
            </div>

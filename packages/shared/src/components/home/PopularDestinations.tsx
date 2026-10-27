@@ -69,36 +69,36 @@ const DestinationCard = ({ item, onClick }: { item: Destination; onClick: (from:
       viewport={{ once: true }}
       whileHover={{ scale: 1.02 }}
       onClick={() => onClick(item.from, item.to)}
-      className="relative w-[85vw] min-w-[280px] max-w-[340px] h-[196px] sm:w-auto sm:min-w-[340px] cursor-pointer group shrink-0 snap-center sm:snap-start"
+      className="relative w-[82vw] min-w-[260px] max-w-[320px] h-[180px] sm:h-[196px] sm:w-auto sm:min-w-[340px] cursor-pointer group shrink-0 snap-center sm:snap-start"
     >
       {/* Скляний фон (Glassmorphism) */}
-      <div className="absolute inset-0 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl transition-all group-hover:bg-white/10 group-hover:border-white/20" />
+      <div className="absolute inset-0 rounded-2xl sm:rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl transition-all group-hover:bg-white/10 group-hover:border-white/20" />
 
       {/* Нейронне свічення */}
       <div
-        className="absolute -inset-1 rounded-3xl opacity-0 group-hover:opacity-20 blur-2xl transition-opacity duration-500"
+        className="absolute -inset-1 rounded-2xl sm:rounded-3xl opacity-0 group-hover:opacity-20 blur-2xl transition-opacity duration-500"
         style={{ background: `radial-gradient(circle at center, ${item.accentColor}, transparent)` }}
       />
 
-      <div className="relative p-6 h-full flex flex-col justify-between z-10" style={{ transform: 'translateZ(50px)' }}>
+      <div className="relative p-4 sm:p-6 h-full flex flex-col justify-between z-10" style={{ transform: 'translateZ(50px)' }}>
         {/* Хедер карточки */}
         <div className="flex justify-between items-start">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Sparkles size={12} className="text-neon-cyan opacity-50" />
-              <span className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">{t.popular.premium}</span>
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+              <Sparkles size={11} className="text-neon-cyan opacity-60" />
+              <span className="text-[9px] sm:text-[10px] text-slate-400 font-black uppercase tracking-[0.15em] sm:tracking-[0.2em]">{t.popular.premium}</span>
             </div>
-            <h3 className="text-xl sm:text-2xl font-black text-white flex items-center gap-3">
-              {item.from} <ArrowRight size={18} className="text-neon-cyan opacity-40 group-hover:translate-x-1 transition-transform" /> {item.to}
+            <h3 className="text-lg sm:text-2xl font-black text-white flex items-center gap-2 sm:gap-3">
+              {item.from} <ArrowRight size={16} className="text-neon-cyan opacity-50 group-hover:translate-x-1 transition-transform" /> {item.to}
             </h3>
           </div>
-          <div className="p-3 rounded-2xl bg-white/5 border border-white/5 group-hover:border-neon-cyan/30 transition-colors">
-            <Bus className="text-neon-cyan" size={24} />
+          <div className="p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-white/5 border border-white/5 group-hover:border-neon-cyan/30 transition-colors">
+            <Bus className="text-neon-cyan w-5 h-5 sm:w-6 sm:h-6" />
           </div>
         </div>
 
         {/* Голографічна лінія маршруту */}
-        <div className="relative h-10">
+        <div className="relative h-8 sm:h-10">
           <svg className="w-full h-full overflow-visible">
             <line x1="5%" y1="50%" x2="95%" y2="50%" stroke="rgba(255,255,255,0.05)" strokeWidth="1" strokeDasharray="4 4" />
             <motion.path
@@ -124,14 +124,14 @@ const DestinationCard = ({ item, onClick }: { item: Destination; onClick: (from:
         {/* Футер карточки */}
         <div className="flex justify-between items-center mt-auto">
           <div className="flex flex-col">
-            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">{t.popular.priceFrom}</span>
-            <div className="flex items-center gap-2 text-white font-black text-xl italic pr-2">
-              <Wallet size={16} className="text-neon-cyan" />
+            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">{t.popular.priceFrom}</span>
+            <div className="flex items-center gap-1.5 text-white font-black text-lg sm:text-xl italic">
+              <Wallet size={15} className="text-neon-cyan" />
               <span>{item.price}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-slate-400 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
-            <Clock size={14} className="text-neon-cyan" />
+          <div className="flex items-center gap-1.5 text-slate-300 bg-white/5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl border border-white/5">
+            <Clock size={13} className="text-neon-cyan" />
             <span className="text-xs font-bold">{item.time}</span>
           </div>
         </div>
@@ -165,26 +165,26 @@ export default function PopularDestinations() {
   };
 
   return (
-    <section className="pt-16 pb-6 relative overflow-hidden w-full text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-white">
+    <section className="pt-8 sm:pt-16 pb-4 sm:pb-6 relative overflow-hidden w-full text-white">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 text-white">
         {/* Заголовок секції */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
-          className="mb-8"
+          className="mb-5 sm:mb-8"
         >
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-[2px] w-12 bg-neon-cyan shadow-[0_0_10px_#00D4FF]" />
-            <span className="text-neon-cyan font-black text-[10px] uppercase tracking-[0.4em]">{t.popular.badge}</span>
+          <div className="flex items-center gap-2.5 sm:gap-3 mb-2 sm:mb-4">
+            <div className="h-[2px] w-8 sm:w-12 bg-neon-cyan shadow-[0_0_10px_#00D4FF]" />
+            <span className="text-neon-cyan font-black text-[10px] uppercase tracking-[0.25em] sm:tracking-[0.4em]">{t.popular.badge}</span>
           </div>
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-white tracking-tight uppercase italic leading-[1.1]">
-            {t.popular.title} <span className="neon-gradient-text uppercase not-italic inline-block pr-6">{t.popular.titleAccent}</span>
+          <h2 className="text-2xl sm:text-5xl md:text-6xl font-black text-white tracking-tight uppercase italic leading-[1.1]">
+            {t.popular.title} <span className="neon-gradient-text uppercase not-italic inline-block">{t.popular.titleAccent}</span>
           </h2>
         </motion.div>
 
         {/* Контейнер зі скроллом */}
-        <div className="flex gap-4 sm:gap-6 overflow-x-auto pt-4 pb-6 scrollbar-hide perspective-1000 mask-linear-fade snap-x snap-mandatory">
+        <div className="flex gap-3 sm:gap-6 overflow-x-auto pt-2 pb-4 sm:pb-6 scrollbar-hide perspective-1000 mask-linear-fade snap-x snap-mandatory">
           {DESTINATIONS.map((item) => (
             <DestinationCard key={item.id} item={item} onClick={handleCardClick} />
           ))}
