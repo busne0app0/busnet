@@ -217,19 +217,20 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
   const displayDate = formatLocalizedDate(searchParams.date, language);
 
   return (
-    <div className="w-full max-w-[1120px] mx-auto mt-1 sm:mt-2 bg-[#141928]/95 backdrop-blur-2xl border border-white/10 rounded-2xl sm:rounded-[28px] md:rounded-[32px] p-2 sm:p-2.5 md:p-3 shadow-[0_35px_60px_rgba(0,0,0,0.6)] relative z-20 flex flex-col md:flex-row items-center gap-1 sm:gap-1.5 md:gap-0">
+  return (
+    <div className="w-full bg-[#141928] border border-white/10 rounded-2xl md:rounded-[28px] lg:rounded-[32px] p-2 md:p-2.5 lg:p-3 shadow-[0_12px_30px_rgba(0,0,0,0.5)] lg:shadow-[0_35px_60px_rgba(0,0,0,0.6)] relative z-20 flex flex-col lg:flex-row items-stretch lg:items-center gap-1.5 lg:gap-0">
       
-      {/* Validation Alert (centered, without premature WCAG auto-dismiss) */}
-      <div className="absolute left-0 right-0 top-full mt-3 flex justify-center pointer-events-none z-50">
+      {/* Validation Alert */}
+      <div className="absolute left-0 right-0 top-full mt-2 flex justify-center pointer-events-none z-50">
         <AnimatePresence>
           {validationMessage && (
             <motion.div
               id={alertId}
               role="alert"
-              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              initial={{ opacity: 0, y: -6, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.98 }}
-              className="pointer-events-auto w-[90%] max-w-[440px] p-3.5 bg-rose-600/30 backdrop-blur-2xl border border-rose-500/60 rounded-2xl shadow-[0_0_40px_rgba(244,63,94,0.35)] text-left flex items-center justify-between gap-3"
+              exit={{ opacity: 0, y: -6, scale: 0.98 }}
+              className="pointer-events-auto w-[90%] max-w-[440px] p-3.5 bg-rose-950/95 border border-rose-500/80 rounded-2xl shadow-[0_0_30px_rgba(244,63,94,0.35)] text-left flex items-center justify-between gap-3"
             >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-rose-500/80 flex items-center justify-center shrink-0">
@@ -266,7 +267,7 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
           setFromCity(null);
         }}
         placeholder={t.search.placeholderFrom}
-        icon={<MapPin size={10} />}
+        icon={<MapPin size={12} />}
         hasError={errorFields.from}
         errorId={alertId}
         enterKeyHint="next"
@@ -283,23 +284,23 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
       />
 
       {/* Swap Button */}
-      <div className="relative flex items-center justify-center shrink-0 my-0.5 md:my-0 md:-mx-2 z-30">
+      <div className="relative flex items-center justify-center shrink-0 my-0.5 lg:my-0 lg:-mx-2 z-30">
         <button
           type="button"
           onClick={handleSwapCities}
           disabled={isLoading || (!searchParams.from && !searchParams.to)}
           aria-label={t.search.swap}
           title={t.search.swap}
-          className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-[#1b2236] border border-white/15 hover:border-neon-cyan/50 text-slate-300 hover:text-neon-cyan flex items-center justify-center transition-all shadow-md active:scale-90 hover:scale-105 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-neon-cyan"
+          className="w-10 h-10 rounded-full bg-[#1b2236] border border-white/15 hover:border-neon-cyan/50 text-slate-300 hover:text-neon-cyan flex items-center justify-center transition-all shadow-md active:scale-90 hover:scale-105 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-neon-cyan"
         >
           <ArrowLeftRight
-            size={14}
-            className="hidden md:block transition-transform duration-300"
+            size={15}
+            className="hidden lg:block transition-transform duration-300"
             style={{ transform: `rotate(${swapTurns * 180}deg)` }}
           />
           <ArrowUpDown
-            size={14}
-            className="block md:hidden transition-transform duration-300"
+            size={15}
+            className="block lg:hidden transition-transform duration-300"
             style={{ transform: `rotate(${swapTurns * 180}deg)` }}
           />
         </button>
@@ -314,7 +315,7 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
           setToCity(null);
         }}
         placeholder={t.search.placeholderTo}
-        icon={<MapPin size={10} />}
+        icon={<MapPin size={12} />}
         hasError={errorFields.to}
         errorId={alertId}
         enterKeyHint="search"
@@ -327,12 +328,12 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
         onEnter={handleSearchClick}
       />
 
-      <div className="hidden md:block w-[1px] h-10 bg-white/10 mx-1 shrink-0" />
+      <div className="hidden lg:block w-[1px] h-10 bg-white/10 mx-1 shrink-0" />
 
       {/* Date Picker Trigger */}
       <div
         ref={calendarTriggerRef}
-        className={`w-full md:flex-1 relative px-3 py-2 sm:px-4 sm:py-2.5 md:px-6 md:py-3 transition-all duration-300 rounded-xl sm:rounded-2xl group/date focus-within:ring-1 focus-within:ring-neon-cyan/50 focus-within:shadow-[0_0_15px_rgba(0,212,255,0.2)] ${
+        className={`w-full lg:flex-1 relative px-3 py-2 sm:px-4 sm:py-2.5 lg:px-6 lg:py-3 transition-all duration-300 rounded-xl sm:rounded-2xl group/date focus-within:ring-1 focus-within:ring-neon-cyan/50 focus-within:shadow-[0_0_15px_rgba(0,212,255,0.2)] ${
           errorFields.date ? 'ring-1 ring-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]' : ''
         } ${highlightDate ? 'neon-pulse-glow z-20' : ''}`}
       >
@@ -374,14 +375,16 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
             <motion.div
               id={calendarId}
               ref={calendarContainerRef}
+              role="dialog"
+              aria-modal="true"
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ duration: 0.15 }}
-              className={`absolute left-0 right-0 mx-auto md:mx-0 md:left-auto md:right-0 z-[100] w-[calc(100vw-1.5rem)] sm:w-auto max-w-[325px] sm:max-w-none flex justify-center ${
+              className={`absolute left-0 right-0 mx-auto lg:mx-0 lg:left-auto lg:right-0 z-[100] w-[calc(100vw-1.5rem)] sm:w-auto max-w-[325px] sm:max-w-none flex justify-center ${
                 calendarOpensUp
-                  ? 'bottom-full mb-2 origin-bottom md:origin-bottom-right'
-                  : 'top-full mt-2 origin-top md:origin-top-right'
+                  ? 'bottom-full mb-2 origin-bottom lg:origin-bottom-right'
+                  : 'top-full mt-2 origin-top lg:origin-top-right'
               }`}
             >
               <BusnetCalendar
@@ -394,8 +397,8 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
                 tripContext={
                   resolvedFrom && resolvedTo
                     ? {
-                        from: resolvedFrom.names.uk,
-                        to: resolvedTo.names.uk,
+                        from: resolvedFrom.names[langKey] ?? resolvedFrom.names.uk,
+                        to:   resolvedTo.names[langKey]   ?? resolvedTo.names.uk,
                       }
                     : undefined
                 }
@@ -415,7 +418,7 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
         onClick={handleSearchClick}
         disabled={isLoading}
         aria-busy={isLoading}
-        className="w-full md:w-auto md:ml-3 min-h-[48px] sm:min-h-[52px] neon-gradient-btn px-6 sm:px-10 py-3 sm:py-3.5 md:py-5 rounded-xl sm:rounded-[22px] md:rounded-[24px] text-base font-black uppercase tracking-wider shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 active:scale-95 transition-transform"
+        className="w-full lg:w-auto lg:ml-3 min-h-[48px] sm:min-h-[52px] neon-gradient-btn px-6 sm:px-8 lg:px-10 py-3 sm:py-3.5 lg:py-5 rounded-xl sm:rounded-[22px] lg:rounded-[24px] text-base font-black uppercase tracking-wider shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 active:scale-95 transition-transform"
       >
         {isLoading ? (
           <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden="true" />

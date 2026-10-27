@@ -216,10 +216,10 @@ export default function CityAutocomplete({
   const hasNoResults = isOpen && value.trim().length > 0 && suggestions.length === 0;
 
   return (
-    <div className="w-full md:flex-1 relative" ref={containerRef}>
+    <div className="w-full lg:flex-1 relative" ref={containerRef}>
       <motion.div
         animate={animationControl}
-        className={`px-3 py-2 sm:px-4 sm:py-2.5 md:px-6 md:py-3 cursor-text transition-all rounded-xl sm:rounded-2xl h-full focus-within:ring-1 focus-within:ring-neon-cyan/50 focus-within:shadow-[0_0_15px_rgba(0,212,255,0.2)] ${
+        className={`px-3 py-2 sm:px-4 sm:py-2.5 lg:px-6 lg:py-3 cursor-text transition-all rounded-xl sm:rounded-2xl h-full focus-within:ring-1 focus-within:ring-neon-cyan/50 focus-within:shadow-[0_0_15px_rgba(0,212,255,0.2)] ${
           hasError ? 'ring-1 ring-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]' : ''
         }`}
         onClick={() => inputRef.current?.focus()}
