@@ -26,10 +26,10 @@ import './HeroSection.css';
 const BASE = '/images/busnet-europe';
 const MEDIA_MOBILE = '(max-width: 767px)';
 const LANDSCAPE_WIDTHS = [800, 1400, 2400];
-const PORTRAIT_WIDTHS  = [600, 900, 1200];
+const PORTRAIT_WIDTHS = [600, 900, 1200];
 
 const SIZES_LANDSCAPE = 'max(100vw, 1020px)';
-const SIZES_PORTRAIT  = 'max(100vw, 480px)';
+const SIZES_PORTRAIT = 'max(100vw, 480px)';
 
 const srcSet = (ext: 'avif' | 'webp' | 'jpg', widths: number[], variant = '') =>
   widths.map((w) => `${BASE}-${variant}${w}.${ext} ${w}w`).join(', ');
@@ -38,9 +38,9 @@ const srcSet = (ext: 'avif' | 'webp' | 'jpg', widths: number[], variant = '') =>
 
 function getLocalISODate() {
   const now = new Date();
-  const year  = now.getFullYear();
+  const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day   = String(now.getDate()).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
@@ -61,25 +61,25 @@ export default function HeroSection({ onSearch, isLoading = false }: HeroSection
 
   const suggestions = [
     {
-      text:   `${t.hero.cityKyiv} → ${t.hero.cityWarsaw}`,
-      from:   'Київ',
-      to:     'Варшава',
+      text: `${t.hero.cityKyiv} → ${t.hero.cityWarsaw}`,
+      from: 'Київ',
+      to: 'Варшава',
       detail: '1200₴',
-      label:  t.hero.suggestCheapest,
+      label: t.hero.suggestCheapest,
     },
     {
-      text:   `${t.hero.cityLviv} → ${t.hero.cityBerlin}`,
-      from:   'Львів',
-      to:     'Берлін',
+      text: `${t.hero.cityLviv} → ${t.hero.cityBerlin}`,
+      from: 'Львів',
+      to: 'Берлін',
       detail: t.hero.suggestAiChoice,
-      label:  t.hero.suggestToday,
+      label: t.hero.suggestToday,
     },
     {
-      text:   `${t.hero.cityOdesa} → ${t.hero.cityPrague}`,
-      from:   'Одеса',
-      to:     'Прага',
+      text: `${t.hero.cityOdesa} → ${t.hero.cityPrague}`,
+      from: 'Одеса',
+      to: 'Прага',
       detail: '1500₴',
-      label:  t.hero.suggestFastest,
+      label: t.hero.suggestFastest,
     },
   ];
 
@@ -100,7 +100,7 @@ export default function HeroSection({ onSearch, isLoading = false }: HeroSection
               {/* Mobile: portrait crop */}
               <source media={MEDIA_MOBILE} type="image/avif" srcSet={srcSet('avif', PORTRAIT_WIDTHS, 'portrait-')} sizes={SIZES_PORTRAIT} />
               <source media={MEDIA_MOBILE} type="image/webp" srcSet={srcSet('webp', PORTRAIT_WIDTHS, 'portrait-')} sizes={SIZES_PORTRAIT} />
-              <source media={MEDIA_MOBILE} type="image/jpeg" srcSet={srcSet('jpg',  PORTRAIT_WIDTHS, 'portrait-')} sizes={SIZES_PORTRAIT} />
+              <source media={MEDIA_MOBILE} type="image/jpeg" srcSet={srcSet('jpg', PORTRAIT_WIDTHS, 'portrait-')} sizes={SIZES_PORTRAIT} />
               {/* Desktop: 2:1 landscape */}
               <source type="image/avif" srcSet={srcSet('avif', LANDSCAPE_WIDTHS)} sizes={SIZES_LANDSCAPE} />
               <source type="image/webp" srcSet={srcSet('webp', LANDSCAPE_WIDTHS)} sizes={SIZES_LANDSCAPE} />
@@ -123,17 +123,19 @@ export default function HeroSection({ onSearch, isLoading = false }: HeroSection
 
       {/* ── Overlays ── */}
       <div className="busnet-hero__shade busnet-hero__shade--horizontal" aria-hidden="true" />
-      <div className="busnet-hero__shade busnet-hero__shade--vertical"   aria-hidden="true" />
-      <div className="busnet-hero__glow"         aria-hidden="true" />
-      <div className="busnet-hero__bottom-fade"  aria-hidden="true" />
+      <div className="busnet-hero__shade busnet-hero__shade--vertical" aria-hidden="true" />
+      <div className="busnet-hero__glow" aria-hidden="true" />
+      <div className="busnet-hero__bottom-fade" aria-hidden="true" />
 
-      {/* ── Centred text block ── */}
+      {/* ── Centred text block ──
+          pt-2 / pb-3 на телефоні дають повітря над плашкою та під підзаголовком
+          (CSS героя на мобільному лишає під блоком лише 0.2rem). */}
       <div className="busnet-hero__content">
-        <div className="w-full max-w-[720px] flex flex-col items-center text-center">
+        <div className="w-full max-w-[720px] flex flex-col items-center text-center pt-2 pb-3 sm:pt-0 sm:pb-0">
 
           {/* Badge */}
           <div
-            className="mb-2 sm:mb-4 inline-flex items-center gap-2 rounded-full border border-neon-cyan/25 bg-[#030712]/80 px-3 py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] text-slate-100 shadow-[0_0_15px_rgba(0,212,255,0.15)]"
+            className="mb-4 sm:mb-5 inline-flex items-center gap-2 rounded-full border border-neon-cyan/25 bg-[#030712]/80 px-3 py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] text-slate-100 shadow-[0_0_15px_rgba(0,212,255,0.15)]"
           >
             <span className="relative flex h-2 w-2">
               <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-cyan opacity-75" />
@@ -146,24 +148,29 @@ export default function HeroSection({ onSearch, isLoading = false }: HeroSection
           <div className="w-full">
             <h1 id="hero-title" className="leading-[1.05] text-white [text-wrap:balance]">
               <span className="sr-only">BUSNET UA — </span>
-              <span className="block text-[clamp(1.75rem,6.8vw,4.5rem)] font-black tracking-[-0.03em] drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+              <span className="block text-[clamp(2.25rem,10vw,5rem)] font-black tracking-[-0.03em] drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
                 {titleLine1}
               </span>{' '}
               {/* Cyan accent line with pb-[0.12em] to protect descending characters from clip-path clipping */}
-              <span className="block pb-[0.12em] text-[clamp(1.15rem,3.6vw,2.5rem)] font-extrabold tracking-[-0.02em] text-transparent bg-clip-text bg-gradient-to-r from-[#00D4FF] via-[#38E8FF] to-[#00BFEA] drop-shadow-[0_0_28px_rgba(0,212,255,0.45)] mt-1 sm:mt-1.5">
+              <span className="block pb-[0.12em] text-[clamp(1.5rem,5.5vw,2.75rem)] font-extrabold tracking-[-0.02em] text-transparent bg-clip-text bg-gradient-to-r from-[#00D4FF] via-[#38E8FF] to-[#00BFEA] drop-shadow-[0_0_28px_rgba(0,212,255,0.45)] mt-1 sm:mt-1.5">
                 {titleLine2}
               </span>
             </h1>
 
-            {/* Subtitle */}
+            {/* Subtitle.
+                Розділювач-крапка показується лише від 380px, коли всі три фрази гарантовано
+                вміщуються. На вужчих екранах фрази переносяться цілком і без «висячої» крапки. */}
             {Array.isArray(t.hero.subtitleItems) && t.hero.subtitleItems.length > 0 ? (
-              <ul className="mt-2 sm:mt-4 max-w-[560px] mx-auto flex flex-col sm:flex-row sm:gap-3 items-center justify-center text-sm sm:text-base font-normal text-slate-200 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
-                {t.hero.subtitleItems.map((s) => (
-                  <li key={s} className="sm:after:content-['•'] sm:after:ml-3 sm:last:after:content-none">{s}</li>
+              <ul className="mt-3 sm:mt-4 max-w-[560px] mx-auto flex flex-row flex-wrap gap-x-3 min-[380px]:gap-x-2.5 gap-y-1 items-center justify-center text-[13px] min-[380px]:text-sm sm:text-base font-medium text-slate-100/95 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
+                {t.hero.subtitleItems.map((s, i) => (
+                  <li key={s} className="flex items-center gap-2.5 whitespace-nowrap">
+                    {i > 0 && <span className="hidden min-[380px]:inline text-slate-400/80" aria-hidden="true">·</span>}
+                    {s}
+                  </li>
                 ))}
               </ul>
             ) : (
-              <p className="mt-2 sm:mt-4 max-w-[480px] mx-auto text-sm sm:text-base font-normal leading-relaxed text-slate-200 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
+              <p className="mt-3 sm:mt-4 max-w-[480px] mx-auto text-sm sm:text-base font-medium leading-relaxed text-slate-100 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
                 {t.hero.subtitle}
               </p>
             )}
@@ -185,7 +192,7 @@ export default function HeroSection({ onSearch, isLoading = false }: HeroSection
                   type="button"
                   disabled={isLoading}
                   onClick={() => handleSuggestionClick(item.from, item.to)}
-                  className="group flex shrink-0 min-w-[210px] max-w-[85vw] sm:min-w-0 items-center gap-2.5 rounded-2xl border border-white/[0.11] bg-[#071322]/90 px-3.5 py-2 text-left transition-all duration-200 hover:border-neon-cyan/50 hover:bg-[#0c1b30] hover:shadow-[0_0_18px_rgba(0,212,255,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon-cyan disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="group flex shrink-0 snap-start min-w-[158px] max-w-[75vw] sm:min-w-0 sm:max-w-none items-center gap-2.5 rounded-2xl border border-white/[0.11] bg-[#071322]/90 px-3.5 py-2 text-left transition-all duration-200 hover:border-neon-cyan/50 hover:bg-[#0c1b30] hover:shadow-[0_0_18px_rgba(0,212,255,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon-cyan disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {/* Arrow icon — cyan */}
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-neon-cyan/20 bg-neon-cyan/[0.07] text-neon-cyan/70 transition-colors group-hover:border-neon-cyan/45 group-hover:text-neon-cyan group-hover:bg-neon-cyan/12">

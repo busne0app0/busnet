@@ -10,6 +10,7 @@
   min-height: 100svh;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   /* z-index ensures city autocomplete and date dropdowns float over subsequent sections */
   z-index: 10;
   overflow: visible;
@@ -37,8 +38,10 @@
 }
 
 .busnet-hero__stage {
-  --r: 2;       /* stage aspect ratio: desktop image is 2:1 */
-  --fx: 64%;    /* focal point inside the photo */
+  --r: 2;
+  /* stage aspect ratio: desktop image is 2:1 */
+  --fx: 64%;
+  /* focal point inside the photo */
   --fy: 56%;
   position: absolute;
   left: var(--fx);
@@ -92,50 +95,42 @@
 
 /* Horizontal shade: strong protection over centred text block */
 .busnet-hero__shade--horizontal {
-  background: linear-gradient(
-    90deg,
-    rgba(3, 7, 18, 0.80) 0%,
-    rgba(3, 7, 18, 0.65) 25%,
-    rgba(3, 7, 18, 0.38) 55%,
-    rgba(3, 7, 18, 0.08) 100%
-  );
+  background: linear-gradient(90deg,
+      rgba(3, 7, 18, 0.80) 0%,
+      rgba(3, 7, 18, 0.65) 25%,
+      rgba(3, 7, 18, 0.38) 55%,
+      rgba(3, 7, 18, 0.08) 100%);
 }
 
 /* Vertical shade: top vignette + strong bottom integration */
 .busnet-hero__shade--vertical {
-  background: linear-gradient(
-    180deg,
-    rgba(3, 7, 18, 0.40) 0%,
-    rgba(3, 7, 18, 0.05) 42%,
-    rgba(3, 7, 18, 0.72) 100%
-  );
+  background: linear-gradient(180deg,
+      rgba(3, 7, 18, 0.40) 0%,
+      rgba(3, 7, 18, 0.05) 42%,
+      rgba(3, 7, 18, 0.72) 100%);
 }
 
 .busnet-hero__glow {
-  background: radial-gradient(
-    ellipse at 77% 48%,
-    rgba(0, 212, 255, 0.12) 0%,
-    rgba(139, 92, 246, 0.05) 30%,
-    transparent 55%
-  );
+  background: radial-gradient(ellipse at 77% 48%,
+      rgba(0, 212, 255, 0.12) 0%,
+      rgba(139, 92, 246, 0.05) 30%,
+      transparent 55%);
 }
 
 /* Seamless fade to #030712 — taller for full-viewport hero */
 .busnet-hero__bottom-fade {
   inset: auto 0 0;
   height: 10rem;
-  background: linear-gradient(
-    180deg,
-    rgba(3, 7, 18, 0) 0%,
-    rgba(3, 7, 18, 0.55) 50%,
-    var(--busnet-hero-bg) 100%
-  );
+  background: linear-gradient(180deg,
+      rgba(3, 7, 18, 0) 0%,
+      rgba(3, 7, 18, 0.55) 50%,
+      var(--busnet-hero-bg) 100%);
 }
 
 .busnet-hero__content {
   position: relative;
   z-index: 2;
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -174,8 +169,13 @@
 }
 
 @keyframes busnet-hero-slow-drift {
-  from { transform: scale(1.002); }
-  to { transform: scale(1.03); }
+  from {
+    transform: scale(1.002);
+  }
+
+  to {
+    transform: scale(1.03);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -187,8 +187,15 @@
 
 /* ─── Mobile: portrait crop, deep dim for readability ─── */
 @media (max-width: 767px) {
+
+  /* Don't force full viewport height — let content + compact form dictate height naturally */
+  .busnet-hero {
+    min-height: auto;
+  }
+
   .busnet-hero__stage {
-    --r: 0.75;  /* portrait 3:4 */
+    --r: 0.75;
+    /* portrait 3:4 */
     --fx: 50%;
     --fy: 45%;
     /* Even deeper dim so text pops on mobile */
@@ -200,30 +207,27 @@
   }
 
   .busnet-hero__shade--horizontal {
-    background: linear-gradient(
-      180deg,
-      rgba(3, 7, 18, 0.55) 0%,
-      rgba(3, 7, 18, 0.30) 55%,
-      rgba(3, 7, 18, 0.12) 100%
-    );
+    background: linear-gradient(180deg,
+        rgba(3, 7, 18, 0.55) 0%,
+        rgba(3, 7, 18, 0.30) 55%,
+        rgba(3, 7, 18, 0.12) 100%);
   }
 
   .busnet-hero__shade--vertical {
-    background: linear-gradient(
-      180deg,
-      rgba(3, 7, 18, 0.60) 0%,
-      rgba(3, 7, 18, 0.28) 38%,
-      rgba(3, 7, 18, 0.82) 100%
-    );
+    background: linear-gradient(180deg,
+        rgba(3, 7, 18, 0.60) 0%,
+        rgba(3, 7, 18, 0.28) 38%,
+        rgba(3, 7, 18, 0.82) 100%);
   }
 
   .busnet-hero__content {
-    padding: calc(var(--header-h) + 0.75rem) var(--gutter) 0.25rem;
+    /* Slightly less top padding to give form + suggestions more room above the fold */
+    padding: calc(var(--header-h) + 0.5rem) var(--gutter) 0.2rem;
     justify-content: flex-start;
   }
 
   .busnet-hero__search-wrap {
-    padding: 0 var(--gutter) max(1rem, env(safe-area-inset-bottom));
+    padding: 0 var(--gutter) max(0.75rem, env(safe-area-inset-bottom));
   }
 
   .busnet-hero__suggestions {
@@ -233,6 +237,9 @@
     justify-content: flex-start;
     padding: 0.5rem 0.25rem;
     gap: 0.5rem;
+    /* Smooth swipe snapping between suggestion cards */
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
   }
 
   .busnet-hero__suggestions::-webkit-scrollbar {

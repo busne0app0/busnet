@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare,
@@ -47,6 +47,7 @@ export default function ForumPage() {
   const [comments, setComments] = useState<ForumComment[]>([]);
   const [commentText, setCommentText] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
+  const postInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const unsubscribe = initForum();
@@ -156,34 +157,37 @@ export default function ForumPage() {
   return (
     <div className="min-h-screen bg-[#06090f] text-[#f0f4ff] font-sans selection:bg-blue-500/30">
       {/* Header styled in authentic Busnet OS style */}
-      <header className="sticky top-0 z-50 h-[70px] bg-[#06090f]/90 backdrop-blur-xl border-b border-blue-500/20 px-4 sm:px-8 flex items-center justify-between shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-        <div className="flex items-center gap-4 sm:gap-6">
-          <button 
-            onClick={() => navigate('/')} 
-            className="p-2 rounded-xl bg-white/5 hover:bg-[#00d4ff]/10 text-slate-300 hover:text-[#00d4ff] border border-white/10 hover:border-[#00d4ff]/40 transition-all"
+      <header className="sticky top-0 z-50 h-[60px] sm:h-[70px] bg-[#06090f]/90 backdrop-blur-xl border-b border-blue-500/20 px-3 sm:px-8 flex items-center justify-between gap-2 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center gap-2 sm:gap-6 min-w-0">
+          <button
+            onClick={() => navigate('/')}
+            className="shrink-0 p-2 rounded-xl bg-white/5 hover:bg-[#00d4ff]/10 text-slate-300 hover:text-[#00d4ff] border border-white/10 hover:border-[#00d4ff]/40 transition-all"
             title="Назад"
+            aria-label="Назад"
           >
             <ArrowLeft size={18} />
           </button>
-          
+
           {/* Authentic Logo */}
-          <Link to="/" className="flex items-center gap-2.5 cursor-pointer shrink-0">
-            <img 
-              src="/icon.png" 
-              alt="BUSNET UA" 
-              className="w-8 h-8 md:w-9 md:h-9 object-contain rounded-lg drop-shadow-[0_0_10px_rgba(0,212,255,0.4)]" 
+          <Link to="/" className="flex items-center gap-2 cursor-pointer min-w-0">
+            <img
+              src="/icon.png"
+              alt="BUSNET UA"
+              className="shrink-0 w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 object-contain rounded-lg drop-shadow-[0_0_10px_rgba(0,212,255,0.4)]"
             />
-            <span className="text-lg md:text-xl font-bold tracking-[0.14em] uppercase">
+            <span className="text-sm sm:text-lg md:text-xl font-bold tracking-[0.08em] sm:tracking-[0.14em] uppercase truncate">
               <span className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">BUSNET</span>
-              <span className="ml-1.5 text-[#00d4ff] drop-shadow-[0_0_12px_rgba(0,212,255,0.6)]">FORUM</span>
+              <span className="ml-1 sm:ml-1.5 text-[#00d4ff] drop-shadow-[0_0_12px_rgba(0,212,255,0.6)]">FORUM</span>
             </span>
           </Link>
         </div>
 
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          {/* Дзвінок прихований на дуже вузьких екранах, щоб шапка не виходила за межі */}
           <button
             onClick={() => toast('Сповіщення активні', { icon: '🔔' })}
-            className="p-2.5 rounded-full text-[#8b9dc3] hover:text-[#00d4ff] hover:bg-[#00d4ff]/10 border border-transparent hover:border-[#00d4ff]/20 transition-all"
+            aria-label="Сповіщення"
+            className="hidden sm:inline-flex p-2.5 rounded-full text-[#8b9dc3] hover:text-[#00d4ff] hover:bg-[#00d4ff]/10 border border-transparent hover:border-[#00d4ff]/20 transition-all"
           >
             <Bell size={18} />
           </button>
@@ -191,15 +195,17 @@ export default function ForumPage() {
           {/* Authentic Login / Profile button in brand cyan style */}
           <button
             onClick={() => navigate(isAuthenticated ? '/dashboard' : `/auth?from=${encodeURIComponent(window.location.pathname)}`)}
-            className="flex items-center gap-2 px-5 py-2 rounded-full border border-[#00d4ff]/50 bg-[#00d4ff]/10 hover:bg-[#00d4ff]/20 hover:border-[#00d4ff] text-xs sm:text-sm font-black uppercase tracking-wider text-white shadow-[0_0_15px_rgba(0,212,255,0.25)] hover:shadow-[0_0_22px_rgba(0,212,255,0.5)] transition-all backdrop-blur-sm"
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 rounded-full border border-[#00d4ff]/50 bg-[#00d4ff]/10 hover:bg-[#00d4ff]/20 hover:border-[#00d4ff] text-[11px] sm:text-sm font-black uppercase tracking-wider text-white shadow-[0_0_15px_rgba(0,212,255,0.25)] hover:shadow-[0_0_22px_rgba(0,212,255,0.5)] transition-all backdrop-blur-sm"
           >
-            <User className="w-4 h-4 text-[#00d4ff]" />
-            {user ? (user.firstName || user.email?.split('@')[0].toUpperCase()) : 'УВІЙТИ'}
+            <User className="w-4 h-4 shrink-0 text-[#00d4ff]" />
+            <span className="max-w-[90px] sm:max-w-none truncate">
+              {user ? (user.firstName || user.email?.split('@')[0].toUpperCase()) : 'УВІЙТИ'}
+            </span>
           </button>
         </div>
       </header>
 
-      <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[280px_1fr_320px] min-h-[calc(100vh-70px)]">
+      <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[280px_1fr_320px] min-h-[calc(100vh-60px)] sm:min-h-[calc(100vh-70px)]">
         <aside className="hidden md:block p-6 border-r border-blue-500/10">
           <div className="text-[11px] font-black text-[#00d4ff] uppercase tracking-[0.2em] mb-6">Категорії</div>
           <nav className="space-y-2.5">
@@ -210,11 +216,10 @@ export default function ForumPage() {
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className={`w-full flex items-center gap-3 p-3.5 rounded-2xl transition-all text-sm font-bold border ${
-                    isActive
+                  className={`w-full flex items-center gap-3 p-3.5 rounded-2xl transition-all text-sm font-bold border ${isActive
                       ? 'bg-[#00d4ff]/15 text-[#00d4ff] border-[#00d4ff] shadow-[0_0_18px_rgba(0,212,255,0.3)]'
                       : 'border-white/5 text-[#8b9dc3] hover:bg-white/5 hover:border-[#00d4ff]/30 hover:text-white'
-                  }`}
+                    }`}
                 >
                   <Icon size={18} className={isActive ? 'text-[#00d4ff]' : ''} />
                   {cat.name}
@@ -224,27 +229,62 @@ export default function ForumPage() {
           </nav>
         </aside>
 
-        <main className="p-4 sm:p-8">
-          <div className="max-w-3xl mx-auto space-y-6">
+        <main className="p-3 sm:p-8">
+          <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
+            {/* Категорії на телефоні: горизонтальні чіпи (бічна панель там прихована) */}
+            <div
+              role="tablist"
+              aria-label="Категорії"
+              className="md:hidden -mx-3 px-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {CATEGORIES.map(cat => {
+                const Icon = cat.icon;
+                const isActive = activeCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setActiveCategory(cat.id)}
+                    className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold border transition-all ${isActive
+                        ? 'bg-[#00d4ff]/15 text-[#00d4ff] border-[#00d4ff] shadow-[0_0_12px_rgba(0,212,255,0.25)]'
+                        : 'border-white/10 text-[#8b9dc3] bg-white/5'
+                      }`}
+                  >
+                    <Icon size={14} />
+                    {cat.name}
+                  </button>
+                );
+              })}
+            </div>
+
             {/* New post input with bright glowing primary button */}
-            <div className="bg-[#0d121d] rounded-3xl p-5 border border-blue-500/20 shadow-2xl flex items-center gap-4">
-              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#0072ff] flex items-center justify-center text-sm font-black text-black shadow-[0_0_12px_rgba(0,212,255,0.5)]">
+            <div className="bg-[#0d121d] rounded-2xl sm:rounded-3xl p-3 sm:p-5 border border-blue-500/20 shadow-2xl flex items-center gap-2.5 sm:gap-4">
+              <div className="shrink-0 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#0072ff] flex items-center justify-center text-sm font-black text-black shadow-[0_0_12px_rgba(0,212,255,0.5)]">
                 {(user?.firstName?.[0] || user?.email?.[0] || 'U').toUpperCase()}
               </div>
               <input
+                ref={postInputRef}
                 type="text"
                 value={postContent}
                 onChange={(e) => setPostContent(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleCreatePost()}
                 placeholder={`Написати у "${CATEGORIES.find(c => c.id === activeCategory)?.name || 'Всі теми'}"...`}
-                className="flex-1 bg-transparent border-none text-[15px] outline-none placeholder:text-[#506690] text-white"
+                className="flex-1 min-w-0 bg-transparent border-none text-[15px] outline-none placeholder:text-[#506690] text-white"
               />
               <button
                 onClick={handleCreatePost}
                 disabled={isSubmitting || !postContent.trim()}
-                className="bg-[#00c8ff] hover:bg-[#38d9ff] text-black text-xs font-black px-6 py-3 rounded-xl shadow-[0_0_20px_rgba(0,200,255,0.5)] hover:shadow-[0_0_28px_rgba(0,200,255,0.8)] hover:scale-105 active:scale-95 transition-all disabled:opacity-40 disabled:hover:scale-100 disabled:shadow-none"
+                aria-label="Надіслати"
+                className="shrink-0 bg-[#00c8ff] hover:bg-[#38d9ff] text-black text-xs font-black px-3.5 sm:px-6 py-2.5 sm:py-3 rounded-xl shadow-[0_0_20px_rgba(0,200,255,0.5)] hover:shadow-[0_0_28px_rgba(0,200,255,0.8)] hover:scale-105 active:scale-95 transition-all disabled:bg-white/10 disabled:text-[#506690] disabled:hover:scale-100 disabled:shadow-none"
               >
-                {isSubmitting ? '...' : 'Надіслати'}
+                {isSubmitting ? '...' : (
+                  <>
+                    {/* Телефон: іконка, економить місце. Від sm: текст */}
+                    <Send size={16} className="sm:hidden" aria-hidden="true" />
+                    <span className="hidden sm:inline">Надіслати</span>
+                  </>
+                )}
               </button>
             </div>
 
@@ -256,10 +296,9 @@ export default function ForumPage() {
                     <div key={status.id} className="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-4">
                       <div className="text-[10px] font-bold text-[#3b9eff] uppercase tracking-wider mb-1">{status.name}</div>
                       <div className="text-xl font-bold">{status.waitTime}</div>
-                      <div className={`text-[10px] font-bold mt-1 ${
-                        status.trend === 'faster' ? 'text-green-400' :
-                        status.trend === 'slower' ? 'text-red-400' : 'text-blue-400'
-                      }`}>
+                      <div className={`text-[10px] font-bold mt-1 ${status.trend === 'faster' ? 'text-green-400' :
+                          status.trend === 'slower' ? 'text-red-400' : 'text-blue-400'
+                        }`}>
                         {status.trend === 'faster' ? '↓ Швидше' : status.trend === 'slower' ? '↑ Повільніше' : '→ Стабільно'}
                       </div>
                     </div>
@@ -270,9 +309,23 @@ export default function ForumPage() {
 
             {/* Posts feed */}
             {isLoading ? (
-              <div className="py-20 text-center text-[#506690] animate-pulse font-bold">Завантаження...</div>
+              <div className="py-16 sm:py-20 text-center text-[#506690] animate-pulse font-bold">Завантаження...</div>
             ) : filteredPosts.length === 0 ? (
-              <div className="py-20 text-center text-[#506690] font-bold italic">Ще немає постів у цій категорії</div>
+              <div className="py-12 sm:py-20 flex flex-col items-center text-center gap-3 px-4">
+                <div className="w-14 h-14 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/20 flex items-center justify-center">
+                  <MessageSquare size={24} className="text-[#00d4ff]" aria-hidden="true" />
+                </div>
+                <div className="text-base font-black text-white">Ще немає постів у цій категорії</div>
+                <p className="text-sm text-[#8b9dc3] max-w-xs">Напишіть перший пост і почніть обговорення.</p>
+                <button
+                  type="button"
+                  onClick={() => postInputRef.current?.focus()}
+                  className="mt-1 inline-flex items-center gap-2 px-5 min-h-11 rounded-full border border-[#00d4ff]/50 bg-[#00d4ff]/10 text-xs font-black uppercase tracking-wider text-[#00d4ff] active:scale-95 transition-transform"
+                >
+                  <Plus size={16} aria-hidden="true" />
+                  Написати пост
+                </button>
+              </div>
             ) : filteredPosts.map(post => {
               const isOwner = user?.uid === post.authorId;
               const hasLiked = user?.uid && post.likedBy?.includes(user.uid);
@@ -281,36 +334,36 @@ export default function ForumPage() {
                   key={post.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-[#0d121d] rounded-3xl p-6 border border-blue-500/10 hover:border-[#00d4ff]/40 transition-all shadow-lg"
+                  className="bg-[#0d121d] rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-blue-500/10 hover:border-[#00d4ff]/40 transition-all shadow-lg"
                 >
                   <div className="flex justify-between mb-4">
-                    <div className="flex gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[#00d4ff]/15 text-[#00d4ff] border border-[#00d4ff]/30 flex items-center justify-center text-xs font-black uppercase">
+                    <div className="flex gap-3 min-w-0">
+                      <div className="shrink-0 w-10 h-10 rounded-xl bg-[#00d4ff]/15 text-[#00d4ff] border border-[#00d4ff]/30 flex items-center justify-center text-xs font-black uppercase">
                         {post.authorInitials || post.authorName?.[0] || 'U'}
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <div className="font-bold text-[15px] flex items-center gap-1.5">
-                          {post.authorName}
-                          {post.verified && <ShieldCheck size={14} className="text-[#00d4ff]" />}
+                          <span className="truncate">{post.authorName}</span>
+                          {post.verified && <ShieldCheck size={14} className="shrink-0 text-[#00d4ff]" />}
                         </div>
                         <div className="text-[12px] text-[#8b9dc3]">
                           {formatDistanceToNow(post.createdAt, { addSuffix: true, locale: uk })}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => handleShare(post)} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button onClick={() => handleShare(post)} aria-label="Поділитися" className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white">
                         <Share2 size={16} />
                       </button>
                       {isOwner && (
-                        <button onClick={() => handleDeletePost(post.id)} className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400">
+                        <button onClick={() => handleDeletePost(post.id)} aria-label="Видалити" className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400">
                           <Trash2 size={16} />
                         </button>
                       )}
                     </div>
                   </div>
 
-                  <div className="mb-4 text-sm leading-relaxed text-[#e2e8f0] whitespace-pre-wrap">{post.content}</div>
+                  <div className="mb-4 text-sm leading-relaxed text-[#e2e8f0] whitespace-pre-wrap break-words">{post.content}</div>
 
                   <div className="flex flex-wrap items-center gap-3 text-xs text-[#8b9dc3]">
                     <button
@@ -351,24 +404,26 @@ export default function ForumPage() {
         </aside>
       </div>
 
-      {/* Comments modal */}
+      {/* Comments modal: на телефоні виїжджає знизу, на комп'ютері по центру */}
       <AnimatePresence>
         {activePostId && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm p-4 flex items-center justify-center"
+            onClick={() => setActivePostId(null)}
+            className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm p-0 sm:p-4 flex items-end sm:items-center justify-center"
           >
             <motion.div
               initial={{ y: 40, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 40, opacity: 0 }}
-              className="w-full max-w-3xl bg-[#09101c] rounded-3xl p-6 border border-blue-500/20 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-3xl bg-[#09101c] rounded-t-3xl sm:rounded-3xl p-4 sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] border border-blue-500/20 shadow-2xl"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="text-lg font-black text-white">Коментарі</div>
-                <button onClick={() => setActivePostId(null)} className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white">
+                <button onClick={() => setActivePostId(null)} aria-label="Закрити" className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white">
                   <X size={18} />
                 </button>
               </div>
@@ -379,7 +434,7 @@ export default function ForumPage() {
                 ) : comments.map(comment => (
                   <div key={comment.id} className="bg-white/5 border border-white/5 rounded-2xl p-4">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 rounded-full bg-[#00d4ff]/20 text-[#00d4ff] flex items-center justify-center text-xs font-black uppercase">
+                      <div className="shrink-0 w-8 h-8 rounded-full bg-[#00d4ff]/20 text-[#00d4ff] flex items-center justify-center text-xs font-black uppercase">
                         {comment.authorInitials || comment.authorName?.[0] || 'U'}
                       </div>
                       <div>
@@ -389,7 +444,7 @@ export default function ForumPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="text-sm text-[#e2e8f0] whitespace-pre-wrap">{comment.content}</div>
+                    <div className="text-sm text-[#e2e8f0] whitespace-pre-wrap break-words">{comment.content}</div>
                   </div>
                 ))}
               </div>
@@ -400,12 +455,13 @@ export default function ForumPage() {
                   onChange={(e) => setCommentText(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSendComment()}
                   placeholder="Написати коментар..."
-                  className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm placeholder:text-[#506690] text-white outline-none focus:border-[#00d4ff]/50"
+                  className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm placeholder:text-[#506690] text-white outline-none focus:border-[#00d4ff]/50"
                 />
                 <button
                   onClick={handleSendComment}
                   disabled={!commentText.trim() || sendingComment}
-                  className="bg-[#00c8ff] hover:bg-[#38d9ff] text-black font-black rounded-2xl px-5 py-3 shadow-[0_0_15px_rgba(0,200,255,0.4)] disabled:opacity-40"
+                  aria-label="Надіслати коментар"
+                  className="shrink-0 bg-[#00c8ff] hover:bg-[#38d9ff] text-black font-black rounded-2xl px-5 py-3 shadow-[0_0_15px_rgba(0,200,255,0.4)] disabled:bg-white/10 disabled:text-[#506690] disabled:shadow-none"
                 >
                   {sendingComment ? '...' : <Send size={16} />}
                 </button>

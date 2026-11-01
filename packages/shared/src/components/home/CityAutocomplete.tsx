@@ -21,6 +21,8 @@ export interface CityAutocompleteProps {
   onEnter?: () => void;
   inputRef?: React.RefObject<HTMLInputElement | null>;
   enterKeyHint?: 'next' | 'search' | 'done';
+  /** When true, renders without own card border/ring — parent container provides those */
+  embedded?: boolean;
 }
 
 export default function CityAutocomplete({
@@ -38,6 +40,7 @@ export default function CityAutocomplete({
   onEnter,
   inputRef: externalInputRef,
   enterKeyHint,
+  embedded = false,
 }: CityAutocompleteProps) {
   const { langKey, t } = useLanguage();
   const inputId = useId();
@@ -219,9 +222,12 @@ export default function CityAutocomplete({
     <div className="w-full lg:flex-1 relative" ref={containerRef}>
       <motion.div
         animate={animationControl}
-        className={`px-3 py-2 sm:px-4 sm:py-2.5 lg:px-6 lg:py-3 cursor-text transition-all rounded-xl sm:rounded-2xl h-full focus-within:ring-1 focus-within:ring-neon-cyan/50 focus-within:shadow-[0_0_15px_rgba(0,212,255,0.2)] ${
-          hasError ? 'ring-1 ring-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]' : ''
-        }`}
+        className={embedded
+          ? `px-3 py-2.5 cursor-text ${hasError ? 'bg-rose-950/[0.12]' : ''}`
+          : `px-3 py-2 sm:px-4 sm:py-2.5 lg:px-6 lg:py-3 cursor-text transition-all rounded-xl sm:rounded-2xl h-full focus-within:ring-1 focus-within:ring-neon-cyan/50 focus-within:shadow-[0_0_15px_rgba(0,212,255,0.2)] ${
+            hasError ? 'ring-1 ring-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]' : ''
+          }`
+        }
         onClick={() => inputRef.current?.focus()}
       >
         <label
