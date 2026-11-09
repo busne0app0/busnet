@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, X, User, Map, Handshake, MessageSquare, Globe } from 'lucide-react';
+import { Menu, X, User, Map, Handshake, MessageSquare, Globe, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@busnet/shared/context/LanguageContext';
 import { Language } from '@busnet/shared/constants/translations';
@@ -99,6 +99,7 @@ export default function Header() {
   const navLinks = [
     { name: t.header.routes, anchor: 'routes', icon: <Map className="w-5 h-5" /> },
     { name: t.header.partners, anchor: 'partners', icon: <Handshake className="w-5 h-5" /> },
+    { name: 'FAQ', anchor: 'faq', icon: <HelpCircle className="w-5 h-5" /> },
     { name: t.header.forum, href: '/forum', icon: <MessageSquare className="w-5 h-5" /> },
   ];
 

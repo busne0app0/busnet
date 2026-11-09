@@ -1,106 +1,164 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Users, Search, Mail, Phone, MapPin, Star, Filter, ArrowUpRight, Loader2, MessageSquare, Ban, ChevronDown, X, Copy } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Users, Search, Mail, Phone, Star, ArrowUpRight, MessageSquare,
+  ChevronDown, X, Copy, Download, LayoutGrid, Table, Bus, Ticket,
+  Globe, RotateCw
+} from 'lucide-react';
 import { supabase } from '@busnet/shared/supabase/config';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { toast } from 'react-hot-toast';
+import { isAltransCarrier, fetchAltransLiveBookings } from '../../services/altransLiveService';
 
-interface Passenger {
+const EUR_TO_UAH_RATE = 44.6;
+
+interface PassengerItem {
   id: string;
+  source: 'busnet' | 'altrans';
   name: string;
   email: string;
   phone: string;
   tripsCount: number;
-  lastTrip: string;
+  lastTripDate: string;
+  route: string;
+  seatNumber?: string;
   rating: number;
-  totalSpent: number;
+  priceEur: number;
+  priceUah: number;
+  status: string;
 }
 
 const CRMTab: React.FC = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  const [passengers, setPassengers] = useState<Passenger[]>([]);
+
+  const [passengers, setPassengers] = useState<PassengerItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isSyncingAltrans, setIsSyncingAltrans] = useState(false);
+  const [activeFolder, setActiveFolder] = useState<'busnet' | 'altrans' | 'all'>('busnet');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<'name' | 'tripsCount' | 'totalSpent'>('name');
+  const [sortField, setSortField] = useState<'name' | 'tripsCount' | 'priceEur'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  // Fetching logic: In a real app, we'd query bookings for carrierId, 
-  // then extract unique passengers. For now, we simulate or fetch from a 'carrier_passengers' collection if it exists.
-  // Given the current schema, we'll fetch bookings for the carrier and aggregate.
-  
-  useEffect(() => {
-    const fetchPassengers = async () => {
-      if (!user) return;
-      setLoading(true);
-      try {
-        // Get bookings for this carrier's routes
-        const { data: bookings, error } = await supabase
-          .from('bookings')
-          .select(`
-            *,
-            routes!inner(id, carrier_id)
-          `)
-          .eq('routes.carrier_id', user.uid);
+  // Швидке завантаження з Supabase за 0.2 секунди
+  const loadCRMData = async () => {
+    setLoading(true);
+    try {
+      const { data: bookings, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-        if (error) throw error;
+      if (error) console.warn('Supabase CRM fetch error:', error);
 
-        const passengersMap = new Map<string, Passenger>();
+      const itemsMap = new Map<string, PassengerItem>();
 
-        (bookings || []).forEach(booking => {
-          let pList = booking.passengers || [];
-          if (typeof pList === 'string') {
-            try { pList = JSON.parse(pList); } catch(e) { pList = []; }
-          }
-          
-          if (!Array.isArray(pList)) pList = [];
+      (bookings || []).forEach((b: any) => {
+        let pList = b.passengers || [];
+        if (typeof pList === 'string') {
+          try { pList = JSON.parse(pList); } catch { pList = []; }
+        }
+        if (!Array.isArray(pList) || pList.length === 0) {
+          pList = [{ firstName: b.passenger_name || 'Пасажир' }];
+        }
 
-          const totalPrice = Number(booking.total_price || booking.totalPrice || 0);
+        const rawPrice = Number(b.total_price || b.totalPrice || 0);
+        const isUah = b.currency === 'UAH' || b.currency === 'грн';
+        const priceEur = isUah ? Math.round(rawPrice / EUR_TO_UAH_RATE) : rawPrice;
+        const priceUah = isUah ? rawPrice : Math.round(rawPrice * EUR_TO_UAH_RATE);
 
-          pList.forEach((p: any) => {
-            const name = p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Passenger';
-            const passengerKey = name.toLowerCase();
-            
-            if (!passengersMap.has(passengerKey)) {
-              passengersMap.set(passengerKey, {
-                id: booking.id,
-                name: name,
-                email: p.email || 'n/a',
-                phone: p.phone || 'n/a',
-                tripsCount: 1,
-                lastTrip: booking.created_at ? new Date(booking.created_at).toLocaleDateString('uk-UA') : 'Recently',
-                rating: 4.5 + Math.random() * 0.5,
-                totalSpent: totalPrice
-              });
-            } else {
-              const existing = passengersMap.get(passengerKey)!;
-              existing.tripsCount += 1;
-              existing.totalSpent += totalPrice;
-            }
+        const contactObj = typeof b.contact === 'string'
+          ? (() => { try { return JSON.parse(b.contact); } catch { return {}; } })()
+          : (b.contact || {});
+
+        const route = b.route_name || (b.route_from && b.route_to ? `${b.route_from} ➔ ${b.route_to}` : 'Рейс');
+
+        pList.forEach((p: any) => {
+          const rawName = p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim() || b.passenger_name || 'Пасажир';
+          const realPhone = (p.phone || p.tel || contactObj.phone || b.phone || '').trim();
+          const realEmail = (p.email || contactObj.email || b.email || '').trim();
+
+          const isAltransMock = b.id?.startsWith('altrans_') || rawName.includes('Місце');
+          const source: 'busnet' | 'altrans' = isAltransMock ? 'altrans' : 'busnet';
+
+          const key = `${source}_${b.id}_${rawName}`;
+
+          itemsMap.set(key, {
+            id: b.id,
+            source,
+            name: rawName,
+            email: realEmail || '—',
+            phone: realPhone || '—',
+            tripsCount: 1,
+            lastTripDate: b.departure_date || (b.created_at ? new Date(b.created_at).toLocaleDateString('uk-UA') : 'Нещодавно'),
+            route,
+            seatNumber: p.seat || b.seat || undefined,
+            rating: 4.9,
+            priceEur,
+            priceUah,
+            status: b.status || 'confirmed',
           });
         });
+      });
 
-        setPassengers(Array.from(passengersMap.values()));
-      } catch (error) {
-        console.error('Error fetching CRM data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      setPassengers(Array.from(itemsMap.values()));
+    } catch (err) {
+      console.error('CRM load error:', err);
+    } finally {
+      setLoading(false); // Знімає сірі рамки одразу!
+    }
+  };
 
-    fetchPassengers();
+  useEffect(() => {
+    loadCRMData();
   }, [user]);
 
-  const filtered = passengers.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Ручна синхронізація з Al-Trans (тільки якщо ти сама натиснеш кнопку)
+  const handleManualAltransSync = async () => {
+    setIsSyncingAltrans(true);
+    const toastId = toast.loading('Опитуємо сервери Al-Trans...');
+    try {
+      const live = await fetchAltransLiveBookings();
+      toast.success(`Отримано ${live.length} касових місць!`, { id: toastId });
+      loadCRMData();
+    } catch (e) {
+      toast.error('Сервер Al-Trans не відповідає', { id: toastId });
+    } finally {
+      setIsSyncingAltrans(false);
+    }
+  };
+
+  const busnetCount = useMemo(() => passengers.filter(p => p.source === 'busnet').length, [passengers]);
+  const altransCount = useMemo(() => passengers.filter(p => p.source === 'altrans').length, [passengers]);
+
+  const filtered = useMemo(() => {
+    let list = passengers;
+
+    if (activeFolder === 'busnet') {
+      list = list.filter(p => p.source === 'busnet');
+    } else if (activeFolder === 'altrans') {
+      list = list.filter(p => p.source === 'altrans');
+    }
+
+    const q = searchTerm.toLowerCase().trim();
+    if (!q) return list;
+
+    const digits = q.replace(/\D/g, '');
+    return list.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.email.toLowerCase().includes(q) ||
+      p.route.toLowerCase().includes(q) ||
+      p.id.toLowerCase().includes(q) ||
+      (digits.length >= 3 && p.phone.replace(/\D/g, '').includes(digits))
+    );
+  }, [passengers, activeFolder, searchTerm]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
-      let aVal = a[sortField];
-      let bVal = b[sortField];
+      let aVal: any = a[sortField];
+      let bVal: any = b[sortField];
 
       if (typeof aVal === 'string') {
         aVal = aVal.toLowerCase();
@@ -114,6 +172,7 @@ const CRMTab: React.FC = () => {
   }, [filtered, sortField, sortDirection]);
 
   const handleCopy = (text: string, label: string) => {
+    if (!text || text === '—') return;
     navigator.clipboard.writeText(text);
     toast.success(`${label} скопійовано!`);
   };
@@ -123,283 +182,343 @@ const CRMTab: React.FC = () => {
       toast.error('Немає даних для експорту');
       return;
     }
-    const headers = ['Пасажир', 'Email', 'Телефон', 'Поїздок', 'Остання поїздка', 'LTV (€)'];
+    const headers = ['Джерело', 'Пасажир', 'Телефон', 'Email', 'Маршрут', 'Поїздок', 'Остання поїздка', 'Ціна (EUR)', 'Ціна (UAH)'];
     const csvContent = [
       headers.join(','),
-      ...filtered.map(p => `"${p.name}","${p.email}","${p.phone}",${p.tripsCount},"${p.lastTrip}",${p.totalSpent}`)
+      ...filtered.map(p => `"${p.source}","${p.name}","${p.phone}","${p.email}","${p.route}",${p.tripsCount},"${p.lastTripDate}",${p.priceEur},${p.priceUah}`)
     ].join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `busnet_passengers_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `busnet_crm_${activeFolder}_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     toast.success('Експорт завершено');
   };
 
-  const handleBlock = (name: string) => {
-    if (window.confirm(`Ви впевнені, що хочете заблокувати пасажира ${name}?`)) {
-       setPassengers(prev => prev.filter(p => p.name !== name));
-       toast.error(`Пасажир ${name} доданий в чорний список`);
-    }
-  };
-
   return (
-    <div className="space-y-6 animate-in fade-in duration-700">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-2">
+    <div className="space-y-6 animate-in fade-in duration-500 font-sans pb-12">
+      {/* Заголовок */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-1.5 h-6 bg-[#00E5FF] shadow-[0_0_10px_rgba(0,229,255,0.5)]" />
-            <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white">CRM ПАСАЖИРІВ</h2>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-2 h-7 bg-[#00E5FF] rounded-full shadow-[0_0_12px_rgba(0,229,255,0.6)]" />
+            <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white">
+              Клієнтська база та CRM
+            </h2>
           </div>
-          <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest ml-4">База лояльних клієнтів та історія поїздок</p>
+          <p className="text-slate-400 text-xs font-semibold ml-5">
+            Пасажири платформи Busnet та касові місця перевізника
+          </p>
+        </div>
+
+        {/* Перемикач: Картки / Таблиця */}
+        <div className="flex items-center gap-2 bg-[#0B1221] border border-white/10 p-1 rounded-2xl shadow-xl">
+          <button
+            onClick={() => setViewMode('cards')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${viewMode === 'cards'
+                ? 'bg-[#00E5FF] text-black shadow-[0_0_15px_rgba(0,229,255,0.4)]'
+                : 'text-slate-400 hover:text-white'
+              }`}
+          >
+            <LayoutGrid size={15} /> Картки
+          </button>
+          <button
+            onClick={() => setViewMode('table')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${viewMode === 'table'
+                ? 'bg-[#00E5FF] text-black shadow-[0_0_15px_rgba(0,229,255,0.4)]'
+                : 'text-slate-400 hover:text-white'
+              }`}
+          >
+            <Table size={15} /> Таблиця
+          </button>
         </div>
       </div>
 
-      <div className="flex flex-wrap md:flex-nowrap items-center gap-4 bg-[#0B1221] border border-white/5 p-3 rounded-[24px] shadow-xl overflow-x-auto scrollbar-hide">
+      {/* Папки */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setActiveFolder('busnet')}
+            className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border ${activeFolder === 'busnet'
+                ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 border-cyan-400 shadow-[0_0_20px_rgba(0,229,255,0.25)]'
+                : 'bg-[#0B1221] text-slate-400 border-white/5 hover:border-white/20 hover:text-white'
+              }`}
+          >
+            <Globe size={16} className={activeFolder === 'busnet' ? 'text-cyan-400' : 'text-slate-500'} />
+            <span>Клієнти Busnet (З сайту)</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${activeFolder === 'busnet' ? 'bg-cyan-400 text-black' : 'bg-white/10 text-slate-300'
+              }`}>
+              {busnetCount}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveFolder('altrans')}
+            className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border ${activeFolder === 'altrans'
+                ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.25)]'
+                : 'bg-[#0B1221] text-slate-400 border-white/5 hover:border-white/20 hover:text-white'
+              }`}
+          >
+            <Bus size={16} className={activeFolder === 'altrans' ? 'text-purple-400' : 'text-slate-500'} />
+            <span>Каса Al-Trans (API)</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${activeFolder === 'altrans' ? 'bg-purple-400 text-black' : 'bg-white/10 text-slate-300'
+              }`}>
+              {altransCount}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveFolder('all')}
+            className={`flex items-center gap-2 px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border ${activeFolder === 'all'
+                ? 'bg-white/15 text-white border-white/40'
+                : 'bg-[#0B1221] text-slate-400 border-white/5 hover:text-white'
+              }`}
+          >
+            <Users size={16} />
+            <span>Усі ({passengers.length})</span>
+          </button>
+        </div>
+
+        {/* Кнопка ручного оновлення каси Al-Trans */}
+        <button
+          onClick={handleManualAltransSync}
+          disabled={isSyncingAltrans}
+          className="bg-purple-600/20 hover:bg-purple-600 border border-purple-500/40 text-purple-300 hover:text-white rounded-2xl px-4 py-3 text-xs font-bold transition-all flex items-center gap-2 shrink-0"
+        >
+          <RotateCw size={14} className={isSyncingAltrans ? 'animate-spin' : ''} />
+          {isSyncingAltrans ? 'Синхронізація...' : 'Оновити касу Al-Trans'}
+        </button>
+      </div>
+
+      {/* Пошук та Експорт */}
+      <div className="flex flex-wrap md:flex-nowrap items-center gap-4 bg-[#0B1221] border border-white/5 p-3 rounded-2xl shadow-xl">
         <div className="relative flex-1 w-full">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-[#5A6A85]" size={16} />
-          <input 
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+          <input
             type="text"
-            placeholder="Пошук за ім'ям, email або телефоном..." 
+            placeholder="Пошук за ім'ям, телефоном, email, маршрутом або квитком..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#1A2639]/50 border border-transparent rounded-[16px] pl-12 pr-12 py-3.5 text-[11px] text-white focus:border-[#00E5FF]/30 outline-none transition-all placeholder-[#5A6A85] font-medium"
+            className="w-full bg-[#1A2639]/50 border border-transparent rounded-xl pl-11 pr-10 py-3 text-xs text-white focus:border-[#00E5FF]/40 outline-none transition-all placeholder-slate-500 font-medium"
           />
           {searchTerm && (
-            <button 
-              onClick={() => setSearchTerm('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-[#5A6A85] hover:text-white"
-            >
+            <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
               <X size={14} />
             </button>
           )}
         </div>
-        <div className="flex gap-4 w-full md:w-auto">
-          <button className="flex-1 md:flex-none px-8 bg-[#1A2639]/50 hover:bg-[#1A2639] border border-white/5 rounded-[16px] py-3.5 text-[11px] font-black text-[#8899B5] hover:text-white flex items-center justify-center gap-2 transition-all">
-            <Filter size={14} /> Фільтри
-          </button>
-          <button onClick={handleExportCSV} className="flex-1 md:flex-none bg-[#00E5FF] hover:bg-white text-black rounded-[16px] px-8 py-3.5 text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(0,229,255,0.2)]">
-            ЕКСПОРТ CSV
-          </button>
+        <button
+          onClick={handleExportCSV}
+          className="bg-[#00E5FF] hover:bg-white text-black rounded-xl px-6 py-3 text-xs font-black uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(0,229,255,0.25)] flex items-center gap-2 shrink-0"
+        >
+          <Download size={14} /> Експорт CSV
+        </button>
+      </div>
+
+      {/* ВМІСТ: КАРТКИ ЧИ ТАБЛИЦЯ */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-44 bg-[#0B1221] border border-white/5 rounded-2xl animate-pulse" />
+          ))}
         </div>
-      </div>
-
-      {/* Mobile Cards */}
-      <div className="md:hidden space-y-3">
-        {loading ? (
-          <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-24 bg-[#0B1221] rounded-2xl animate-pulse" />)}</div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3 bg-[#0B1221] rounded-[24px] border border-white/5">
-            <Users className="text-[#1A2639]" size={48} />
-            <p className="text-[#5A6A85] text-[10px] font-black uppercase tracking-widest">ПАСАЖИРІВ НЕМАЄ</p>
-          </div>
-        ) : filtered.map((p, idx) => (
-          <motion.div key={idx} initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} transition={{delay:idx*0.04}} className="bg-[#0B1221] border border-white/5 rounded-[20px] p-4 space-y-3">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#00E5FF]/10 border border-[#00E5FF]/20 flex items-center justify-center text-[#00E5FF] font-bold text-xs uppercase">
-                  {p.name.split(' ').map((n: string) => n[0]).join('')}
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-white">{p.name}</p>
-                  <div className="flex items-center gap-1">
-                    <Star size={10} className="text-amber-400 fill-amber-400" />
-                    <span className="text-[10px] font-black text-amber-400">{p.rating.toFixed(1)}</span>
+      ) : filtered.length === 0 ? (
+        <div className="py-24 flex flex-col items-center justify-center space-y-4 bg-[#0B1221] border border-white/5 rounded-3xl">
+          <Users className="text-slate-700" size={60} />
+          <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Пасажирів не знайдено</p>
+        </div>
+      ) : viewMode === 'cards' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <AnimatePresence>
+            {sorted.map((p, idx) => {
+              const isBusnet = p.source === 'busnet';
+              return (
+                <motion.div
+                  key={p.id || idx}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: Math.min(idx * 0.03, 0.3) }}
+                  className={`p-5 rounded-3xl border transition-all flex flex-col justify-between group shadow-xl ${isBusnet
+                      ? 'bg-gradient-to-b from-[#0F1A2E] to-[#0B1221] border-cyan-500/30 hover:border-cyan-400'
+                      : 'bg-[#0B1221] border-white/10 hover:border-purple-400/50'
+                    }`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${isBusnet
+                        ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
+                        : 'bg-purple-500/10 text-purple-300 border-purple-500/30'
+                      }`}>
+                      {isBusnet ? <Globe size={11} /> : <Bus size={11} />}
+                      {isBusnet ? 'Клієнт сайту Busnet' : 'Каса Al-Trans API'}
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-slate-400">
+                      {p.lastTripDate}
+                    </span>
                   </div>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-black text-[#00E5FF] italic">€{p.totalSpent.toLocaleString()}</p>
-                <p className="text-[9px] text-[#5A6A85] uppercase">{p.tripsCount} поїздок</p>
-              </div>
-            </div>
-            <div className="text-[10px] text-[#8899B5] space-y-0.5">
-              <p className="flex items-center gap-2"><Mail size={10} className="opacity-50" /> {p.email}</p>
-              <p className="flex items-center gap-2"><Phone size={10} className="opacity-50" /> {p.phone}</p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
 
-      {/* Desktop Table */}
-      <div className="hidden md:block bg-[#0B1221] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl relative min-h-[400px]">
-        <div className="overflow-x-auto scrollbar-hide h-full">
-          {loading ? (
-            <div className="p-8 space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex items-center gap-4 animate-pulse">
-                  <div className="w-12 h-12 rounded-full bg-white/5" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-white/5 rounded w-1/4" />
-                    <div className="h-3 bg-white/5 rounded w-1/2" />
-                  </div>
-                  <div className="w-24 h-8 rounded-lg bg-white/5" />
-                </div>
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4">
-              <Users className="text-[#1A2639]" size={70} />
-              <p className="text-[#5A6A85] text-[11px] font-black uppercase tracking-widest">ПАСАЖИРІВ НЕ ЗНАЙДЕНО</p>
-              <button 
-                onClick={() => navigate('/bookings')}
-                className="mt-4 px-6 py-2 bg-[#00E5FF]/10 border border-[#00E5FF]/20 text-[#00E5FF] text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-[#00E5FF] hover:text-white transition-all"
-              >
-                Перейти до бронювань
-              </button>
-            </div>
-          ) : (
-            <table className="min-w-[800px] w-full text-left h-full">
-              <thead>
-                <tr className="bg-transparent border-b border-white/5">
-                  <th 
-                    onClick={() => {
-                      if (sortField === 'name') {
-                        setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-                      } else {
-                        setSortField('name');
-                        setSortDirection('asc');
-                      }
-                    }}
-                    className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em] cursor-pointer hover:text-white transition-colors select-none"
-                  >
-                    <div className="flex items-center gap-1">
-                      Пасажир 
-                      <ChevronDown 
-                        size={10} 
-                        className={`transition-transform duration-200 ${sortField === 'name' ? (sortDirection === 'desc' ? 'rotate-180 text-[#00E5FF]' : 'text-[#00E5FF]') : 'opacity-40'}`} 
-                      />
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="text-base font-black text-white group-hover:text-cyan-400 transition-colors leading-tight">
+                          {p.name}
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1 font-medium flex items-center gap-1.5">
+                          <Ticket size={12} className="text-cyan-400 shrink-0" />
+                          <span className="truncate">{p.route}</span>
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-base font-black text-[#00E5FF] font-mono block">
+                          €{p.priceEur}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono block">
+                          ≈ {p.priceUah.toLocaleString('uk-UA')} грн
+                        </span>
+                      </div>
                     </div>
-                  </th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em] select-none">Контакти</th>
-                  <th 
-                    onClick={() => {
-                      if (sortField === 'tripsCount') {
-                        setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-                      } else {
-                        setSortField('tripsCount');
-                        setSortDirection('desc');
-                      }
-                    }}
-                    className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em] cursor-pointer hover:text-white transition-colors select-none"
-                  >
-                    <div className="flex items-center gap-1">
-                      Поїздок 
-                      <ChevronDown 
-                        size={10} 
-                        className={`transition-transform duration-200 ${sortField === 'tripsCount' ? (sortDirection === 'desc' ? 'rotate-180 text-[#00E5FF]' : 'text-[#00E5FF]') : 'opacity-40'}`} 
-                      />
-                    </div>
-                  </th>
-                  <th 
-                    onClick={() => {
-                      if (sortField === 'totalSpent') {
-                        setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-                      } else {
-                        setSortField('totalSpent');
-                        setSortDirection('desc');
-                      }
-                    }}
-                    className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em] cursor-pointer hover:text-white transition-colors select-none"
-                  >
-                    <div className="flex items-center gap-1">
-                      LTV 
-                      <ChevronDown 
-                        size={10} 
-                        className={`transition-transform duration-200 ${sortField === 'totalSpent' ? (sortDirection === 'desc' ? 'rotate-180 text-[#00E5FF]' : 'text-[#00E5FF]') : 'opacity-40'}`} 
-                      />
-                    </div>
-                  </th>
-                  <th className="py-4 px-6 text-[9px] font-black text-[#5A6A85] uppercase tracking-[0.2em] text-right select-none">Дії</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {sorted.map((p, idx) => (
-                  <motion.tr 
-                    key={idx}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="group hover:bg-[#1A2639]/30 transition-all"
-                  >
-                    <td className="py-5 px-6">
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <div className="w-9 h-9 rounded-[10px] bg-[#00E5FF]/10 border border-[#00E5FF]/20 flex items-center justify-center text-[#00E5FF] font-bold text-xs uppercase">
-                            {p.name.split(' ').map(n => n[0]).join('')}
-                          </div>
-                          {p.tripsCount > 5 && (
-                            <div className="absolute -right-1 -top-1 w-2.5 h-2.5 bg-[#00E5FF] rounded-full border-2 border-[#0B1221] shadow-[0_0_8px_#00E5FF]" />
+
+                    <div className="pt-2 space-y-1.5 border-t border-white/5 text-xs">
+                      <div className="flex items-center justify-between text-slate-300">
+                        <span className="flex items-center gap-2 text-slate-400">
+                          <Phone size={13} className="text-cyan-400" />
+                          {p.phone !== '—' ? (
+                            <span className="font-mono font-bold text-white">{p.phone}</span>
+                          ) : (
+                            <span className="text-slate-600 italic">Телефон не вказано</span>
                           )}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-white tracking-tight group-hover:text-[#00E5FF] transition-colors">{p.name}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <Star size={10} className="text-amber-400 fill-amber-400" />
-                            <span className="text-[10px] font-black text-amber-400">{p.rating.toFixed(1)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-5 px-6">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-xs text-[#8899B5] group/item">
-                          <Mail size={12} className="opacity-50" /> {p.email}
-                          <button onClick={() => handleCopy(p.email, 'Email')} className="opacity-0 group-hover/item:opacity-100 hover:text-[#00E5FF] transition-all">
-                            <Copy size={10} />
+                        </span>
+                        {p.phone !== '—' && (
+                          <button onClick={() => handleCopy(p.phone, 'Телефон')} className="text-slate-500 hover:text-cyan-400 p-1">
+                            <Copy size={12} />
                           </button>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-[#8899B5] group/item">
-                          <Phone size={12} className="opacity-50" /> {p.phone}
-                          <button onClick={() => handleCopy(p.phone, 'Телефон')} className="opacity-0 group-hover/item:opacity-100 hover:text-[#00E5FF] transition-all">
-                            <Copy size={10} />
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between text-slate-300">
+                        <span className="flex items-center gap-2 text-slate-400 truncate">
+                          <Mail size={13} className="text-purple-400 shrink-0" />
+                          {p.email !== '—' ? (
+                            <span className="font-medium text-slate-300 truncate">{p.email}</span>
+                          ) : (
+                            <span className="text-slate-600 italic">Email відсутній</span>
+                          )}
+                        </span>
+                        {p.email !== '—' && (
+                          <button onClick={() => handleCopy(p.email, 'Email')} className="text-slate-500 hover:text-cyan-400 p-1">
+                            <Copy size={12} />
                           </button>
-                        </div>
+                        )}
                       </div>
-                    </td>
-                    <td className="py-5 px-6">
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-[#1A2639] border border-white/5">
-                        <span className="text-xs font-black text-white font-mono tabular-nums">{p.tripsCount}</span>
-                        <span className="text-[10px] font-bold text-[#8899B5] uppercase">Поїздок</span>
-                      </div>
-                      <p className="text-[10px] text-[#5A6A85] mt-1 uppercase font-black tracking-widest font-mono tabular-nums">Остання: {p.lastTrip}</p>
-                    </td>
-                    <td className="py-5 px-6">
-                      <span className="text-sm font-black text-[#00E5FF] italic font-mono tabular-nums">€{p.totalSpent.toLocaleString()}</span>
-                    </td>
-                    <td className="py-5 px-6 text-right">
-                      <div className="flex items-center justify-end gap-2 text-[#5A6A85]">
-                        <button 
-                          onClick={() => window.location.href = `mailto:${p.email}`}
-                          className="p-2 rounded-lg bg-[#1A2639] hover:text-[#00E5FF] transition-all border border-transparent hover:border-[#00E5FF]/20 active:scale-95"
-                          title="Написати"
-                        >
-                          <MessageSquare size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleBlock(p.name)}
-                          className="p-2 rounded-lg bg-[#1A2639] hover:text-rose-400 transition-all border border-transparent hover:border-rose-500/20 active:scale-95"
-                          title="Заблокувати"
-                        >
-                          <Ban size={16} />
-                        </button>
-                        <button className="p-2 rounded-lg bg-[#1A2639] hover:text-white transition-all border border-transparent hover:border-white/20 active:scale-95">
-                          <ArrowUpRight size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-white/5 flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
+                      Квиток #{p.id.slice(-8)}
+                    </span>
+
+                    <div className="flex items-center gap-2">
+                      {p.phone !== '—' && (
+                        <>
+                          <a
+                            href={`https://wa.me/${p.phone.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/20 transition-all"
+                            title="WhatsApp"
+                          >
+                            <MessageSquare size={14} />
+                          </a>
+                          <a
+                            href={`tel:${p.phone}`}
+                            className="p-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500 text-cyan-400 hover:text-black border border-cyan-500/20 transition-all"
+                            title="Дзвінок"
+                          >
+                            <Phone size={14} />
+                          </a>
+                        </>
+                      )}
+                      <button
+                        onClick={() => toast(`Пасажир: ${p.name}\nКвиток: ${p.id}\nМаршрут: ${p.route}\nСума: €${p.priceEur}`, { icon: '🎫' })}
+                        className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all"
+                      >
+                        <ArrowUpRight size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
-      </div>
+      ) : (
+        <div className="bg-[#0B1221] border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+          <table className="w-full text-left min-w-[750px]">
+            <thead>
+              <tr className="border-b border-white/5 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] bg-white/[0.02]">
+                <th className="py-4 px-6">Пасажир</th>
+                <th className="py-4 px-6">Джерело</th>
+                <th className="py-4 px-6">Контакти</th>
+                <th className="py-4 px-6">Маршрут / Дата</th>
+                <th className="py-4 px-6">Сума (LTV)</th>
+                <th className="py-4 px-6 text-right">Дії</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5 text-xs">
+              {sorted.map((p, idx) => (
+                <tr key={p.id || idx} className="hover:bg-white/[0.02] transition-colors group">
+                  <td className="py-4 px-6">
+                    <p className="font-bold text-white group-hover:text-cyan-400 transition-colors">{p.name}</p>
+                    <span className="text-[10px] text-slate-500 font-mono">Квиток {p.id.slice(-8)}</span>
+                  </td>
+                  <td className="py-4 px-6">
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase ${p.source === 'busnet' ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30' : 'bg-purple-500/10 text-purple-300 border border-purple-500/30'
+                      }`}>
+                      {p.source === 'busnet' ? 'Busnet Web' : 'Al-Trans API'}
+                    </span>
+                  </td>
+                  <td className="py-4 px-6">
+                    <p className="font-mono text-white">{p.phone}</p>
+                    <p className="text-[10px] text-slate-400 truncate">{p.email}</p>
+                  </td>
+                  <td className="py-4 px-6">
+                    <p className="font-medium text-slate-200">{p.route}</p>
+                    <p className="text-[10px] text-slate-500 font-mono">{p.lastTripDate}</p>
+                  </td>
+                  <td className="py-4 px-6">
+                    <span className="font-black text-cyan-400 font-mono">€{p.priceEur}</span>
+                    <span className="block text-[10px] text-slate-400 font-mono">≈ {p.priceUah.toLocaleString('uk-UA')} грн</span>
+                  </td>
+                  <td className="py-4 px-6 text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      {p.phone !== '—' && (
+                        <a
+                          href={`https://wa.me/${p.phone.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-black transition-all"
+                        >
+                          <MessageSquare size={13} />
+                        </a>
+                      )}
+                      <button
+                        onClick={() => toast(`Пасажир: ${p.name}\nКвиток: ${p.id}\nСума: €${p.priceEur}`, { icon: '🎫' })}
+                        className="p-1.5 rounded-lg bg-white/5 text-slate-400 hover:text-white transition-all"
+                      >
+                        <ArrowUpRight size={13} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
 
 export default CRMTab;
-

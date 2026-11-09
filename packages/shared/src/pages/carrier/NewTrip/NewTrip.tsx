@@ -20,7 +20,7 @@ import html2canvas from 'html2canvas';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { supabase } from '../../../supabase/config';
 import { toast } from 'react-hot-toast';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { calculateTripPrices } from '../../../busnet/logic';
 import { PricingMode } from '../../../busnet/types';
 import type { PriceSegment } from './types';
@@ -144,10 +144,57 @@ const DAY_NAME_TO_CODE: Record<string, string> = {
 
 interface Carrier { uid: string; companyName?: string; email: string; }
 
+const rowToTrip = (raw: any): TripState => {
+  const parseJson = (f: any, fallback: any) => {
+    if (typeof f === 'string') {
+      try { return JSON.parse(f); } catch { return fallback; }
+    }
+    return f ?? fallback;
+  };
+
+  const outbound = parseJson(raw.outbound, { stops: [], days: ['ПТ'] });
+  const inbound = parseJson(raw.inbound, { stops: [], days: ['НД'] });
+
+  // Валюта за напрямком: Україна → Європа: ГРН; Європа → Україна: EUR
+  const outCurrency = outbound.currency || 'ГРН';
+  const inCurrency = inbound.currency || 'EUR';
+
+  return {
+    __version: SCHEMA_VERSION,
+    routeName: raw.name || raw.routeName || '',
+    operator: raw.operator || '',
+    seats: raw.seats || 50,
+    amenities: parseJson(raw.amenities, ['wifi', 'ac']),
+    isTransfer: raw.is_transfer ?? raw.isTransfer ?? false,
+    transferType: raw.transfer_type || raw.transferType || 'direct',
+    transferCity: raw.transfer_city || raw.transferCity || '',
+    currency: raw.currency || 'EUR',
+    discounts: parseJson(raw.discounts, { child04: false, child412: false }),
+    customDiscounts: parseJson(raw.custom_discounts || raw.customDiscounts, []),
+    rules: parseJson(raw.rules, []),
+    customRules: parseJson(raw.custom_rules || raw.customRules, []),
+    outbound: {
+      ...outbound,
+      currency: outCurrency,
+      stops: Array.isArray(outbound.stops) ? outbound.stops : [],
+      days: Array.isArray(outbound.days) ? outbound.days : ['ПТ'],
+      prices: outbound.prices || {},
+    },
+    inbound: {
+      ...inbound,
+      currency: inCurrency,
+      stops: Array.isArray(inbound.stops) ? inbound.stops : [],
+      days: Array.isArray(inbound.days) ? inbound.days : ['НД'],
+      prices: inbound.prices || {},
+    },
+  };
+};
+
 export default function NewTrip() {
   const { user, activeRole } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
 
   const [carriers, setCarriers] = useState<Carrier[]>([]);
 
@@ -159,8 +206,7 @@ export default function NewTrip() {
   }, [activeRole]);
 
   const [currentStep, setCurrentStep] = useState(() => {
-    // If navigating from dashboard with a route to edit, always start at step 1
-    if ((location.state as any)?.editRoute) return 1;
+    if ((location.state as any)?.editRoute || searchParams.get('edit')) return 1;
     const saved = localStorage.getItem('busnet_current_step');
     return saved ? parseInt(saved) : 1;
   });
@@ -179,34 +225,16 @@ export default function NewTrip() {
       customDiscounts: [],
       rules: [],
       customRules: [],
-      outbound: { stops: [], days: ['ПТ'] },
-      inbound:  { stops: [], days: ['НД'] }
+      outbound: { stops: [], days: ['ПТ'], currency: 'ГРН' },
+      inbound:  { stops: [], days: ['НД'], currency: 'EUR' }
     };
 
-    // ✅ FIX: If navigated from dashboard with editRoute in state, populate form from it
+    // Якщо передано об'єкт для редагування через state
     const stateRoute = (location.state as any)?.editRoute;
     if (stateRoute) {
-      // Save to localStorage so editingRouteId and draft are synced
       localStorage.setItem('busnet_editing_route_id', stateRoute.id);
       localStorage.setItem('busnet_editing_route_status', stateRoute.status || 'pending');
-      const draft: TripState = {
-        __version: SCHEMA_VERSION,
-        routeName: stateRoute.name || '',
-        operator: stateRoute.operator || '',
-        seats: stateRoute.seats || 50,
-        amenities: stateRoute.amenities || ['wifi', 'ac'],
-        isTransfer: stateRoute.is_transfer ?? false,
-        transferType: stateRoute.transfer_type || 'direct',
-        transferCity: stateRoute.transfer_city,
-        currency: stateRoute.currency || 'ГРН',
-        discounts: stateRoute.discounts || { child04: false, child412: false },
-        customDiscounts: stateRoute.custom_discounts || [],
-        rules: stateRoute.rules || [],
-        customRules: stateRoute.custom_rules || [],
-        outbound: stateRoute.outbound || { stops: [], days: ['ПТ'] },
-        inbound: stateRoute.inbound || { stops: [], days: ['НД'] },
-      };
-      localStorage.setItem('busnet_trip_draft', JSON.stringify(draft));
+      const draft = rowToTrip(stateRoute);
       localStorage.setItem('busnet_current_step', '1');
       return draft;
     }
@@ -225,13 +253,49 @@ export default function NewTrip() {
     }
   });
 
+  // Завантаження рейсу через URL параметр ?edit=<id>
   useEffect(() => {
-    localStorage.setItem('busnet_trip_draft', JSON.stringify(trip));
-  }, [trip]);
+    const editIdFromUrl = searchParams.get('edit');
+    if (!editIdFromUrl) return;
+
+    if ((location.state as any)?.editRoute?.id === editIdFromUrl) return;
+
+    supabase
+      .from('routes')
+      .select('*')
+      .eq('id', editIdFromUrl)
+      .single()
+      .then(({ data, error }) => {
+        if (error || !data) {
+          toast.error('Не вдалося завантажити рейс');
+          return;
+        }
+        localStorage.setItem('busnet_editing_route_id', data.id);
+        localStorage.setItem('busnet_editing_route_status', data.status || 'pending');
+        setTrip(rowToTrip(data));
+        setCurrentStep(1);
+      });
+  }, [searchParams, location.state]);
+
+  // Зберігати чернетку тільки якщо не в режимі редагування існуючого рейсу
+  useEffect(() => {
+    const editId = searchParams.get('edit') || localStorage.getItem('busnet_editing_route_id');
+    if (!editId) {
+      localStorage.setItem('busnet_trip_draft', JSON.stringify(trip));
+    }
+  }, [trip, searchParams]);
 
   useEffect(() => {
     localStorage.setItem('busnet_current_step', currentStep.toString());
   }, [currentStep]);
+
+  useEffect(() => {
+    const stateRoute = (location.state as any)?.editRoute;
+    if (stateRoute) {
+      setTrip(rowToTrip(stateRoute));
+      setCurrentStep(1);
+    }
+  }, [location.state]);
 
   const conflicts = useMemo(() => {
     const issues: { step: number; message: string; severity: 'warning' | 'error' }[] = [];
@@ -438,9 +502,18 @@ export default function NewTrip() {
     });
   }, [trip.outbound.stops, trip.inbound.stops]);
 
-  const syncToSupabase = async () => {
+  const syncToSupabase = async (targetStatus?: 'draft' | 'pending') => {
     setIsSaving(true);
     try {
+      if (targetStatus === 'pending') {
+        const errorConflicts = conflicts.filter(c => c.severity === 'error');
+        if (errorConflicts.length > 0) {
+          toast.error(`Помилка: ${errorConflicts[0].message}`);
+          setIsSaving(false);
+          return;
+        }
+      }
+
       let finalOperator = '';
       let targetCarrierId = null;
       if (activeRole === 'carrier' && user) {
@@ -464,6 +537,8 @@ export default function NewTrip() {
       const outboundPrices = trip.outbound.prices || {};
       const inboundPrices = trip.inbound.prices || {};
 
+      const finalStatus = targetStatus || editingRouteStatus || 'pending';
+
       const routeData: any = {
         name: trip.routeName,
         operator: finalOperator,
@@ -478,37 +553,46 @@ export default function NewTrip() {
         custom_discounts: trip.customDiscounts,
         rules: trip.rules,
         custom_rules: trip.customRules,
+        status: finalStatus,
         outbound: {
           ...trip.outbound,
-          currency: trip.outbound.currency || trip.currency || 'ГРН',
+          currency: trip.outbound.currency || 'ГРН',
           prices: outboundPrices
         },
         inbound: {
           ...trip.inbound,
-          currency: trip.inbound.currency || trip.currency || 'ГРН',
+          currency: trip.inbound.currency || 'EUR',
           prices: inboundPrices
         }
       };
 
-      let dbError;
       if (editingRouteId) {
-        if (editingRouteStatus) {
-          routeData.status = editingRouteStatus;
-        }
-        const { error } = await supabase.from('routes').update(routeData).eq('id', editingRouteId);
-        dbError = error;
+        const { data, error } = await supabase
+          .from('routes')
+          .update(routeData)
+          .eq('id', editingRouteId)
+          .select('id');
+        if (error || !data?.length) throw error ?? new Error('Не вдалося оновити маршрут в базі');
       } else {
-        // Upon creation, do not send status (server sets pending default)
-        const { error } = await supabase.from('routes').insert(routeData);
-        dbError = error;
+        const { data, error } = await supabase
+          .from('routes')
+          .insert(routeData)
+          .select('id');
+        if (error || !data?.length) throw error ?? new Error('Не вдалося створити маршрут в базі');
       }
-      if (dbError) throw dbError;
-      toast.success(editingRouteId ? 'Маршрут оновлено!' : 'Маршрут надіслано на перевірку!');
+
+      toast.success(
+        finalStatus === 'draft'
+          ? 'Чернетку збережено!'
+          : editingRouteId
+          ? 'Маршрут оновлено!'
+          : 'Маршрут надіслано на перевірку!'
+      );
       localStorage.removeItem('busnet_trip_draft');
       localStorage.removeItem('busnet_current_step');
       localStorage.removeItem('busnet_editing_route_id');
       localStorage.removeItem('busnet_editing_route_status');
-      setTimeout(() => navigate('/trips'), 1500);
+      setTimeout(() => navigate('/trips'), 1200);
     } catch (err: any) {
       console.error(err);
       toast.error(err?.message || 'Помилка збереження');
@@ -719,7 +803,7 @@ export default function NewTrip() {
   }, [trip, priceDirection]);
 
   const nextStep = () => {
-    if (currentStep === 7) { syncToSupabase(); return; }
+    if (currentStep === 7) { syncToSupabase('pending'); return; }
     setCurrentStep(prev => Math.min(prev + 1, 7));
   };
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
@@ -795,6 +879,16 @@ export default function NewTrip() {
               {trip.currency}
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => syncToSupabase('draft')}
+            disabled={isSaving}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[#5A6A85] hover:text-white hover:bg-white/10 text-[9px] font-bold uppercase tracking-widest transition-all disabled:opacity-50"
+            title="Зберегти як чернетку"
+          >
+            <Save size={13} />
+            <span className="hidden sm:inline">Чернетка</span>
+          </button>
           <button onClick={() => setShowResetConfirm(true)} className="text-[#5A6A85] hover:text-red-400 transition-colors" title="Скинути">
             <RefreshCcw size={16} />
           </button>
@@ -1316,16 +1410,27 @@ export default function NewTrip() {
                     <h2 className="text-2xl font-black text-white uppercase tracking-widest mb-2">Все готово!</h2>
                     <p className="text-[#5A6A85] text-xs max-w-md mx-auto leading-relaxed">Натисніть кнопку нижче, щоб відправити маршрут на модерацію. Після схвалення він з'явиться в системі.</p>
                  </div>
-                 <div className="pt-8 flex flex-col items-center gap-4">
+                 <div className="pt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
                     <button 
-                      onClick={syncToSupabase} 
+                      type="button"
+                      onClick={() => syncToSupabase('draft')} 
                       disabled={isSaving}
-                      className="px-12 py-4 bg-[#00E5FF] text-[#050B14] rounded-xl font-black uppercase tracking-widest hover:bg-[#00E5FF]/90 hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all disabled:opacity-50"
+                      className="w-full sm:w-auto px-8 py-4 bg-white/5 border border-white/10 text-white rounded-xl font-bold uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-50 text-xs"
                     >
-                       {isSaving ? 'Збереження...' : 'Відправити на перевірку'}
+                      {isSaving ? 'Збереження...' : 'Зберегти як чернетку'}
                     </button>
-                    <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest">Це займе менше 2 секунд</p>
+                    <button 
+                      type="button"
+                      onClick={() => syncToSupabase('pending')} 
+                      disabled={isSaving}
+                      className="w-full sm:w-auto px-10 py-4 bg-[#00E5FF] text-[#050B14] rounded-xl font-black uppercase tracking-widest hover:bg-[#00E5FF]/90 hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all disabled:opacity-50 text-xs"
+                    >
+                      {isSaving ? 'Збереження...' : 'Відправити на перевірку'}
+                    </button>
                  </div>
+                 <p className="text-[9px] text-[#5A6A85] font-black uppercase tracking-widest">
+                   Чернетка зберігається без валідації тарифів • Для відправки на модерацію потрібні всі тарифи
+                 </p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1349,7 +1454,12 @@ export default function NewTrip() {
           </div>
 
           <button 
+            type="button"
             onClick={() => {
+              if (currentStep === 7) {
+                syncToSupabase('pending');
+                return;
+              }
               const stepErrors = conflicts.filter(c => c.severity === 'error' && c.step === currentStep);
               if (stepErrors.length > 0) {
                 toast.error(stepErrors[0].message);
@@ -1362,9 +1472,9 @@ export default function NewTrip() {
                 ? 'bg-[#00E5FF] text-[#050B14] hover:shadow-[0_0_15px_rgba(0,229,255,0.4)]' 
                 : 'bg-white/10 text-white hover:bg-white/20'
             } ${conflicts.filter(c => c.severity === 'error' && c.step === currentStep).length > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-            disabled={conflicts.filter(c => c.severity === 'error' && c.step === currentStep).length > 0}
+            disabled={isSaving || (currentStep !== 7 && conflicts.filter(c => c.severity === 'error' && c.step === currentStep).length > 0)}
           >
-            {currentStep === 7 ? 'Зберегти' : 'Далі'} <ChevronRight size={14} />
+            {currentStep === 7 ? (isSaving ? 'Збереження...' : 'Відправити') : 'Далі'} <ChevronRight size={14} />
           </button>
         </div>
       </footer>

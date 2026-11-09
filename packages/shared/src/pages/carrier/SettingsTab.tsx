@@ -6,7 +6,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Settings, Bell, Lock, Globe, Eye, EyeOff, ChevronDown, Smartphone, Save, 
-  Shield, HelpCircle, X, ShieldAlert, Check, Copy, Download, Loader2
+  Shield, HelpCircle, X, ShieldAlert, Check, Copy, Download, Loader2,
+  RefreshCw, Link, CheckCircle2, AlertTriangle, Bus
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
@@ -84,6 +85,52 @@ const SettingsTab: React.FC = () => {
       toast.success('Налаштування успішно збережено', { id: toastId });
     } catch (error) {
       toast.error('Помилка при збереженні', { id: toastId });
+    }
+  };
+
+  // Al-Trans sync state
+  const [altransSyncing, setAltransSyncing] = useState(false);
+  const [altransSyncResult, setAltransSyncResult] = useState<{
+    status: 'idle' | 'success' | 'error';
+    totalRoutes?: number;
+    totalStops?: number;
+    syncedAt?: string;
+  }>({ status: 'idle' });
+
+  // Load last sync info from user profile
+  useEffect(() => {
+    if (!user) return;
+    const { external_sync_status, external_synced_at, external_provider } = user as any;
+    if (external_provider === 'al-trans' && external_synced_at) {
+      setAltransSyncResult({
+        status: external_sync_status === 'synced' ? 'success' : external_sync_status === 'error' ? 'error' : 'idle',
+        syncedAt: external_synced_at,
+      });
+    }
+  }, [user]);
+
+  const handleAltransSync = async () => {
+    if (altransSyncing) return;
+    setAltransSyncing(true);
+    const toastId = toast.loading('Синхронізація маршрутів Al-Trans...');
+    try {
+      const { data, error } = await supabase.functions.invoke('import-altrans-routes', {});
+      if (error) throw error;
+      setAltransSyncResult({
+        status: 'success',
+        totalRoutes: data?.totalRoutes ?? 0,
+        totalStops:  data?.totalStops  ?? 0,
+        syncedAt:    new Date().toISOString(),
+      });
+      toast.success(
+        `Синхронізовано: ${data?.totalRoutes ?? 0} маршрутів, ${data?.totalStops ?? 0} зупинок`,
+        { id: toastId }
+      );
+    } catch (err: any) {
+      setAltransSyncResult({ status: 'error' });
+      toast.error(`Помилка синхронізації: ${err.message}`, { id: toastId });
+    } finally {
+      setAltransSyncing(false);
     }
   };
 
@@ -446,6 +493,90 @@ const SettingsTab: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ─── Al-Trans Integration — shows ONLY for Al-Trans carrier account ─── */}
+      {(user as any)?.external_provider === 'al-trans' && (
+        <section className="space-y-6">
+          <h3 className="text-[10px] font-black uppercase text-[#8899B5] tracking-[.3em] flex items-center gap-3 font-bold">
+            <Bus size={14} className="text-[#10B981]" /> ІНТЕГРАЦІЯ AL-TRANS
+          </h3>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-[#0B1221]/80 border border-[#1a2a40] rounded-2xl p-6 space-y-5"
+          >
+            {/* Status row */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-white font-bold text-sm">Перевізник Al-Trans</p>
+                <div className="flex items-center gap-2">
+                  {altransSyncResult.status === 'success' && (
+                    <span className="flex items-center gap-1.5 text-emerald-400 text-[10px] font-black uppercase tracking-widest">
+                      <CheckCircle2 size={11} /> Синхронізовано
+                    </span>
+                  )}
+                  {altransSyncResult.status === 'error' && (
+                    <span className="flex items-center gap-1.5 text-rose-400 text-[10px] font-black uppercase tracking-widest">
+                      <AlertTriangle size={11} /> Помилка синхронізації
+                    </span>
+                  )}
+                  {altransSyncResult.status === 'idle' && (
+                    <span className="flex items-center gap-1.5 text-[#5A6A85] text-[10px] font-black uppercase tracking-widest">
+                      <Link size={11} /> Очікує синхронізації
+                    </span>
+                  )}
+                </div>
+                {altransSyncResult.syncedAt && (
+                  <p className="text-[#5A6A85] text-[10px] font-bold">
+                    Останнє оновлення: {new Date(altransSyncResult.syncedAt).toLocaleString('uk-UA')}
+                  </p>
+                )}
+              </div>
+              {altransSyncResult.totalRoutes !== undefined && (
+                <div className="text-right">
+                  <p className="text-white font-black text-2xl">{altransSyncResult.totalRoutes}</p>
+                  <p className="text-[#5A6A85] text-[10px] font-bold uppercase tracking-wider">маршрутів</p>
+                </div>
+              )}
+            </div>
+
+            {/* Info pills */}
+            <div className="flex flex-wrap gap-2">
+              {['6 ліній', '~430 зупинок', 'GPS координати', 'Реальні ціни'].map(tag => (
+                <span key={tag} className="px-3 py-1 bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981] rounded-full text-[10px] font-black uppercase tracking-widest">
+                  {tag}
+                </span>
+              ))}
+            </div>
+
+            {/* Description */}
+            <p className="text-[#5A6A85] text-xs leading-relaxed">
+              Натисніть кнопку нижче щоб імпортувати маршрути Al-Trans (Черкаси–Салерно, Херсон–Лечче, Київ–Комо та інші) в систему BUSNET.
+              Ціни запитуються в реальному часі під час пошуку пасажиром.
+            </p>
+
+            {/* Sync button */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={handleAltransSync}
+              disabled={altransSyncing}
+              className="w-full flex items-center justify-center gap-3 py-4 bg-[#10B981] hover:bg-[#0ea572] disabled:opacity-60 text-black font-black text-[11px] uppercase tracking-widest rounded-2xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)]"
+            >
+              {altransSyncing ? (
+                <><Loader2 size={16} className="animate-spin" /> СИНХРОНІЗАЦІЯ...</>
+              ) : (
+                <><RefreshCw size={16} /> СИНХРОНІЗУВАТИ МАРШРУТИ
+                {altransSyncResult.status === 'success' && <Check size={16} className="ml-1" />}</>
+              )}
+            </motion.button>
+
+            <p className="text-[#3A4A65] text-[9px] text-center font-bold uppercase tracking-widest">
+              Рекомендовано оновлювати раз на 1–2 дні • Ціни завжди live
+            </p>
+          </motion.div>
+        </section>
+      )}
     </div>
   );
 };

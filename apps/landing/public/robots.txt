@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /carrier
+Disallow: /agent
+Disallow: /driver
+Disallow: /api/
+
+Sitemap: https://bus-net.it/sitemap.xml

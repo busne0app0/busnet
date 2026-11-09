@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Головна сторінка сервісу BUSNET -->
+  <url>
+    <loc>https://bus-net.it/</loc>
+    <lastmod>2026-11-09</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Секція маршрутів -->
+  <url>
+    <loc>https://bus-net.it/#routes</loc>
+    <lastmod>2026-11-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- База знань та часті запитання (FAQ) для Google та AI Overviews -->
+  <url>
+    <loc>https://bus-net.it/#faq</loc>
+    <lastmod>2026-11-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Форум пасажирів та перевізників -->
+  <url>
+    <loc>https://bus-net.it/forum</loc>
+    <lastmod>2026-11-09</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Контакти та диспетчерська служба -->
+  <url>
+    <loc>https://bus-net.it/#contacts</loc>
+    <lastmod>2026-11-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+</urlset>

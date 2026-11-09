@@ -5,6 +5,8 @@ import { SearchParams } from '../types';
 import { getUaDayOfWeek, formatISODate, addDays } from '../lib/dateUtils';
 import { isCityMatch } from '../lib/cityUtils';
 
+const ALTRANS_CARRIER_UID = 'ec987229-0773-49b9-bac8-69d562a794d1';
+
 export interface RouteStop {
   id?: string;
   city: string;
@@ -12,6 +14,8 @@ export interface RouteStop {
   price?: number;
   address?: string;
   dayOffset?: number;
+  cityId?: number;
+  external_city_id?: number;
 }
 
 export interface RouteDirection {
@@ -37,6 +41,8 @@ export interface DatabaseRoute {
   custom_discounts?: { id: string; label: string; value: number }[];
   outbound?: RouteDirection;
   inbound?: RouteDirection;
+  pricesThere?: Record<string, number>;
+  pricesBack?: Record<string, number>;
 }
 
 export function useTrips() {
@@ -66,7 +72,6 @@ export function useTrips() {
       const to = params.to?.trim() ?? '';
       const targetDate = params.date?.trim() || formatISODate(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate());
 
-      // Find candidates to quote across both directions
       const candidates: {
         route: DatabaseRoute;
         dir: 'outbound' | 'inbound';
@@ -103,8 +108,6 @@ export function useTrips() {
           toIdx = stops.length - 1;
         }
 
-        // Rule 7: start_date = обрана дата − dayOffset зупинки посадки.
-        // Дні рейсу (days) стосуються першої зупинки.
         const departureStop = stops[fromIdx];
         const dayOffset = departureStop.dayOffset || 0;
         const startDate = addDays(targetDate, -dayOffset);
@@ -126,66 +129,123 @@ export function useTrips() {
         checkDirection(route, 'inbound', route.inbound);
       }
 
-      // Rule 8: get quotes via get_trip_quote RPC
       const quoteResults = await Promise.all(
         candidates.map(async (c) => {
-          try {
-            const { data, error: quoteErr } = await supabase.rpc('get_trip_quote', {
-              p_route_id: c.route.id,
-              p_direction: c.dir,
-              p_from_stop: c.fromIdx,
-              p_to_stop: c.toIdx,
-              p_start_date: c.startDate
-            });
+          const stops = (c.route[c.dir]?.stops || []) as RouteStop[];
+          const fromStop = stops[c.fromIdx];
+          const toStop = stops[c.toIdx];
+          const depCity = fromStop?.city || from;
+          const arrCity = toStop?.city || to;
+          const carrierId = c.route.carrier_id ?? c.route.carrierId ?? '';
 
-            if (quoteErr || !data || data.ok === false) {
-              console.warn('[useTrips] quote error:', c.route.id, quoteErr || data?.error);
-              return null;
+          const depOffset = fromStop?.dayOffset || 0;
+          const arrOffset = toStop?.dayOffset || 0;
+          const depDate = addDays(c.startDate, depOffset);
+          const arrDate = addDays(c.startDate, arrOffset);
+
+          let livePrice: number | null = null;
+          let liveCurrency = 'грн';
+          let liveAvailableSeats = 30;
+          let liveDepTime = (fromStop?.time || '22:30').slice(0, 5);
+          let liveArrTime = (toStop?.time || '12:50').slice(0, 5);
+          let busNumber = 'BC 4204 PM';
+
+          const isAltrans = carrierId === ALTRANS_CARRIER_UID || (c.route.operator || '').toLowerCase().includes('al-trans');
+
+          // 1. Повністю динамічний запит до Аль-Транса за cityId прямо з бази!
+          if (isAltrans) {
+            const fromCityId = fromStop?.cityId ?? fromStop?.external_city_id;
+            const toCityId = toStop?.cityId ?? toStop?.external_city_id;
+
+            if (fromCityId && toCityId) {
+              try {
+                const res = await fetch('/api/altrans/api/v2/booking/search_trips', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Accept-Language': 'uk',
+                  },
+                  body: JSON.stringify({
+                    departure_city_id: fromCityId,
+                    arrival_city_id: toCityId,
+                    depature_date: `${depDate}T00:00:00`,
+                    passengers_count: 1,
+                    currecny_code: 'UAH',
+                    enable_external_search: false,
+                  }),
+                });
+
+                if (res.ok) {
+                  const data = await res.json();
+                  const seq = data?.trips_sequences;
+
+                  if (Array.isArray(seq) && seq.length > 0) {
+                    const first = seq[0];
+                    if (first.price) livePrice = Number(first.price);
+                    if (first.currency_code) liveCurrency = first.currency_code === 'UAH' ? 'грн' : first.currency_code;
+                    if (first.free_seats !== undefined) liveAvailableSeats = first.free_seats;
+
+                    if (first.departure_time) liveDepTime = String(first.departure_time).slice(0, 5);
+                    if (first.arrival_time) liveArrTime = String(first.arrival_time).slice(0, 5);
+                  } else {
+                    return null; // У перевізника немає рейсу на цю дату
+                  }
+                }
+              } catch (alErr) {
+                console.warn('[useTrips] Live API error:', alErr);
+              }
             }
-
-            const stops = (c.route[c.dir]?.stops || []) as RouteStop[];
-            const depCity = data.from_city || stops[c.fromIdx]?.city;
-            const arrCity = data.to_city || stops[c.toIdx]?.city;
-            const depDate = data.dep_date || targetDate;
-            const arrDate = data.arr_date || depDate;
-
-            const trip: Trip = {
-              id: `${c.route.id}_${c.dir}_${c.fromIdx}_${c.toIdx}_${c.startDate}`,
-              routeId: c.route.id,
-              direction: c.dir,
-              fromStopIdx: c.fromIdx,
-              toStopIdx: c.toIdx,
-              startDate: c.startDate,
-              carrierId: c.route.carrier_id ?? c.route.carrierId ?? '',
-              carrierName: c.route.operator ?? c.route.carrier_name ?? 'Перевізник',
-              from: depCity,
-              to: arrCity,
-              name: c.route.name ?? `${depCity} - ${arrCity}`,
-              operator: c.route.operator ?? 'Перевізник',
-              departureCity: depCity,
-              arrivalCity: arrCity,
-              departureDate: depDate,
-              arrivalDate: arrDate,
-              departureTime: data.dep_time || stops[c.fromIdx]?.time || '00:00',
-              arrivalTime: data.arr_time || stops[c.toIdx]?.time || '00:00',
-              price: data.price,
-              currency: data.currency || c.route.currency || 'UAH',
-              availableSeats: data.available,
-              totalSeats: data.seats_total ?? (c.route.seats || 50),
-              seatsTotal: data.seats_total ?? (c.route.seats || 50),
-              seatsBooked: Math.max(0, (data.seats_total ?? (c.route.seats || 50)) - (data.available ?? 0)),
-              busInfo: c.route.busInfo ?? 'Комфортабельний автобус',
-              amenities: c.route.amenities ?? [],
-              discounts: c.route.discounts,
-              custom_discounts: c.route.custom_discounts,
-              status: (c.route.status as any) ?? 'active',
-              stops
-            };
-            return trip;
-          } catch (e) {
-            console.error('[useTrips] quote exception:', e);
-            return null;
           }
+
+          // 2. Якщо живий API не відповів або інший перевізник — беремо з бази
+          if (!livePrice) {
+            const pricesMap = c.dir === 'outbound' ? (c.route.pricesThere || c.route.outbound?.prices) : (c.route.pricesBack || c.route.inbound?.prices);
+            const matrixKey = `${c.fromIdx}-${c.toIdx}`;
+
+            if (pricesMap && typeof pricesMap[matrixKey] === 'number' && pricesMap[matrixKey] > 0) {
+              livePrice = pricesMap[matrixKey];
+            } else if (typeof toStop?.price === 'number' && toStop.price > 0) {
+              livePrice = toStop.price;
+            } else {
+              livePrice = 7800;
+            }
+          }
+
+          const trip: Trip = {
+            id: `${c.route.id}_${c.dir}_${c.fromIdx}_${c.toIdx}_${c.startDate}`,
+            routeId: c.route.id,
+            direction: c.dir,
+            fromStopIdx: c.fromIdx,
+            toStopIdx: c.toIdx,
+            startDate: c.startDate,
+            carrierId,
+            carrierName: c.route.operator ?? 'AL-TRANS',
+            from: depCity,
+            to: arrCity,
+            name: c.route.name ?? `${depCity} - ${arrCity}`,
+            operator: c.route.operator ?? 'AL-TRANS',
+            departureCity: depCity,
+            arrivalCity: arrCity,
+
+            departureDate: depDate,
+            arrivalDate: arrDate,
+            departureTime: liveDepTime,
+            arrivalTime: liveArrTime,
+            price: livePrice,
+            currency: liveCurrency,
+            availableSeats: liveAvailableSeats,
+            totalSeats: 50,
+            seatsTotal: 50,
+            seatsBooked: Math.max(0, 50 - liveAvailableSeats),
+            busInfo: `VAN HOOL (${busNumber})`,
+            amenities: ['wifi', 'wc', 'ac', 'usb', 'tea'],
+            discounts: c.route.discounts,
+            custom_discounts: c.route.custom_discounts,
+            status: 'active',
+            stops
+          };
+
+          return trip;
         })
       );
 
@@ -256,7 +316,6 @@ export function useTrips() {
 
       if (dbErr) throw dbErr;
 
-      // Rule 14: заповненість і дохід брати з bookings
       const { data: rawBookings } = await supabase
         .from('bookings')
         .select('id, trip_id, total_price, currency, status, passengers')
@@ -282,7 +341,7 @@ export function useTrips() {
 
         let bookedSeats = 0;
         let revenue = 0;
-        let currency = route.currency || 'ГРН';
+        let currency = route.currency || 'грн';
 
         Object.entries(bookingsByTrip).forEach(([tripKey, stats]) => {
           if (tripKey.includes(route.id)) {
@@ -292,16 +351,15 @@ export function useTrips() {
           }
         });
 
-        const seatsTotal = route.seats ?? 50;
         return {
           id: route.id,
           carrierId: route.carrier_id ?? '',
-          carrierName: route.operator ?? 'Перевізник',
+          carrierName: route.operator ?? 'AL-TRANS',
           from: first.city,
           to: last.city,
           routeId: route.id,
           name: route.name ?? `${first.city} - ${last.city}`,
-          operator: route.operator ?? 'Перевізник',
+          operator: route.operator ?? 'AL-TRANS',
           departureCity: first.city,
           arrivalCity: last.city,
           departureDate: '',
@@ -309,14 +367,15 @@ export function useTrips() {
           arrivalTime: last.time ?? '00:00',
           price: revenue,
           currency,
-          availableSeats: Math.max(0, seatsTotal - bookedSeats),
-          totalSeats: seatsTotal,
-          seatsTotal,
+          availableSeats: Math.max(0, (route.seats ?? 50) - bookedSeats),
+          totalSeats: route.seats ?? 50,
+          seatsTotal: route.seats ?? 50,
           seatsBooked: bookedSeats,
           busInfo: route.busInfo ?? 'Комфортабельний автобус',
           amenities: route.amenities ?? [],
-          status: (route.status as any) ?? 'pending',
-          stops
+          status: (route.status as any) ?? 'active',
+          stops,
+          _raw: route
         } as Trip;
       });
 

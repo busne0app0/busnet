@@ -53,6 +53,10 @@ export interface Trip {
   arrival_time?: string;
   arrivalDate?: string;
   price: number;
+  priceFrom?: number | null;
+  priceTo?: number | null;
+  priceCurrency?: string;
+  _raw?: any;
   price_eur?: number;
   carrier_id?: string;
   currency?: string;

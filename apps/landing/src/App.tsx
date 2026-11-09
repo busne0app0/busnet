@@ -16,6 +16,7 @@ import { DashboardBridge } from '@busnet/shared/pages/DashboardBridge';
 import CyberTerminal from '@busnet/shared/pages/CyberTerminal';
 import InvitePage from '@busnet/shared/pages/InvitePage';
 import MainLayout from '@busnet/shared/components/layout/MainLayout';
+import { CookieBanner } from '@busnet/shared/components/common/CookieBanner';
 
 export default function App() {
   const initAuth = useAuthStore(state => state.initAuth);
@@ -29,6 +30,7 @@ export default function App() {
         <SearchProvider>
           <BrowserRouter basename="/">
             <Toaster position="top-right" toastOptions={{ style: { background: '#111520', color: '#fff' } }} />
+            <CookieBanner />
             <Routes>
               <Route element={<MainLayout><HomePage /></MainLayout>} path="/" />
               <Route element={<ForumPage />} path="/forum" />

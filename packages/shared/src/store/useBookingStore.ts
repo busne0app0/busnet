@@ -1,3 +1,4 @@
+import { getTripCurrencySymbol } from '../lib/currencyUtils';
 import { create } from 'zustand';
 import { supabase } from '@busnet/shared/supabase/config';
 import { Trip } from '../busnet/types';
@@ -17,15 +18,15 @@ export interface ConfirmedBooking {
 interface BookingState {
   currentStep: number;
   selectedTrip: Trip | null;
-  mainContact: { 
-    email: string; 
+  mainContact: {
+    email: string;
     phone: string;
   };
   passengers: Passenger[];
   confirmedBooking: ConfirmedBooking | null;
   loading: boolean;
   error: string | null;
-  
+
   // Actions
   setStep: (step: number) => void;
   setTrip: (trip: Trip) => void;
@@ -48,8 +49,8 @@ export const useBookingStore = create<BookingState>((set, get) => ({
 
   setStep: (step) => set({ currentStep: step }),
   setTrip: (trip) => set({ selectedTrip: trip, currentStep: 1, error: null }),
-  addPassenger: () => set((state) => ({ 
-    passengers: [...state.passengers, { firstName: '', lastName: '', discountType: 'none' }] 
+  addPassenger: () => set((state) => ({
+    passengers: [...state.passengers, { firstName: '', lastName: '', discountType: 'none' }]
   })),
   removePassenger: (index) => set((state) => ({
     passengers: state.passengers.filter((_, i) => i !== index)
@@ -59,8 +60,8 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     newPassengers[index] = { ...newPassengers[index], ...data };
     return { passengers: newPassengers };
   }),
-  updateContact: (data) => set((state) => ({ 
-    mainContact: { ...state.mainContact, ...data } 
+  updateContact: (data) => set((state) => ({
+    mainContact: { ...state.mainContact, ...data }
   })),
   resetBooking: () => set({
     currentStep: 1,
@@ -74,10 +75,10 @@ export const useBookingStore = create<BookingState>((set, get) => ({
 
   confirmBooking: async () => {
     const { selectedTrip, passengers, mainContact } = get();
-    
+
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user;
-    
+
     if (!selectedTrip || !user) {
       set({ error: "Будь ласка, увійдіть в систему, щоб продовжити бронювання." });
       return false;
@@ -105,12 +106,26 @@ export const useBookingStore = create<BookingState>((set, get) => ({
           email: mainContact.email.trim(),
           phone: mainContact.phone.trim()
         },
-        p_idempotency_key: idempotencyKey
+        p_idempotency_key: idempotencyKey,
+        p_price: selectedTrip.price || null
       });
-
       if (rpcError) throw new Error(rpcError.message);
       if (!data || !data.success) {
         throw new Error(data?.error || 'Помилка створення бронювання');
+      }
+
+      // Безпечне збереження ID та claim_token у localStorage для криптографічної прив'язки
+      try {
+        const guestClaims = JSON.parse(localStorage.getItem('busnet_guest_claims') || '[]');
+        if (data.booking_id) {
+          const exists = guestClaims.some((c: any) => (typeof c === 'string' ? c === data.booking_id : c?.id === data.booking_id));
+          if (!exists) {
+            guestClaims.push({ id: data.booking_id, token: data.claim_token || null });
+            localStorage.setItem('busnet_guest_claims', JSON.stringify(guestClaims));
+          }
+        }
+      } catch (storageErr) {
+        console.warn('LocalStorage error:', storageErr);
       }
 
       set({
@@ -119,7 +134,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         confirmedBooking: {
           bookingId: data.booking_id,
           totalPrice: data.total_price,
-          currency: data.currency
+          currency: getTripCurrencySymbol(selectedTrip.departureCity || selectedTrip.from, selectedTrip.arrivalCity || selectedTrip.to, data.currency || selectedTrip.currency)
         },
         currentStep: 3
       });

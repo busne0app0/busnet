@@ -8,12 +8,12 @@ export function DashboardBridge() {
   const [elapsedSec, setElapsedSec] = useState(0);
   const [showRetry, setShowRetry] = useState(false);
 
-  // Лічильник часу для UX
+  // Лічильник часу для UX (збільшено до 8 секунд для слабкого 3G/роумінгу)
   useEffect(() => {
     const interval = setInterval(() => {
       setElapsedSec(prev => {
         const next = prev + 1;
-        if (next >= 4) setShowRetry(true);
+        if (next >= 8) setShowRetry(true);
         return next;
       });
     }, 1000);
@@ -37,7 +37,7 @@ export function DashboardBridge() {
       return;
     }
 
-    // Fallback 5 секунд
+    // Fallback 9 секунд (захист від обриву при слабкому мобільному інтернеті)
     const fallback = setTimeout(() => {
       if (!redirected.current) {
         redirected.current = true;
@@ -45,13 +45,13 @@ export function DashboardBridge() {
           ? getAbsoluteRoleRoute(user.role)
           : window.location.origin;
       }
-    }, 5000);
+    }, 9000);
 
     return () => clearTimeout(fallback);
   }, [user, isAuthenticated, loading]);
 
   return (
-    <div className="h-screen w-screen bg-[#030712] flex items-center justify-center">
+    <div className="min-h-[100dvh] w-full bg-[#030712] flex items-center justify-center">
       <div className="flex flex-col items-center gap-6 text-center px-4">
         <div className="w-12 h-12 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
         <div className="text-cyan-400 font-bold text-xl tracking-widest uppercase animate-pulse">

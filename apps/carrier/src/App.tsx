@@ -22,6 +22,7 @@ import NotificationsTab from '@busnet/shared/pages/carrier/NotificationsTab';
 import ProfileTab from '@busnet/shared/pages/carrier/ProfileTab';
 import DocsTab from '@busnet/shared/pages/carrier/DocsTab';
 import SettingsTab from '@busnet/shared/pages/carrier/SettingsTab';
+import TicketPreviewTab from '@busnet/shared/pages/carrier/TicketPreviewTab';
 
 import PortalLogin from '@busnet/shared/components/auth/PortalLogin';
 import { Briefcase } from 'lucide-react';
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="profile" element={<ProfileTab />} />
         <Route path="docs" element={<DocsTab />} />
         <Route path="settings" element={<SettingsTab />} />
+        <Route path="ticket-preview" element={<TicketPreviewTab />} />
         <Route path="*" element={
           <div className="flex flex-col items-center justify-center h-full text-center">
             <h1 className="text-6xl font-black text-[#00E5FF] mb-4">404</h1>

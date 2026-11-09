@@ -1,14 +1,163 @@
 <!DOCTYPE html>
 <html lang="uk">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Busnet LANDING</title>
+
+    <!-- 1. Основні SEO теги для Google та AI-пошуку -->
+    <title>BUSNET — Квитки на автобуси Україна — Італія та Європа онлайн</title>
+    <meta name="description"
+        content="Бронювання та купівля автобусних квитків онлайн. Регулярні рейси з України до Італії: Рим, Мілан, Болонья, Неаполь, Салерно. Зручні автобуси, оплата при посадці." />
+    <meta name="keywords"
+        content="автобус україна італія, квитки на автобус, автобус львів рим, автобус київ салерно, busnet, альтранс квитки" />
+    <link rel="canonical" href="https://bus-net.it/" />
+
+    <!-- Інструкції для роботів Google та AI Overviews (максимальні сніпети) -->
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow" />
+
+    <!-- 2. Соціальні мережі та месенджери (Telegram, Viber, WhatsApp, Facebook) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="uk_UA" />
+    <meta property="og:site_name" content="BUSNET" />
+    <meta property="og:url" content="https://bus-net.it/" />
+    <meta property="og:title" content="BUSNET — Міжнародні автобусні рейси до Італії та Європи" />
+    <meta property="og:description"
+        content="Знайдіть та забронюйте квиток на автобус за 2 хвилини. Прямі рейси, комфортні автобуси, перевірені перевізники." />
+    <meta property="og:image" content="https://bus-net.it/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter Card (покращує прев'ю у соцмережах та месенджерах) -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="BUSNET — Квитки на автобуси Україна — Італія" />
+    <meta name="twitter:description"
+        content="Швидке онлайн-бронювання квитків на автобуси до Італії та країн Європи." />
+    <meta name="twitter:image" content="https://bus-net.it/og-image.jpg" />
+
+    <!-- 3. Іконки та оформлення браузера -->
     <link rel="icon" type="image/png" href="/icon.png" />
+    <link rel="apple-touch-icon" href="/icon.png" />
     <meta name="theme-color" content="#030712" />
+
+    <!-- 4. Розширена мікророзмітка Schema.org для Google та Gemini/AI -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TravelAgency",
+      "@id": "https://bus-net.it/#organization",
+      "name": "BUSNET",
+      "url": "https://bus-net.it",
+      "logo": "https://bus-net.it/icon.png",
+      "image": "https://bus-net.it/og-image.jpg",
+      "description": "Сервіс онлайн-бронювання та продажу міжнародних автобусних квитків між Україною та містами Італії.",
+      "priceRange": "€€",
+      "currenciesAccepted": "EUR, UAH",
+      "paymentAccepted": "Cash, Credit Card",
+      "areaServed": [
+        {
+          "@type": "Country",
+          "name": "Ukraine"
+        },
+        {
+          "@type": "Country",
+          "name": "Italy"
+        }
+      ],
+      "knowsAbout": [
+        "Автобусні перевезення Україна Італія",
+        "Квитки на автобус Київ Рим",
+        "Квитки Львів Мілан",
+        "Пасажирські міжнародні перевезення"
+      ],
+      "potentialAction": {
+        "@type": "ReserveAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://bus-net.it/?from={departure}&to={arrival}",
+          "inLanguage": "uk"
+        },
+        "result": {
+          "@type": "BusReservation",
+          "name": "Бронювання автобусного квитка"
+        }
+      }
+    }
+    </script>
+
+    <!-- 5. Google Consent Mode v2 (За замовчуванням заблоковано для ЄС / GDPR) -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+
+      gtag('consent', 'default', {
+        'analytics_storage': 'denied',
+        'ad_storage': 'denied',
+        'ad_user_data': 'denied',
+        'ad_personalization': 'denied',
+        'wait_for_update': 500
+      });
+
+      // Перевірка попередньо збереженої згоди користувача
+      try {
+        var savedConsent = localStorage.getItem('busnet_cookie_consent');
+        if (savedConsent === 'granted') {
+          gtag('consent', 'update', {
+            'analytics_storage': 'granted',
+            'ad_storage': 'granted',
+            'ad_user_data': 'granted',
+            'ad_personalization': 'granted'
+          });
+        }
+      } catch (e) {}
+    </script>
+
+    <!-- Google tag (gtag.js) GA4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-RVF18NQGCH"></script>
+    <script>
+      gtag('js', new Date());
+      gtag('config', 'G-RVF18NQGCH', { anonymize_ip: true });
+    </script>
+
+    <!-- 5. Google Consent Mode v2 (За замовчуванням заблоковано для ЄС / GDPR) -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+
+      gtag('consent', 'default', {
+        'analytics_storage': 'denied',
+        'ad_storage': 'denied',
+        'ad_user_data': 'denied',
+        'ad_personalization': 'denied',
+        'wait_for_update': 500
+      });
+
+      // Перевірка попередньо збереженої згоди користувача
+      try {
+        var savedConsent = localStorage.getItem('busnet_cookie_consent');
+        if (savedConsent === 'granted') {
+          gtag('consent', 'update', {
+            'analytics_storage': 'granted',
+            'ad_storage': 'granted',
+            'ad_user_data': 'granted',
+            'ad_personalization': 'granted'
+          });
+        }
+      } catch (e) {}
+    </script>
+
+    <!-- Google tag (gtag.js) GA4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-RVF18NQGCH"></script>
+    <script>
+      gtag('js', new Date());
+      gtag('config', 'G-RVF18NQGCH', { anonymize_ip: true });
+    </script>
 </head>
+
 <body class="bg-[#030712] text-slate-50 antialiased overflow-x-hidden">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 </body>
+
 </html>

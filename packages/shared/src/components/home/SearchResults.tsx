@@ -1,6 +1,7 @@
+﻿import { getTripCurrency } from '@busnet/shared/lib/currencyUtils';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Users, ChevronRight, Info, Send, Phone, User, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { MapPin, Users, ChevronRight, Info, Send, Phone, User, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Trip } from '../../busnet/types';
 import { useSearch } from '@busnet/shared/context/SearchContext';
 import { useLanguage } from '@busnet/shared/context/LanguageContext';
@@ -29,6 +30,29 @@ function getAvailableSeats(trip: Trip): number | null {
     return Math.max(0, total - booked);
   }
   return null;
+}
+
+function formatShortDate(dateStr?: string, locale: string = 'uk-UA'): string {
+  if (!dateStr) return '';
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      return new Intl.DateTimeFormat(locale, {
+        day: 'numeric',
+        month: 'short',
+        weekday: 'short',
+      }).format(d);
+    }
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? dateStr : new Intl.DateTimeFormat(locale, {
+      day: 'numeric',
+      month: 'short',
+      weekday: 'short',
+    }).format(d);
+  } catch {
+    return dateStr;
+  }
 }
 
 function computeDurationAndOffset(trip: Trip, langKey: string) {
@@ -113,7 +137,6 @@ export default function SearchResults({
   const [status, setStatus] = useState<LeadStatus>('idle');
   const [formData, setFormData] = useState({ name: '', phone: '', hp_field: '' });
 
-  // Focus results heading on arrival for accessibility
   useEffect(() => {
     if (!loading && trips.length > 0) {
       titleRef.current?.focus({ preventScroll: false });
@@ -122,7 +145,7 @@ export default function SearchResults({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.hp_field) return; // Honeypot spam trap
+    if (formData.hp_field) return;
     if (status === 'sending') return;
 
     setStatus('sending');
@@ -141,7 +164,6 @@ export default function SearchResults({
     }
   };
 
-  // 1. Loading Skeleton with proper ARIA
   if (loading) {
     return (
       <div role="status" aria-busy="true" className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-12 flex flex-col gap-4">
@@ -153,7 +175,6 @@ export default function SearchResults({
     );
   }
 
-  // 2. Error state
   if (error) {
     return (
       <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-12 text-center">
@@ -177,7 +198,6 @@ export default function SearchResults({
     );
   }
 
-  // 3. Empty state: Request Lead Form
   if (trips.length === 0) {
     return (
       <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-12">
@@ -202,7 +222,6 @@ export default function SearchResults({
                 </p>
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-sm mx-auto text-left">
-                  {/* Honeypot field for bot spam detection */}
                   <input
                     type="text"
                     name="hp_field"
@@ -313,7 +332,6 @@ export default function SearchResults({
     );
   }
 
-  // 4. Results List
   return (
     <section aria-labelledby="results-title" className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 mb-2">
@@ -338,10 +356,20 @@ export default function SearchResults({
           const carrier = trip.carrierName || trip.operator || 'Перевізник';
           const amenities = normalizeAmenities(trip.amenities);
 
+          // Визначаємо точні зупинки та їхні адреси
+          const depStop = trip.stops && typeof trip.fromStopIdx === 'number' ? trip.stops[trip.fromStopIdx] : trip.stops?.[0];
+          const arrStop = trip.stops && typeof trip.toStopIdx === 'number' ? trip.stops[trip.toStopIdx] : trip.stops?.[trip.stops.length - 1];
+          const depAddress = (trip as any).departureAddress || (trip as any).fromAddress || depStop?.address || '';
+          const arrAddress = (trip as any).arrivalAddress || (trip as any).toAddress || arrStop?.address || '';
+
+          // Визначаємо точні дати виїзду і прибуття
+          const depDateStr = trip.departureDate || (trip as any).departure_date || trip.startDate || trip.date;
+          const arrDateStr = trip.arrivalDate || (trip as any).arrival_date || depDateStr;
+
           const { durationText, dayDiff } = computeDurationAndOffset(trip, langKey);
           const seatsLeft = getAvailableSeats(trip);
           const soldOut = seatsLeft === 0;
-          const formattedPrice = formatTripPrice(trip.price, trip.currency, locale, t.results.priceOnRequest);
+          const formattedPrice = formatTripPrice(trip.price, getTripCurrency(trip.departureCity || trip.from, trip.arrivalCity || trip.to, trip.currency), locale, t.results.priceOnRequest);
 
           return (
             <motion.li
@@ -352,19 +380,34 @@ export default function SearchResults({
               className="group relative bg-[#141928]/90 border border-white/10 hover:border-neon-cyan/40 rounded-2xl sm:rounded-[32px] overflow-hidden transition-colors duration-200 isolate"
             >
               <article className="p-4 sm:p-6 md:p-7 flex flex-col md:flex-row gap-4 sm:gap-6 items-center">
-                {/* Timing & Carrier */}
-                <div className="flex-1 w-full grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 items-center">
+                {/* Timing, Dates & Addresses */}
+                <div className="flex-1 w-full grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 items-start">
+
+                  {/* Відправлення */}
                   <div className="flex flex-col">
-                    <time className="text-2xl sm:text-3xl font-black text-white leading-none">
-                      {depTime}
-                    </time>
-                    <div className="flex items-center gap-1 text-slate-400 text-xs sm:text-sm mt-1.5 min-w-0 font-medium">
-                      <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-500" aria-hidden="true" />
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <time className="text-2xl sm:text-3xl font-black text-white leading-none">
+                        {depTime}
+                      </time>
+                      {depDateStr && (
+                        <span className="text-xs sm:text-sm font-bold text-neon-cyan">
+                          {formatShortDate(depDateStr, locale)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 text-slate-100 text-xs sm:text-sm mt-2 min-w-0 font-bold">
+                      <MapPin className="w-3.5 h-3.5 shrink-0 text-neon-cyan" aria-hidden="true" />
                       <span className="truncate">{fromCity}</span>
                     </div>
+                    {depAddress && (
+                      <span className="text-[11px] text-slate-400 font-normal leading-tight mt-1 line-clamp-2" title={depAddress}>
+                        {depAddress}
+                      </span>
+                    )}
                   </div>
 
-                  <div className="flex flex-col items-center justify-center col-span-2 md:col-span-1 order-last md:order-none py-1 md:py-0 border-t border-b md:border-none border-white/5">
+                  {/* Час у дорозі */}
+                  <div className="flex flex-col items-center justify-center col-span-2 md:col-span-1 order-last md:order-none py-1 md:py-0 border-t border-b md:border-none border-white/5 self-center">
                     {durationText && (
                       <span className="text-[11px] sm:text-xs text-neon-cyan font-bold tracking-wide">
                         {durationText}
@@ -378,26 +421,37 @@ export default function SearchResults({
                     </span>
                   </div>
 
+                  {/* Прибуття */}
                   <div className="flex flex-col text-right md:text-left">
-                    <div className="flex items-baseline justify-end md:justify-start gap-1.5">
+                    <div className="flex flex-wrap items-baseline justify-end md:justify-start gap-2">
                       <time className="text-2xl sm:text-3xl font-black text-white leading-none">
                         {arrTime}
                       </time>
+                      {arrDateStr && (
+                        <span className="text-xs sm:text-sm font-bold text-neon-cyan">
+                          {formatShortDate(arrDateStr, locale)}
+                        </span>
+                      )}
                       {dayDiff > 0 && (
-                        <span className="text-[11px] sm:text-xs font-bold text-amber-400">
-                          {t.results.dayPlus(dayDiff)}
+                        <span className="text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded bg-amber-400/10 border border-amber-400/30 font-bold text-amber-400 shrink-0">
+                          +{dayDiff} д.
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 text-slate-400 text-xs sm:text-sm mt-1.5 md:justify-start justify-end min-w-0 font-medium">
-                      <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-500" aria-hidden="true" />
+                    <div className="flex items-center gap-1 text-slate-100 text-xs sm:text-sm mt-2 md:justify-start justify-end min-w-0 font-bold">
+                      <MapPin className="w-3.5 h-3.5 shrink-0 text-neon-cyan" aria-hidden="true" />
                       <span className="truncate">{toCity}</span>
                     </div>
+                    {arrAddress && (
+                      <span className="text-[11px] text-slate-400 font-normal leading-tight mt-1 line-clamp-2 md:text-left text-right" title={arrAddress}>
+                        {arrAddress}
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 {/* Price & Action */}
-                <div className="w-full md:w-auto md:min-w-[210px] flex md:flex-col items-center justify-between gap-3 sm:gap-4 md:border-l border-white/10 md:pl-6 pt-3 md:pt-0 border-t md:border-t-0">
+                <div className="w-full md:w-auto md:min-w-[210px] flex md:flex-col items-center justify-between gap-3 sm:gap-4 md:border-l border-white/10 md:pl-6 pt-3 md:pt-0 border-t md:border-t-0 self-center">
                   <div className="flex flex-col md:items-end">
                     <div className="text-xs text-slate-400 font-medium truncate max-w-[150px]">
                       {carrier}

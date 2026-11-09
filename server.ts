@@ -7,14 +7,79 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Парсинг JSON для API запросов
+  app.use(express.json());
+
   // Add health check for Google Cloud Load Balancer
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
   });
 
+  // Whitelist дозволених ендпоінтів для шлюзу Al-Trans
+  const ALLOWED_ALTRANS_ENDPOINTS = [
+    '/api/v2/booking/search_trips',
+    '/api/v3/booking/get_bus_map_for_trip_id',
+    '/api/v3/cache/routes'
+  ];
+
+  // ✅ ЖИВОЙ ШЛЮЗ ДЛЯ AL-TRANS API (БЕЗ CORS И БЕЗ БЛОКИРОВОК)
+  app.all('/api/altrans/*', async (req, res) => {
+    try {
+      const targetPath = req.originalUrl.replace(/^\/api\/altrans/, '').split('?')[0];
+      const isAllowed = ALLOWED_ALTRANS_ENDPOINTS.some(ep => targetPath.startsWith(ep));
+      if (!isAllowed) {
+        return res.status(403).json({ error: 'Заборонений ендпоінт політикою безпеки BUSNET' });
+      }
+
+      const fullTargetPath = req.originalUrl.replace(/^\/api\/altrans/, '');
+      const targetUrl = `https://al-trans.com.ua${fullTargetPath}`;
+
+      console.log(`[Busnet-Gateway] Proxying (${req.method}) to Al-Trans: ${targetUrl}`);
+
+      const altransKey = process.env.ALTRANS_API_KEY;
+      if (!altransKey) {
+        console.warn('[Busnet-Gateway] Warning: ALTRANS_API_KEY not configured in environment.');
+      }
+
+      const headers: Record<string, string> = {
+        'Accept-Language': 'uk',
+      };
+      if (altransKey) {
+        headers['Api-Key'] = altransKey;
+      }
+      if (req.headers['content-type']) {
+        headers['Content-Type'] = req.headers['content-type'] as string;
+      }
+
+      const fetchOptions: RequestInit = {
+        method: req.method,
+        headers,
+      };
+
+      if (req.method !== 'GET' && req.method !== 'HEAD' && req.body && Object.keys(req.body).length > 0) {
+        headers['Content-Type'] = 'application/json';
+        fetchOptions.body = JSON.stringify(req.body);
+      }
+
+      const response = await fetch(targetUrl, fetchOptions);
+      const data = await response.json();
+      return res.status(response.status).json(data);
+    } catch (error) {
+      console.error('[Busnet-Gateway] Al-Trans proxy error:', error);
+      return res.status(500).json({ error: 'Al-Trans proxy connection failed' });
+    }
+  });
+
   // Redirect sub-apps without trailing slash → with trailing slash (302 = not cached)
   ['carrier', 'admin', 'agent', 'driver'].forEach(name => {
-    app.get(`/${name}`, (req, res) => res.redirect(302, `/${name}/`));
+    app.get(`/${name}`, (req, res, next) => {
+      const cleanPath = req.originalUrl.split('?')[0];
+      if (cleanPath === `/${name}`) {
+        const query = req.originalUrl.includes('?') ? '?' + req.originalUrl.split('?')[1] : '';
+        return res.redirect(302, `/${name}/${query}`);
+      }
+      next();
+    });
   });
 
   // Apps configuration - ORDER MATTERS! landing ('/') must be last.
@@ -26,8 +91,6 @@ async function startServer() {
     { name: 'landing', route: '/', dir: 'landing' },
   ];
 
-  // We define which app we are actively developing to hook up HMR.
-  // The rest will be served as pre-built production static files to save 99% RAM!
   const DEV_APP = process.env.DEV_APP || 'landing';
 
   console.log(`✅ [Busnet-OS] Trick Gateway Mode Active!`);
@@ -40,9 +103,9 @@ async function startServer() {
     if (useDev) {
       const hmrPort = 24678 + viteApps.indexOf(va);
       const vite = await createViteServer({
-        server: { 
-          middlewareMode: true, 
-          hmr: process.env.DISABLE_HMR !== 'true' ? { port: hmrPort } : false 
+        server: {
+          middlewareMode: true,
+          hmr: process.env.DISABLE_HMR !== 'true' ? { port: hmrPort } : false
         },
         appType: 'spa',
         root: path.resolve(process.cwd(), 'apps', va.dir),
@@ -68,7 +131,6 @@ async function startServer() {
       console.log(`⚡ [Static Prod] ${va.name} @ ${va.route}`);
       app.use(va.route === '/' ? '/' : va.route, express.static(distPath, { setHeaders: (res, filePath) => { if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); } }));
 
-      // This is the absolute fallback for any SPA routes to prevent 404
       app.get([va.route, `${va.route}/*`], (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.sendFile(path.join(distPath, 'index.html'));
@@ -83,7 +145,6 @@ async function startServer() {
     }
   }
 
-  // Final absolute catch-all fallback to prevent generic Google GFE 404
   app.use('*', (req, res) => {
     res.status(404).send(`<h1>BUSNET VFS Fallback 404</h1><p>Path ${req.path} was not matched by any TurboRepo gateway rules.</p><a href="/">Go back to Landing</a>`);
   });

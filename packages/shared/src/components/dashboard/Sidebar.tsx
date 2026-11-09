@@ -1,8 +1,8 @@
 import React, { useRef } from 'react';
-import { 
-  X, LogOut, LayoutDashboard, Ticket, Users, Star, 
-  Search, Bell, MessageSquare, ClipboardList, User, 
-  Settings, History 
+import {
+  X, LogOut, LayoutDashboard, Ticket, Users, Star,
+  Search, Bell, MessageSquare, ClipboardList, User,
+  Settings, History
 } from 'lucide-react';
 
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
@@ -31,11 +31,11 @@ interface SidebarProps {
   activeTicketsCount?: number;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ 
-  isSidebarOpen, 
-  closeSidebar, 
-  activeTab, 
-  setActiveTab, 
+const Sidebar: React.FC<SidebarProps> = ({
+  isSidebarOpen,
+  closeSidebar,
+  activeTab,
+  setActiveTab,
   handleLogout,
   t,
   unreadCount = 0,
@@ -87,7 +87,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   ];
 
-  const userAvatar = user ? (user.firstName[0] + (user.lastName?.[0] || '')).toUpperCase() : '??';
+  const userAvatar = (
+    (user?.firstName?.[0] || user?.email?.[0] || 'U') +
+    (user?.lastName?.[0] || '')
+  ).toUpperCase();
 
   return (
     <aside
@@ -113,7 +116,9 @@ const Sidebar: React.FC<SidebarProps> = ({
           {user?.avatar ? <img src={user.avatar} className="w-full h-full rounded-full object-cover" /> : userAvatar}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold truncate leading-tight text-white">{user?.firstName} {user?.lastName?.[0]}.</p>
+          <p className="text-xs font-semibold truncate leading-tight text-white">
+            {user?.firstName ? `${user.firstName} ${user?.lastName?.[0] ? user.lastName[0] + '.' : ''}` : (user?.email?.split('@')[0] || 'AL-TRANS')}
+          </p>
           <p className="text-[10px] text-[#7a9ab5] truncate">{user?.email}</p>
         </div>
         <div className="w-2 h-2 bg-[#00e676] rounded-full shadow-[0_0_8px_#00e676]" />
@@ -130,8 +135,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onClick={() => { setActiveTab(item.id); closeSidebar(); }}
                 className={`
                   w-full flex items-center gap-4 px-6 py-3 text-xs font-medium transition-all relative border-l-2
-                  ${activeTab === item.id 
-                    ? 'bg-[#00c8ff]/10 text-[#00c8ff] border-[#00c8ff]' 
+                  ${activeTab === item.id
+                    ? 'bg-[#00c8ff]/10 text-[#00c8ff] border-[#00c8ff]'
                     : 'text-[#7a9ab5] hover:bg-[#1a2235] hover:text-[#e8f4ff] border-transparent'}
                 `}
               >
@@ -153,7 +158,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         className="p-4 border-t border-[#1e3a5f]"
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}
       >
-        <button 
+        <button
           onClick={handleLogout}
           className="w-full py-2.5 rounded-lg border border-[#1e3a5f] text-[11px] font-bold text-[#7a9ab5] hover:text-[#f44336] hover:border-[#f44336] transition-all flex items-center justify-center gap-2"
         >

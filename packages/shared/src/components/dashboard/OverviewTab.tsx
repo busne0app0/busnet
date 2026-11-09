@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import toast from 'react-hot-toast';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { useBookingStore } from '@busnet/shared/store/useBookingStore';
 import { 
-  QrCode, Download, MessageSquare, Search, 
-  TrendingUp, Star, Gift, Clock, ArrowRight, 
-  ShieldCheck, X, Ticket, Users, MapPin, LayoutDashboard
+  QrCode, Search, TrendingUp, Star, ArrowRight, 
+  X, Ticket, Users, Sparkles, Calendar, Clock,
+  MessageSquare
 } from 'lucide-react';
-
+import { QRCodeSVG } from 'qrcode.react';
 import { useLanguage } from '@busnet/shared/context/LanguageContext';
 
 interface OverviewTabProps {
@@ -17,329 +16,318 @@ interface OverviewTabProps {
   passengersCount: number;
 }
 
-const OverviewTab: React.FC<OverviewTabProps> = ({ setActiveTab, tickets, passengersCount }) => {
+// Безпечний парсер маршруту (захист від білого екрана при будь-яких символах розмежування)
+const parseRoute = (routeStr?: string) => {
+  if (!routeStr) return { from: 'Київ / Львів', to: 'Рим / Мілан' };
+  const delimiter = routeStr.includes('→') ? '→' : routeStr.includes('—') ? '—' : routeStr.includes('-') ? '-' : null;
+  if (delimiter) {
+    const parts = routeStr.split(delimiter);
+    return {
+      from: parts[0]?.trim() || 'Україна',
+      to: parts[1]?.trim() || 'Італія'
+    };
+  }
+  return { from: routeStr, to: 'Рейс' };
+};
+
+export const OverviewTab: React.FC<OverviewTabProps> = ({ setActiveTab, tickets, passengersCount }) => {
   const { user } = useAuthStore();
   const { selectedTrip, passengers: bookingPassengers } = useBookingStore();
   const { language } = useLanguage();
   const [showQR, setShowQR] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
   
-  const userName = user?.firstName || 'Гість';
+  const userName = user?.firstName || 'Пасажир';
   const loyaltyPoints = user?.loyaltyPoints || 0;
 
-  const userBookings = tickets;
+  const userBookings = tickets || [];
+  const activeTicketsCount = userBookings.filter(b => b.status === 'active' || b.status === 'pending' || b.status === 'confirmed').length;
+  const historyTicketsCount = userBookings.filter(b => b.status === 'completed' || b.status === 'finished').length;
 
-  const activeTicketsCount = userBookings.filter(b => b.status === 'active' || b.status === 'pending').length;
-  const historyTicketsCount = userBookings.filter(b => b.status !== 'active' && b.status !== 'pending').length;
+  const nextBooking = userBookings.find(b => b.status === 'active' || b.status === 'confirmed' || b.status === 'pending');
 
-  const nextBooking = userBookings.find(b => b.status === 'active');
-  
-  // Локалізації (базові для кабінету)
-  const translations = {
-    UA: {
-      nextTrip: "Наступна подорож",
-      activeTrip: "Активний рейс",
-      departure: "Відправлення",
-      arrival: "Прибуття",
-      bus: "Автобус",
-      seats: "Місця",
-      qrBtn: "QR-код посадки",
-      pdfBtn: "Квиток (.txt)",
-      statsTrips: "Подорожей",
-      statsBonuses: "Бонусів",
-      statsLevel: "Ваш статус",
-      quickActions: "Швидкі дії",
-      findTicket: "Знайти рейс",
-      support: "Підтримка AI",
-      downloading: "Завантаження...",
-      welcome: `Привіт, ${userName}! 👋`
-    },
-    EN: {
-      nextTrip: "Next Trip",
-      activeTrip: "Active Route",
-      departure: "Departure",
-      arrival: "Arrival",
-      bus: "Bus",
-      seats: "Seats",
-      qrBtn: "Boarding QR",
-      pdfBtn: "Ticket (.txt)",
-      statsTrips: "Trips",
-      statsBonuses: "Bonuses",
-      statsLevel: "Your Level",
-      quickActions: "Quick Actions",
-      findTicket: "Find Ticket",
-      support: "AI Support",
-      downloading: "Downloading...",
-      welcome: `Hello, ${userName}! 👋`
-    },
-    IT: {
-      nextTrip: "Prossimo Viaggio",
-      activeTrip: "Percorso Attivo",
-      departure: "Partenza",
-      arrival: "Arrivo",
-      bus: "Autobus",
-      seats: "Posti",
-      qrBtn: "QR Imbarco",
-      pdfBtn: "Biglietto (.txt)",
-      statsTrips: "Viaggi",
-      statsBonuses: "Bonus",
-      statsLevel: "Tuo Livello",
-      quickActions: "Azioni Rapide",
-      findTicket: "Trova Biglietto",
-      support: "Supporto AI",
-      downloading: "Scaricamento...",
-      welcome: `Ciao, ${userName}! 👋`
-    }
-  };
-
-  const t = translations[language] || translations.UA;
+  const routeDetails = parseRoute(nextBooking?.route);
 
   const currentTrip = nextBooking ? {
-    from: nextBooking.route.split('→')[0].trim(),
-    to: nextBooking.route.split('→')[1].trim(),
-    date: nextBooking.date,
+    id: nextBooking.id,
+    from: routeDetails.from,
+    to: routeDetails.to,
+    date: nextBooking.date || 'Дата уточнюється',
     depTime: nextBooking.time || "08:00",
-    arrTime: nextBooking.duration || "20:00",
-    busId: nextBooking.id,
-    seats: `${nextBooking.seats}`,
-    status: nextBooking.status
+    arrTime: nextBooking.duration || "Наступний день",
+    seats: `${nextBooking.seats || '1'}`,
+    status: nextBooking.status || 'confirmed'
   } : selectedTrip ? {
+    id: "NEW",
     from: selectedTrip.departureCity,
     to: selectedTrip.arrivalCity,
     date: selectedTrip.departureDate,
     depTime: selectedTrip.departureTime,
     arrTime: selectedTrip.arrivalTime,
-    busId: "BN-" + (selectedTrip.price % 1000),
-    seats: bookingPassengers.map((p, i) => i + 1).join(', '),
-    status: "Confirmed"
+    seats: bookingPassengers.map((_, i) => i + 1).join(', ') || '1',
+    status: "confirmed"
   } : null;
-
-  const handleDownload = () => {
-    // Навігуємо до вкладки квитків де є реальне завантаження
-    setActiveTab('tickets');
-  };
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6 pb-20 md:pb-0"
+      className="space-y-6 max-w-6xl mx-auto pb-12"
     >
-      <div className="section-title">Привіт, {userName}! 👋</div>
-      <div className="section-sub">Ваш пасажирський кабінет BUSNET UA</div>
-
-      <div className="bg-gradient-to-br from-[#141c2e] to-[#0d1425] border border-[#1e3a5f] rounded-3xl p-8 relative overflow-hidden group shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8">
-        <div className="relative z-10 flex-1">
-          <div className="px-3 py-1 bg-[#ffd600] text-black text-[10px] font-black uppercase rounded-md w-fit mb-4 shadow-[0_0_15px_rgba(255,214,0,0.3)]">АКЦІЯ</div>
-          <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter mb-2">-20% на рейси до Варшави</h3>
-          <p className="text-[#7a9ab5] text-sm mb-6 max-w-sm">Дійсно для всіх бронювань до 30 квітня 2026 р. Подорожуйте з комфортом за кращою ціною.</p>
-          <button 
-            onClick={() => setActiveTab('search')}
-            className="px-8 py-3 bg-[#00c8ff] text-black text-[12px] font-black uppercase rounded-xl hover:bg-white transition-all shadow-[0_10px_20px_rgba(0,200,255,0.2)] active:scale-95"
-          >
-            Забронювати зараз
-          </button>
+      {/* Привітання */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            Привіт, {userName}! 👋
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
+            Ваш персональний кабінет рейсів Україна — Італія (BUSNET)
+          </p>
         </div>
-        <div className="text-8xl opacity-30 group-hover:scale-110 transition-transform duration-700 pointer-events-none select-none">
-          🚌
-        </div>
-        <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-[#00c8ff] blur-[120px] opacity-10" />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Банер спеціальної пропозиції (Італія) */}
+      <div className="relative rounded-3xl bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 border border-cyan-500/30 p-6 sm:p-8 overflow-hidden shadow-2xl">
+        <div className="relative z-10 max-w-lg space-y-3">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 rounded-full text-[10px] font-black uppercase tracking-wider">
+            <Sparkles size={12} /> Спеціальна пропозиція
+          </div>
+          <h2 className="text-xl sm:text-3xl font-black text-white tracking-tight">
+            Прямі рейси до Риму, Мілана та Болоньї
+          </h2>
+          <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
+            Бронюйте місця заздалегідь без передоплати. Оплата готівкою водієві при посадці в автобус.
+          </p>
+          <div className="pt-2">
+            <button 
+              onClick={() => {
+                setActiveTab('search');
+                window.location.href = '/';
+              }}
+              className="px-6 py-3 bg-cyan-400 hover:bg-cyan-300 text-black text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] active:scale-95 cursor-pointer"
+            >
+              Забронювати квиток
+            </button>
+          </div>
+        </div>
+
+        {/* Фонова декорація */}
+        <div className="absolute right-4 -bottom-6 text-7xl sm:text-9xl opacity-15 select-none pointer-events-none">
+          🚌
+        </div>
+      </div>
+
+      {/* Статистичні плашки */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
-          { label: "Активні квитки", val: activeTicketsCount.toString(), icon: Ticket, sub: nextBooking ? `Найближчий: ${nextBooking.date}` : "Немає рейсів", color: "text-[#00c8ff]", bg: "bg-[#00c8ff]/10" },
-          { label: "Всього поїздок", val: (activeTicketsCount + historyTicketsCount).toString(), icon: TrendingUp, sub: "З 2024 року", color: "text-[#00e676]", bg: "bg-[#00e676]/10" },
-          { label: "Бонусні бали", val: loyaltyPoints.toLocaleString(), icon: Star, sub: loyaltyPoints > 2000 ? "Gold рівень" : "Silver рівень", color: "text-[#ffd600]", bg: "bg-[#ffd600]/10" },
-          { label: "Пасажири", val: passengersCount.toString(), icon: Users, sub: "Збережені профілі", color: "text-[#7c4dff]", bg: "bg-[#7c4dff]/10" }
+          { label: "Активні квитки", val: activeTicketsCount, icon: Ticket, sub: nextBooking ? `Рейс: ${nextBooking.date}` : "Немає рейсів", color: "text-cyan-400", bg: "bg-cyan-500/10 border-cyan-500/20" },
+          { label: "Всього поїздок", val: activeTicketsCount + historyTicketsCount, icon: TrendingUp, sub: "Архів рейсів", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+          { label: "Бонусні бали", val: loyaltyPoints, icon: Star, sub: loyaltyPoints >= 2000 ? "Gold статус" : "Silver статус", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+          { label: "Пасажири", val: passengersCount, icon: Users, sub: "Збережені профілі", color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" }
         ].map((stat, i) => (
-          <div key={i} className="bg-[#141c2e] border border-[#1e3a5f] rounded-2xl p-6 hover:bg-[#1a2235] transition-all group overflow-hidden relative">
-            <stat.icon size={48} className={`absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform ${stat.color}`} />
-            <p className="text-[10px] text-[#7a9ab5] font-black uppercase tracking-widest mb-1">{stat.label}</p>
-            <p className={`text-2xl font-black ${stat.color}`}>{stat.val}</p>
-            <p className="text-[10px] text-[#4a6a85] font-medium mt-1 uppercase tracking-wider">{stat.sub}</p>
+          <div key={i} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 relative overflow-hidden backdrop-blur-md">
+            <stat.icon className={`absolute -right-2 -bottom-2 w-16 h-16 opacity-5 ${stat.color}`} />
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">{stat.label}</p>
+            <p className={`text-2xl sm:text-3xl font-black ${stat.color}`}>{stat.val}</p>
+            <p className="text-[10px] text-slate-400 mt-1 truncate">{stat.sub}</p>
           </div>
         ))}
       </div>
 
+      {/* Основна сітка: Найближчий рейс + Бонуси */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column: Trip Info */}
-        <div className="space-y-6">
+        
+        {/* Ліва колонка: Картка найближчого рейсу */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 px-1 flex items-center gap-2">
+            <Ticket size={16} className="text-cyan-400" /> Найближчий запланований рейс
+          </h3>
+
           {currentTrip ? (
-            <div className="bg-[#141c2e] border border-[#1e3a5f] rounded-3xl p-8 shadow-2xl relative overflow-hidden group">
-              <div className="flex justify-between items-start mb-6">
-                <h4 className="text-[11px] font-black text-[#7a9ab5] uppercase tracking-[0.2em] flex items-center gap-2">
-                  <Ticket size={16} className="text-[#00c8ff]" /> Найближчий рейс
-                </h4>
-                <span className={`px-3 py-1 text-[9px] font-black uppercase rounded-full border ${currentTrip.status === 'Confirmed' || currentTrip.status === 'confirmed' || currentTrip.status === 'active' ? 'bg-[#00c8ff]/10 text-[#00c8ff] border-[#00c8ff]/20' : 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'}`}>
-                  {currentTrip.status}
+            <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 sm:p-7 relative overflow-hidden shadow-xl shadow-black/50">
+              <div className="flex justify-between items-center mb-5">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-3 py-1 rounded-full">
+                  Квиток підтверджено
                 </span>
-              </div>
-              
-              <h2 className="text-3xl font-black text-white italic uppercase mb-6">{currentTrip.from} → {currentTrip.to}</h2>
-              
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                {[
-                  { l: "Дата", v: currentTrip.date, i: "📅" },
-                  { l: "Час", v: currentTrip.depTime, i: "🕗" },
-                  { l: "Місця", v: currentTrip.seats, i: "💺" },
-                  { l: "В дорозі", v: currentTrip.arrTime, i: "⏱" }
-                ].map((d, i) => (
-                  <div key={i} className="bg-black/20 p-4 rounded-2xl border border-white/5">
-                     <p className="text-[9px] text-[#4a6a85] font-black uppercase tracking-widest mb-1">{d.i} {d.l}</p>
-                     <p className="text-sm font-bold text-white uppercase italic">{d.v}</p>
-                  </div>
-                ))}
+                <span className="text-xs font-mono text-slate-400">ID: {currentTrip.id}</span>
               </div>
 
-              <div className="route-map mb-8 h-24 bg-black/30 rounded-2xl relative flex items-center px-10 border border-white/5">
-                <div className="flex-1 text-center">
-                  <p className="text-xs font-bold text-white uppercase italic tracking-tighter">{currentTrip.from}</p>
-                  <p className="text-[10px] text-[#7a9ab5] font-black">{currentTrip.depTime}</p>
+              {/* Міста */}
+              <div className="flex items-center justify-between gap-3 mb-6">
+                <div>
+                  <p className="text-xs text-slate-400 uppercase font-bold">Звідки</p>
+                  <p className="text-xl sm:text-2xl font-black text-white">{currentTrip.from}</p>
                 </div>
-                <div className="flex-[3] h-[2px] bg-[#1e3a5f] relative mx-4">
-                  <div className="absolute -top-1 -left-1 w-2 h-2 bg-[#00c8ff] rounded-full shadow-[0_0_10px_#00c8ff]" />
-                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-[#00c8ff] rounded-full shadow-[0_0_10px_#00c8ff]" />
-                  <div className="absolute -top-3 left-0 text-lg animate-bus-move-fast">🚌</div>
+                <div className="flex items-center text-cyan-400 px-2">
+                  <ArrowRight size={22} />
                 </div>
-                <div className="flex-1 text-center">
-                  <p className="text-xs font-bold text-white uppercase italic tracking-tighter">{currentTrip.to}</p>
-                  <p className="text-[10px] text-[#7a9ab5] font-black">{currentTrip.arrTime}</p>
+                <div className="text-right">
+                  <p className="text-xs text-slate-400 uppercase font-bold">Куди</p>
+                  <p className="text-xl sm:text-2xl font-black text-white">{currentTrip.to}</p>
                 </div>
               </div>
 
-              <div className="flex gap-4">
+              {/* Деталі поїздки */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-slate-950/60 rounded-2xl border border-slate-800/80 mb-6">
+                <div>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
+                    <Calendar size={12} className="text-cyan-400" /> Дата
+                  </p>
+                  <p className="text-xs font-bold text-white mt-0.5">{currentTrip.date}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
+                    <Clock size={12} className="text-cyan-400" /> Відправлення
+                  </p>
+                  <p className="text-xs font-bold text-white mt-0.5">{currentTrip.depTime}</p>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">Місця</p>
+                  <p className="text-xs font-black text-cyan-300 mt-0.5">№ {currentTrip.seats}</p>
+                </div>
+              </div>
+
+              {/* Кнопки */}
+              <div className="flex gap-3">
                 <button 
                   onClick={() => setShowQR(true)}
-                  className="flex-1 py-4 bg-[#00c8ff] text-black text-[12px] font-black uppercase tracking-widest rounded-2xl hover:bg-white transition-all shadow-[0_10px_20px_rgba(0,200,255,0.2)]"
+                  className="flex-1 py-3 bg-cyan-400 hover:bg-cyan-300 text-black text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  QR-квиток
+                  <QrCode size={16} /> Посадковий талон
                 </button>
                 <button 
-                  onClick={handleDownload}
-                  className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white hover:bg-white/10 transition-all"
+                  onClick={() => setActiveTab('tickets')}
+                  className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-all cursor-pointer"
                 >
-                  {isDownloading ? <Clock className="animate-spin text-[#00c8ff]" size={20} /> : <Download size={20} />}
+                  Всі квитки
                 </button>
               </div>
             </div>
           ) : (
-            <div className="bg-[#141c2e] border border-[#1e3a5f] border-dashed rounded-3xl p-12 text-center flex flex-col items-center justify-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-[#7a9ab5]">
-                 <Ticket size={32} strokeWidth={1} />
+            <div className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-8 sm:p-10 text-center flex flex-col items-center justify-center space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-slate-800/80 flex items-center justify-center text-slate-400 mb-1">
+                <Ticket size={28} />
               </div>
-              <h3 className="text-lg font-bold text-white uppercase italic tracking-tighter">Немає активних рейсів</h3>
-              <p className="text-sm text-[#7a9ab5] max-w-[200px] mx-auto">Час планувати нову подорож! Оберіть маршрут та отримайте бонуси.</p>
+              <h4 className="text-base font-bold text-white">Активних поїздок не заплановано</h4>
+              <p className="text-xs text-slate-400 max-w-xs">
+                Оберіть потрібний рейс онлайн — розрахунок готівкою з водієм перед виїздом.
+              </p>
               <button 
-                onClick={() => setActiveTab('search')}
-                className="px-8 py-3 bg-[#00c8ff] text-black text-[10px] font-black uppercase rounded-xl hover:bg-white transition-all"
+                onClick={() => {
+                  setActiveTab('search');
+                  window.location.href = '/';
+                }}
+                className="mt-2 px-6 py-2.5 bg-cyan-400 hover:bg-cyan-300 text-black text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer active:scale-95"
               >
                 Знайти квиток
               </button>
             </div>
           )}
 
-          {/* QUICK ACTIONS */}
-          <div className="space-y-4">
-            <h3 className="text-xl font-bold px-2 text-white italic tracking-tighter uppercase">Швидкі дії</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <button 
-                onClick={() => setActiveTab('search')}
-                className="p-6 rounded-3xl bg-gradient-to-br from-blue-600/10 to-transparent border border-white/5 hover:border-[#00c8ff]/30 transition-all flex flex-col items-center gap-3 group text-white"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-[#00c8ff]/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Search className="text-[#00c8ff]" size={20} />
-                </div>
-                <span className="text-[10px] font-black uppercase tracking-widest">Знайти рейс</span>
-              </button>
-              <button 
-                onClick={() => setActiveTab('support')}
-                className="p-6 rounded-3xl bg-gradient-to-br from-purple-600/10 to-transparent border border-white/5 hover:border-purple-500/30 transition-all flex flex-col items-center gap-3 group text-white"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <MessageSquare className="text-purple-400" size={20} />
-                </div>
-                <span className="text-[10px] font-black uppercase tracking-widest">Підтримка AI</span>
-              </button>
-            </div>
+          {/* Швидкі дії */}
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button 
+              onClick={() => {
+                setActiveTab('search');
+                window.location.href = '/';
+              }}
+              className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-cyan-500/40 transition-all flex items-center gap-3 text-left group cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center group-hover:scale-110 transition-transform shrink-0">
+                <Search className="text-cyan-400" size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white">Пошук рейсів</p>
+                <p className="text-[10px] text-slate-400">Всі маршрути</p>
+              </div>
+            </button>
+
+            <button 
+              onClick={() => setActiveTab('support')}
+              className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-purple-500/40 transition-all flex items-center gap-3 text-left group cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center group-hover:scale-110 transition-transform shrink-0">
+                <MessageSquare className="text-purple-400" size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white">Підтримка 24/7</p>
+                <p className="text-[10px] text-slate-400">Диспетчер</p>
+              </div>
+            </button>
           </div>
         </div>
 
-        {/* Right Column: Activity & Loyalty */}
-        <div className="space-y-6">
-          {/* LOYALTY CARD MINI */}
-          <div className="bg-gradient-to-br from-[#141c2e] to-[#0a1628] border border-[#1e3a6a] rounded-3xl p-8 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 opacity-5 -rotate-12 group-hover:scale-110 transition-transform duration-700">
-               <Star size={160} className="text-[#ffd600]" />
-            </div>
-            <h4 className="text-[11px] font-black text-[#7a9ab5] uppercase tracking-[0.2em] mb-8 flex items-center gap-2 relative z-10">
-               <Star size={14} className="text-[#ffd600]" /> Програма лояльності
-            </h4>
-            <div className="relative z-10">
-               <p className="text-[10px] text-[#00c8ff] font-black uppercase tracking-[0.2em]">{loyaltyPoints > 2000 ? 'Gold' : 'Silver'} Member</p>
-               <p className="text-5xl font-black mt-2 text-white tracking-tighter">{loyaltyPoints.toLocaleString()} <span className="text-sm font-medium text-[#4a6a85] uppercase italic">pts</span></p>
-               
-               <div className="mt-8">
-                  <div className="flex justify-between text-[9px] font-black uppercase text-[#4a6a85] mb-2">
-                     <span>Silver (500)</span>
-                     <span className="text-[#ffd600]">Gold (2 000)</span>
-                  </div>
-                  <div className="h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
-                     <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min((loyaltyPoints / 2000) * 100, 100)}%` }} className="h-full bg-gradient-to-r from-[#00c8ff] to-[#0099cc] shadow-[0_0_15px_rgba(0,200,255,0.5)]" />
-                  </div>
-                  <p className="text-[9px] text-[#4a6a85] font-black uppercase italic text-right mt-3">
-                    {loyaltyPoints < 2000 ? `До Gold рівня: ${2000 - loyaltyPoints} балів` : 'Максимальний рівень досягнуто!'}
-                  </p>
-               </div>
-            </div>
-          </div>
+        {/* Права колонка: Програма лояльності та статус */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 px-1 flex items-center gap-2">
+            <Star size={16} className="text-amber-400" /> Програма лояльності
+          </h3>
 
-          {/* ACTIVITY TIMELINE MAP */}
-          <div className="bg-[#141c2e] border border-[#1e3a5f] rounded-3xl p-8 shadow-2xl">
-             <h3 className="text-[11px] font-black text-[#7a9ab5] uppercase tracking-[0.2em] mb-8">📊 Активність</h3>
-             <div className="space-y-8 relative before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-[1px] before:bg-[#1e3a5f]">
-                {[
-                  tickets.length > 0 ? { title: "Останнє бронювання", time: tickets[0]?.date, done: true } : null,
-                  user?.createdAt ? { title: "Реєстрація профілю", time: new Date(user.createdAt).toLocaleDateString('uk-UA'), done: true } : null,
-                  nextBooking ? { title: "Очікуємо на поїздку", time: nextBooking.date, current: true } : { title: "Готовність до нових подорожей", time: "Зараз", current: true }
-                ].filter(Boolean).map((item: any, i) => (
-                  <div key={i} className="relative pl-8 group">
-                    <div className={`absolute left-0 top-1.5 w-[15px] h-[15px] rounded-full border-2 bg-[#0a0e1a] z-10 transition-all 
-                      ${item.done ? 'border-[#00c8ff] bg-[#00c8ff] shadow-[0_0_8px_#00c8ff]' : item.current ? 'border-[#00e676] bg-[#00e676] animate-pulse' : 'border-[#1e3a5f]'}`} 
-                    />
-                    <div>
-                      <p className={`text-sm font-bold uppercase italic tracking-tight ${item.ghost ? 'text-[#4a6a85]' : 'text-white'}`}>{item.title}</p>
-                      <p className="text-[10px] text-[#7a9ab5] font-black uppercase tracking-widest mt-1">{item.time}</p>
-                    </div>
-                  </div>
-                ))}
-             </div>
+          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/30 border border-slate-800 rounded-3xl p-6 sm:p-7 relative overflow-hidden shadow-xl">
+            <p className="text-xs font-bold uppercase tracking-wider text-cyan-400">
+              {loyaltyPoints >= 2000 ? 'Gold статус' : 'Silver статус'}
+            </p>
+            <p className="text-4xl sm:text-5xl font-black mt-2 text-white tracking-tight">
+              {loyaltyPoints.toLocaleString()}{' '}
+              <span className="text-sm font-bold text-slate-400 uppercase">балів</span>
+            </p>
+            <p className="text-xs text-slate-400 mt-1">1 бал = 1 гривня знижки на наступні поїздки</p>
+
+            <div className="mt-6 pt-5 border-t border-slate-800">
+              <div className="flex justify-between text-[10px] font-bold uppercase text-slate-400 mb-2">
+                <span>Silver (500)</span>
+                <span className="text-amber-400">Gold (2 000)</span>
+              </div>
+              <div className="h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                <motion.div 
+                  initial={{ width: 0 }} 
+                  animate={{ width: `${Math.min((loyaltyPoints / 2000) * 100, 100)}%` }} 
+                  className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full" 
+                />
+              </div>
+              <p className="text-[11px] text-slate-400 mt-3 text-right">
+                {loyaltyPoints < 2000 ? `До Gold рівня: ${2000 - loyaltyPoints} балів` : 'Максимальний рівень знижок!'}
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* MODAL QR CODE */}
+      {/* ОФЛАЙН МОДАЛКА QR-КОДУ (Працює без інтернету через локальний SVG) */}
       <AnimatePresence>
-        {showQR && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        {showQR && currentTrip && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="relative p-8 rounded-[2.5rem] bg-[#111827] border border-white/10 max-w-sm w-full text-center"
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative p-6 sm:p-8 rounded-3xl bg-slate-900 border border-slate-700 max-w-sm w-full text-center shadow-2xl"
             >
-              <button onClick={() => setShowQR(false)} className="absolute top-6 right-6 text-slate-500 hover:text-white">
-                <X size={24} />
+              <button 
+                onClick={() => setShowQR(false)} 
+                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-full bg-slate-800/60 cursor-pointer"
+              >
+                <X size={20} />
               </button>
-              <h3 className="text-xl font-bold mb-6 italic text-white">{t.qrBtn}</h3>
-              <div className="aspect-square bg-white rounded-3xl p-4 mb-6 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=BUSNET-${currentTrip.busId}-${currentTrip.seats}`} 
-                  alt="QR" 
-                  className="w-full h-full"
+
+              <div className="w-12 h-12 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl flex items-center justify-center text-cyan-400 mx-auto mb-3">
+                <QrCode size={24} />
+              </div>
+
+              <h3 className="text-lg font-black text-white uppercase">Посадковий талон</h3>
+              <p className="text-cyan-400 text-xs font-mono font-bold mb-4">{currentTrip.from} → {currentTrip.to}</p>
+              
+              <div className="bg-white p-4 rounded-2xl mb-4 inline-block shadow-lg">
+                <QRCodeSVG 
+                  value={`BUSNET:${currentTrip.id}:${currentTrip.from}-${currentTrip.to}:${currentTrip.seats}`} 
+                  size={180}
+                  level="H"
+                  includeMargin={false}
                 />
               </div>
-              <p className="text-slate-400 text-sm">Покажіть цей код водію при посадці у {currentTrip.from}</p>
+
+              <p className="text-slate-300 text-xs leading-relaxed">
+                Покажіть водію при посадці. Оплата здійснюється готівкою на місці.
+              </p>
             </motion.div>
           </div>
         )}

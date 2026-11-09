@@ -9,7 +9,7 @@ interface AuthState {
   error: string | null;
   activeRole: Role | null;
   initInProgress: boolean;
-  isInitialized: boolean; // true після першого onAuthStateChange — ProtectedRoute чекає цього флагу
+  isInitialized: boolean;
   authSubscription: any;
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
@@ -25,7 +25,6 @@ interface AuthState {
   updateUserProfile: (updates: Partial<User>) => Promise<void>;
 }
 
-// Глобальний прапорець для запобігання конфліктам запитів до Supabase
 let isProcessingAuth = false;
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -38,12 +37,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isInitialized: false,
   authSubscription: null,
 
-  setUser: (user) => set({ 
-    user, 
+  setUser: (user) => set({
+    user,
     isAuthenticated: !!user,
-    activeRole: (user?.role as Role) || null 
+    activeRole: (user?.role as Role) || null
   }),
-  
+
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
 
@@ -68,12 +67,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true });
     try {
       await supabase.auth.signOut();
-      set({ 
-        user: null, 
-        isAuthenticated: false, 
+      set({
+        user: null,
+        isAuthenticated: false,
         activeRole: null,
         loading: false,
-        error: null 
+        error: null
       });
     } catch (err: any) {
       set({ error: err.message, loading: false });
@@ -98,15 +97,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   initAuth: () => {
     const { authSubscription } = get();
-    if (authSubscription) return () => {};
+    if (authSubscription) return () => { };
 
-    let isHandling = false; // локальний флаг, не глобальний
+    let isHandling = false;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('[initAuth] Event:', event, '| isHandling:', isHandling, '| email:', session?.user?.email);
 
-        // SIGNED_OUT — завжди обробляємо
+        // SIGNED_OUT — завжди скидаємо
         if (!session) {
           isHandling = false;
           isProcessingAuth = false;
@@ -114,19 +113,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           return;
         }
 
-        // SIGNED_IN завжди обробляємо (навіть якщо isHandling=true — це нова сесія)
-        if (event === 'SIGNED_IN') {
-          isHandling = false; // скидаємо щоб опрацювати нову сесію
-        }
-
-        // Пропускаємо лише дублікати TOKEN_REFRESHED та повторні INITIAL_SESSION
-        if (isHandling && (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
-          console.log('[initAuth] Skipping duplicate event:', event);
+        // ЗАХИСТ ВІД ЦИКЛУ: Якщо профіль вже завантажено для цього UID — ігноруємо повторні події
+        const currentUser = get().user;
+        const currentUid = (currentUser as any)?.uid || (currentUser as any)?.id;
+        if (get().isAuthenticated && currentUid === session.user.id) {
+          console.log('[initAuth] ⏩ Профіль для', session.user.email, 'вже завантажено. Ігноруємо дублікат', event);
+          set({ loading: false, isInitialized: true });
           return;
         }
 
-        // INITIAL_SESSION при вже залогіненому — просто не блокуємо
-        if (event === 'INITIAL_SESSION' && get().isAuthenticated) {
+        // Пропускаємо дублікати під час активного запиту
+        if (isHandling) {
+          console.log('[initAuth] Skipping duplicate event:', event);
           return;
         }
 
@@ -134,16 +132,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isProcessingAuth = true;
         set({ loading: true });
 
-        // ВАЖЛИВО: Відкріплюємо асинхронний запит від основного потоку onAuthStateChange.
-        // Це усуває deadlock у Supabase v2, коли supabase.from() намагається отримати сесію,
-        // яка зараз заблокована виконанням onAuthStateChange.
         setTimeout(async () => {
           try {
             console.log('[initAuth] Loading profile for UID:', session.user.id);
 
-            // Завантажуємо профіль з таблиці users по UID з повторними спробами (до 5 разів з паузою 1с)
             let userData: any = null;
-            for (let attempt = 1; attempt <= 5; attempt++) {
+            for (let attempt = 1; attempt <= 3; attempt++) {
               const { data: users, error: userError } = await supabase
                 .from('users')
                 .select('*')
@@ -151,7 +145,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 .limit(1);
 
               if (userError) {
-                console.warn(`[initAuth] Error querying profile (attempt ${attempt}/5):`, userError.message);
+                console.warn(`[initAuth] Error querying profile (attempt ${attempt}/3):`, userError.message);
               }
 
               if (users && users.length > 0) {
@@ -159,15 +153,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 break;
               }
 
-              if (attempt < 5) {
-                console.log(`[initAuth] Profile not found on attempt ${attempt}/5, waiting 1s...`);
-                await new Promise(r => setTimeout(r, 1000));
+              if (attempt < 3) {
+                await new Promise(r => setTimeout(r, 500));
               }
             }
 
             const VALID_ROLES = ['user', 'passenger', 'carrier', 'agent', 'admin', 'driver'];
 
-            // Якщо профіль так і не знайдено, або роль не з дозволеного списку — скидаємо сесію і показуємо помилку
             if (!userData || !userData.role || !VALID_ROLES.includes(userData.role)) {
               console.error('[initAuth] Profile not found or invalid role:', userData?.role);
               await supabase.auth.signOut();
@@ -178,12 +170,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 loading: false,
                 initInProgress: false,
                 isInitialized: true,
-                error: 'Профіль не знайдено або роль недійсна. Зверніться до підтримки.',
+                error: 'Профіль не знайдено або роль недійсна.',
               });
               return;
             }
 
-            // Роль 'user' обробляємо як 'passenger'
             const effectiveRole = (userData.role === 'user' ? 'passenger' : userData.role) as Role;
             console.log('[initAuth] ✅ Profile loaded:', userData.email, 'role:', userData.role, 'effectiveRole:', effectiveRole);
 
@@ -197,21 +188,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               isInitialized: true,
             });
 
-            // 🔗 Auto-process pending referral (Guest Referral Flow)
-            // If user clicked an invite link before logging in, the referralId was saved
-            // to localStorage. We now silently process it in the background.
             const pendingReferral = localStorage.getItem('busnet_pending_referral');
             if (pendingReferral && event === 'SIGNED_IN') {
-              console.log('[initAuth] Processing pending referral:', pendingReferral);
               supabase.functions.invoke('process-referral', {
                 body: { referralId: pendingReferral, newUserId: session.user.id },
               }).then(({ error: refErr }) => {
-                if (refErr) {
-                  console.warn('[initAuth] Pending referral processing failed:', refErr.message);
-                } else {
-                  localStorage.removeItem('busnet_pending_referral');
-                  console.log('[initAuth] ✅ Pending referral processed and cleared');
-                }
+                if (!refErr) localStorage.removeItem('busnet_pending_referral');
               });
             }
 
@@ -233,11 +215,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     };
   },
 
-
   registerUser: async (userData, password) => {
     set({ loading: true, error: null });
     try {
-      // Завжди роль 'passenger' — клієнт не може призначати собі іншу роль
       const { data, error } = await supabase.auth.signUp({
         email: userData.email,
         password,
@@ -246,7 +226,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error;
       if (data.user) {
         const newUser = { uid: data.user.id, ...userData, role: 'passenger', status: 'active' };
-        // Upsert профілю (тригер БД вже міг створити базовий запис)
         const { error: insertError } = await supabase.from('users').upsert(newUser, { onConflict: 'uid' });
         if (insertError) console.warn('[registerUser] Profile upsert warning:', insertError.message);
         console.log('[registerUser] Profile saved for:', userData.email);
@@ -257,19 +236,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  // УВАГА: не використовувати для прямої реєстрації — роль carrier видає тільки адмін після схвалення заявки partner_applications
   registerCarrier: async (companyData, password) => {
     set({ loading: true, error: null });
     try {
       const { data, error } = await supabase.auth.signUp({
         email: companyData.email,
         password,
-        options: { 
-          data: { 
+        options: {
+          data: {
             companyName: companyData.companyName,
             phone: companyData.phone,
-            role: 'carrier' 
-          } 
+            role: 'carrier'
+          }
         },
       });
       if (error) throw error;
@@ -288,7 +266,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   registerFromBooking: async (userData, password) => {
     set({ loading: true, error: null });
     try {
-      // Завжди роль 'passenger'
       const { data, error } = await supabase.auth.signUp({
         email: userData.email,
         password: password || Math.random().toString(36).slice(-12),
@@ -298,7 +275,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (data.user) {
         const newPassenger = { uid: data.user.id, ...userData, role: 'passenger', status: 'active' };
         await new Promise(resolve => setTimeout(resolve, 500));
-        // Upsert, оскільки профіль вже може створювати тригер БД
         await supabase.from('users').upsert(newPassenger, { onConflict: 'uid' });
       }
     } catch (err: any) {

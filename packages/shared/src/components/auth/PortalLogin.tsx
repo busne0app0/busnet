@@ -139,8 +139,13 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
     if (!authLoading && isAuthenticated && user) {
       // Роль завжди з профілю Supabase, ніколи не зі сторінки
       const t = getPostLoginTarget(user.role);
-      if (t.error || !t.shouldRedirect) return;
-      window.location.assign(t.url);
+      if (t.error) return;
+      // Завжди редиректимо зі сторінки /login — навіть якщо shouldRedirect=false
+      // (бо /carrier/login починається з /carrier і система хибно вважає "вже тут")
+      const isOnLoginPage = window.location.pathname.toLowerCase().includes('/login');
+      if (isOnLoginPage || t.shouldRedirect) {
+        window.location.assign(t.url || '/');
+      }
     }
   }, [isAuthenticated, authLoading, user]);
 
@@ -277,11 +282,13 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                           <User size={18} className="text-slate-400" />
                         </div>
-                        <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)}
+                        <input type="text" id="portal-firstName" name="firstName" autoComplete="given-name"
+                          value={firstName} onChange={e => setFirstName(e.target.value)}
                           required placeholder={t.firstName}
                           className={`w-full bg-slate-950/60 border border-white/10 rounded-xl py-3.5 pl-10 pr-3 text-white placeholder-slate-500 focus:outline-none focus:bg-slate-900/50 ${colors.borderFocus} transition-all font-medium`} />
                       </div>
-                      <input type="text" value={lastName} onChange={e => setLastName(e.target.value)}
+                      <input type="text" id="portal-lastName" name="lastName" autoComplete="family-name"
+                        value={lastName} onChange={e => setLastName(e.target.value)}
                         required placeholder={t.lastName}
                         className={`flex-1 bg-slate-950/60 border border-white/10 rounded-xl py-3.5 px-4 text-white placeholder-slate-500 focus:outline-none focus:bg-slate-900/50 ${colors.borderFocus} transition-all font-medium`} />
                     </div>
@@ -289,7 +296,8 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                         <Phone size={18} className="text-slate-400" />
                       </div>
-                      <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                      <input type="tel" id="portal-phone" name="phone" autoComplete="tel"
+                        value={phone} onChange={e => setPhone(e.target.value)}
                         placeholder={t.phone} className={inputClass} />
                     </div>
                   </motion.div>
@@ -300,7 +308,8 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Mail size={18} className="text-slate-400" />
                 </div>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                <input type="email" id="portal-email" name="email" autoComplete="email"
+                  value={email} onChange={e => setEmail(e.target.value)}
                   required placeholder={t.email} className={inputClass} />
               </div>
 
@@ -308,7 +317,8 @@ export default function PortalLogin({ role, title, subtitle, colorClass, icon: I
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Lock size={18} className="text-slate-400" />
                 </div>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                <input type="password" id="portal-password" name="password" autoComplete="current-password"
+                  value={password} onChange={e => setPassword(e.target.value)}
                   required placeholder={t.password} className={inputClass} />
               </div>
             </div>

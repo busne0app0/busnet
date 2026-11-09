@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@busnet/shared/supabase/config';
-import { getUaDayOfWeek, formatISODate } from '../lib/dateUtils';
+import { getUaDayOfWeek, formatISODate, addDays } from '../lib/dateUtils';
 import { isCityMatch } from '../lib/cityUtils';
 
 export interface CalendarDayInfo {
@@ -19,6 +19,7 @@ export interface RouteStopRecord {
   time?: string;
   id?: string;
   address?: string;
+  dayOffset?: number;
 }
 
 export interface RouteDirectionRecord {
@@ -76,6 +77,7 @@ export function useCalendarSchedule({ year, month, from = '', to = '' }: UseCale
 
     if (scheduleCache.has(cacheKey)) {
       setMonthTrips(scheduleCache.get(cacheKey)!);
+      setLoading(false);
       return;
     }
 
@@ -94,7 +96,7 @@ export function useCalendarSchedule({ year, month, from = '', to = '' }: UseCale
       try {
         const { data: rawRoutes, error: dbError } = await supabase
           .from('routes')
-          .select('id, name, outbound, inbound, amenities, currency, status, pricesThere, pricesBack, seats')
+          .select('id, name, outbound, inbound, amenities, currency, status, seats')
           .eq('status', 'active')
           .abortSignal(controller.signal);
 
@@ -112,32 +114,39 @@ export function useCalendarSchedule({ year, month, from = '', to = '' }: UseCale
           defaultCurrency: string,
           routeAmenities: string[],
           dayNum: number,
-          uaDay: string
+          isoDate: string
         ) => {
-          if (!dir || !dir.stops || !dir.days) return;
-          if (!dir.days.includes(uaDay)) return;
+          if (!dir || !dir.stops || !dir.days || dir.stops.length < 2) return;
 
           const stops = dir.stops;
-          if (stops.length < 2) return;
-
           let fromIdx = -1;
           let toIdx = -1;
 
-          if (trimmedFrom) {
-            fromIdx = stops.findIndex(s => isCityMatch(s.city, trimmedFrom));
-          }
-          if (trimmedTo) {
-            toIdx = stops.findIndex(s => isCityMatch(s.city, trimmedTo));
-          }
-
-          // Both cities provided: must appear in proper sequence
           if (trimmedFrom && trimmedTo) {
+            fromIdx = stops.findIndex(s => isCityMatch(s.city, trimmedFrom));
+            toIdx = stops.findIndex(s => isCityMatch(s.city, trimmedTo));
             if (fromIdx === -1 || toIdx === -1 || fromIdx >= toIdx) return;
           } else if (trimmedFrom) {
+            fromIdx = stops.findIndex(s => isCityMatch(s.city, trimmedFrom));
             if (fromIdx === -1) return;
+            toIdx = stops.length - 1;
           } else if (trimmedTo) {
+            toIdx = stops.findIndex(s => isCityMatch(s.city, trimmedTo));
             if (toIdx === -1) return;
+            fromIdx = 0;
+          } else {
+            fromIdx = 0;
+            toIdx = stops.length - 1;
           }
+
+          // ✅ Синхронізовано з useTrips.ts:
+          // Дата виїзду з початкової точки = обрана дата мінус dayOffset зупинки посадки
+          const departureStop = stops[fromIdx];
+          const dayOffset = departureStop?.dayOffset || 0;
+          const startDate = addDays(isoDate, -dayOffset);
+          const uaDay = getUaDayOfWeek(startDate);
+
+          if (!dir.days.includes(uaDay)) return;
 
           // Calculate price properly
           let calculatedPrice = 0;
@@ -206,17 +215,16 @@ export function useCalendarSchedule({ year, month, from = '', to = '' }: UseCale
         // Scan each day of the month
         for (let d = 1; d <= daysInMonth; d++) {
           const iso = formatISODate(year, month + 1, d);
-          const uaDay = getUaDayOfWeek(iso);
 
           for (const route of routes) {
             const cur = route.currency || 'ГРН';
             const amenities = route.amenities || [];
 
             // Check outbound
-            checkDirection(route.outbound, route.pricesThere, cur, amenities, d, uaDay);
+            checkDirection(route.outbound, route.pricesThere, cur, amenities, d, iso);
 
             // Check inbound
-            checkDirection(route.inbound, route.pricesBack, cur, amenities, d, uaDay);
+            checkDirection(route.inbound, route.pricesBack, cur, amenities, d, iso);
           }
 
           if (data[d]) {

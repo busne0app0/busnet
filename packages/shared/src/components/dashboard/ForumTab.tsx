@@ -18,9 +18,10 @@ interface ForumPost {
 interface ForumTabProps {
   forumPosts: ForumPost[];
   handleLike: (id: string) => void;
+  onCreatePost?: (content: string, tag?: string) => Promise<void>;
 }
 
-const ForumTab: React.FC<ForumTabProps> = ({ forumPosts, handleLike }) => {
+const ForumTab: React.FC<ForumTabProps> = ({ forumPosts, handleLike, onCreatePost }) => {
   const { user } = useAuthStore();
   const [search, setSearch] = useState('');
   const [activeCat, setActiveCat] = useState('Всі теми');
@@ -44,10 +45,14 @@ const ForumTab: React.FC<ForumTabProps> = ({ forumPosts, handleLike }) => {
     if (!newPostText.trim() || !user) return;
     setIsPosting(true);
     try {
-      // ✅ Через forumService — безпечне створення
-      const id = await forumService.createPost(newPostText, newPostTag);
-      if (!id) throw new Error('Не вдалося опублікувати');
-      toast.success('Пост опубліковано!');
+      if (onCreatePost) {
+        await onCreatePost(newPostText, newPostTag);
+      } else {
+        // ✅ Через forumService — безпечне створення
+        const id = await forumService.createPost(newPostText, newPostTag);
+        if (!id) throw new Error('Не вдалося опублікувати');
+        toast.success('Пост опубліковано!');
+      }
       setNewPostText('');
       setShowNewPostModal(false);
     } catch (e: any) {

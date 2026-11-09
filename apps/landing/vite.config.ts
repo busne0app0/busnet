@@ -14,7 +14,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       workbox: {
-        maximumFileSizeToCacheInBytes: 3000000 
+        maximumFileSizeToCacheInBytes: 3000000
       },
       manifest: {
         name: 'BUSNET UA',
@@ -31,10 +31,18 @@ export default defineConfig({
     })
   ],
   base: '/',
-  server: { 
+  server: {
     hmr: process.env.DISABLE_HMR !== 'true',
     fs: {
       allow: ['../..']
+    },
+    proxy: {
+      '/api/altrans': {
+        target: 'https://al-trans.com.ua',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/altrans/, ''),
+        secure: false,
+      }
     }
   }
 });

@@ -9,6 +9,7 @@ import { AboutSection } from '@busnet/shared/components/home/AboutSection';
 import { ReviewsSection } from '@busnet/shared/components/home/ReviewsSection';
 import { AppEcoSection } from '@busnet/shared/components/home/AppEcoSection';
 import { ConfidenceSection } from '@busnet/shared/components/home/ConfidenceSection';
+import { FAQSection } from '@busnet/shared/components/home/FAQSection';
 import { SEOFooterSection } from '@busnet/shared/components/home/SEOFooterSection';
 import { ErrorBoundary } from '@busnet/shared/components/common/ErrorBoundary';
 import { useTrips } from '@busnet/shared/hooks/useTrips';
@@ -231,6 +232,9 @@ export default function HomePage() {
               <AppEcoSection />
             </div>
             <NeuralWorkflow />
+            <div id="faq" className="w-full flex justify-center scroll-mt-20">
+              <FAQSection />
+            </div>
             <SEOFooterSection />
           </div>
         )}

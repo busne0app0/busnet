@@ -12,6 +12,7 @@ import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
 import { supabase } from '@busnet/shared/supabase/config';
+import { uploadCarrierLogo } from '@busnet/shared/lib/carrierLogo';
 
 const ProfileTab: React.FC = () => {
   const { user } = useAuthStore();
@@ -155,47 +156,18 @@ const ProfileTab: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    if (!file.type.startsWith('image/')) {
-      toast.error('Оберіть файл зображення (JPG, PNG, SVG)');
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('Розмір файлу не повинен перевищувати 2 МБ');
-      return;
-    }
-
     setUploadingLogo(true);
-    setUploadProgress(15);
+    setUploadProgress(20);
     const toastId = toast.loading('Завантаження логотипу...');
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.uid}-${Math.random()}.${fileExt}`;
-      const filePath = `logos/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-      setUploadProgress(70);
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ logoUrl: publicUrl })
-        .eq('uid', user.uid);
-      
-      if (updateError) throw updateError;
-
+      const publicUrl = await uploadCarrierLogo(file, user.uid, profile.logoUrl);
+      setUploadProgress(100);
       setProfile(prev => ({ ...prev, logoUrl: publicUrl }));
       toast.success('Логотип успішно оновлено!', { id: toastId });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Logo upload failed:', error);
-      toast.error('Помилка при завантаженні', { id: toastId });
+      toast.error(error?.message || 'Помилка при завантаженні', { id: toastId });
     } finally {
       setUploadingLogo(false);
       setUploadProgress(0);

@@ -43,16 +43,29 @@ async function loadCities(): Promise<ExtendedCity[]> {
       const raw = typeof stop?.city === 'string' ? stop.city.trim() : '';
       if (!raw) continue;
 
-      const known = staticIndex.get(normalize(raw));
+      // Try exact match first, then try normalized tokens for partial compound names
+      let known = staticIndex.get(normalize(raw));
+
+      // Fallback: check if raw is a substring of any known city name (e.g. slight spelling differences)
+      if (!known) {
+        const normRaw = normalize(raw);
+        for (const [key, c] of staticIndex.entries()) {
+          if (key.startsWith(normRaw) || normRaw.startsWith(key)) {
+            known = c;
+            break;
+          }
+        }
+      }
+
       const city: ExtendedCity = known
         ? { ...known, fromDb: true }
         : {
-            id: `db-${normalize(raw).replace(/[^\p{L}\p{N}]+/gu, '-')}`,
-            names: { uk: raw, en: raw, it: raw },
-            countryCode: '',
-            popular: false,
-            fromDb: true,
-          };
+          id: `db-${normalize(raw).replace(/[^\p{L}\p{N}]+/gu, '-')}`,
+          names: { uk: raw, en: raw, it: raw },
+          countryCode: '',
+          popular: false,
+          fromDb: true,
+        };
 
       if (!byId.has(city.id)) byId.set(city.id, city);
     }
@@ -63,7 +76,9 @@ async function loadCities(): Promise<ExtendedCity[]> {
     if (!byId.has(sc.id)) byId.set(sc.id, { ...sc, fromDb: false });
   }
 
-  return [...byId.values()];
+  const result = [...byId.values()];
+  console.log('[useCities] cities:', result.length, result.map((c) => c.names.uk));
+  return result;
 }
 
 // Кэш на рівні модуля: один запит на сесію для всіх компонентів
