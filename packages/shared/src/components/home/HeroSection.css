@@ -155,7 +155,7 @@
 /* ─── SearchWidget wrapper anchored at bottom of hero ─── */
 .busnet-hero__search-wrap {
   position: relative;
-  z-index: 2;
+  z-index: 60;
   width: 100%;
   padding: 0 1.25rem 2rem;
 }

@@ -193,7 +193,8 @@ export default function SearchWidget({ onSearch, isLoading = false }: SearchWidg
     const below = window.innerHeight - rect.bottom;
     const above = rect.top - HEADER_OFFSET;
 
-    setCalendarOpensUp(below < needed && above > below);
+    // Open UP only if there's genuinely not enough room below AND plenty of room above the header
+    setCalendarOpensUp(below < needed && above >= needed);
   }, [isCalendarOpen, isSheet]);
 
   // Sheet: lock body scroll. Popover: close on outside pointerdown.
