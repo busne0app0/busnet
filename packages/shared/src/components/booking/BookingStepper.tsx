@@ -6,32 +6,24 @@ import Step2Details from './steps/Step2Details';
 import Step3Success from './steps/Step3Success';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useLanguage } from '@busnet/shared/context/LanguageContext';
 import { supabase } from '@busnet/shared/supabase/config';
 import { Trip } from '../../busnet/types';
 
 const ALTRANS_CARRIER_UID = 'ec987229-0773-49b9-bac8-69d562a794d1';
 
-const stepsMeta = [
-  { id: 1, label: 'Підтвердження' },
-  { id: 2, label: 'Пасажири' },
-  { id: 3, label: 'Готово' }
-];
-
-function addDays(isoDate: string, days: number): string {
-  try {
-    const [y, m, d] = isoDate.split('-').map(Number);
-    const dt = new Date(Date.UTC(y, m - 1, d + days));
-    return dt.toISOString().split('T')[0];
-  } catch {
-    return isoDate;
-  }
-}
-
 export default function BookingStepper() {
   const { currentStep, setStep, selectedTrip, setTrip } = useBookingStore();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [restoring, setRestoring] = useState(false);
+
+  const stepsMeta = [
+    { id: 1, label: t.booking?.step1Title || 'Підтвердження' },
+    { id: 2, label: t.booking?.step2Title?.split(' ')[0] || 'Пасажири' },
+    { id: 3, label: t.booking?.step3BookingNumber ? 'Готово' : 'Готово' }
+  ];
 
   useEffect(() => {
     if (selectedTrip || currentStep === 3) return;
@@ -199,7 +191,9 @@ export default function BookingStepper() {
           className="flex items-center gap-2 text-slate-400 hover:text-cyan-400 transition-colors group px-3 py-2 rounded-full border border-white/10 hover:border-cyan-500/30"
         >
           <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-          <span className="text-[10px] font-black uppercase tracking-widest">{currentStep === 3 ? 'На головну' : 'Назад'}</span>
+          <span className="text-[10px] font-black uppercase tracking-widest">
+            {currentStep === 3 ? (t.booking?.toHome || 'На головну') : (t.booking?.back || 'Назад')}
+          </span>
         </button>
 
         <div className="flex items-center gap-4 sm:gap-10">

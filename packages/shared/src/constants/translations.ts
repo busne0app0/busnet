@@ -210,6 +210,98 @@ export interface TranslationSchema {
     titleAccent: string;
     items: Array<{ title: string; desc: string; icon: string }>;
   };
+  faq: {
+    title: string;
+    titleAccent: string;
+    items: Array<{
+      id: string;
+      category: string;
+      question: string;
+      answer: string;
+    }>;
+  };
+  booking: {
+    back: string;
+    toHome: string;
+    step1Title: string;
+    step1TitleAccent: string;
+    step1Desc: string;
+    step1Number: string;
+    directTrip: string;
+    inTransit: string;
+    dayPlus: (days: number) => string;
+    singleTicket: string;
+    continue: string;
+    step2Title: string;
+    step2AuthHeader: string;
+    step2AuthSub: string;
+    loginTab: string;
+    registerTab: string;
+    authorizedAs: string;
+    contactsHeader: string;
+    emailLabel: string;
+    phoneLabel: string;
+    passengerNum: (num: number) => string;
+    firstNameLabel: string;
+    lastNameLabel: string;
+    discountLabel: string;
+    birthDateLabel: string;
+    addPassenger: string;
+    totalLabel: (count: number) => string;
+    confirmButton: string;
+    discounts: {
+      none: string;
+      child: string;
+      child_50: string;
+      child_30: string;
+      student_10: string;
+      senior_10: string;
+    };
+    step3Welcome: string;
+    step3WelcomeSub: string;
+    step3BookingNumber: string;
+    step3CopyNumber: string;
+    step3TotalToPay: string;
+    step3EmailContact: string;
+    step3GoToDashboard: string;
+  };
+  dashboard: {
+    welcome: (name: string) => string;
+    subtitle: string;
+    activeTickets: string;
+    totalTrips: string;
+    bonusPoints: string;
+    passengers: string;
+    nearestTrip: string;
+    ticketConfirmed: string;
+    from: string;
+    to: string;
+    date: string;
+    departure: string;
+    seats: string;
+    boardingPass: string;
+    allTickets: string;
+    noActiveTrips: string;
+    noActiveTripsSub: string;
+    findTicket: string;
+    offerBadge: string;
+    offerTitle: string;
+    offerDesc: string;
+    bookNow: string;
+    tabs: {
+      overview: string;
+      tickets: string;
+      passengers: string;
+      bonuses: string;
+      search: string;
+      notifications: string;
+      support: string;
+      forum: string;
+      profile: string;
+      settings: string;
+      history: string;
+    };
+  };
   seo: {
     title: string;
     desc: string;
@@ -503,6 +595,124 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
         { title: 'Повернення', desc: 'Гарантоване 100% повернення коштів при скасуванні за 24 години до відправлення.', icon: 'refund' }
       ]
     },
+    faq: {
+      title: 'Часті запитання',
+      titleAccent: '(FAQ)',
+      items: [
+        {
+          id: 'baggage-allowance',
+          category: 'Багаж',
+          question: 'Скільки багажу включено у вартість квитка на автобус Україна — Італія?',
+          answer: 'У стандартний квиток BUSNET включено:\n• 1 місце ручної поклажі (до 5 кг, розмір до 40×30×20 см) у салон автобуса.\n• 1 або 2 основні валізи в багажне відділення (загальною вагою до 30-40 кг залежно від перевізника, зазвичай сума вимірів до 160 см).\n\nДодатковий багаж або негабаритні речі узгоджуються з диспетчером перед поїздкою.'
+        },
+        {
+          id: 'pay-to-driver',
+          category: 'Оплата',
+          question: 'Чи можна забронювати квиток без передоплати та оплатити водієві при посадці?',
+          answer: 'Так, у сервісі BUSNET діє зручна послуга безкоштовного онлайн-бронювання місця без введення банківської картки.\n\nВи бронюєте місце на сайті, отримуєте квиток із номером місця, а оплачуєте готівкою екіпажу при посадці в автобус (євро € або гривні ₴).'
+        },
+        {
+          id: 'departure-stations',
+          category: 'Маршрути та вокзали',
+          question: 'Звідки саме відправляються та куди прибувають автобуси у Римі, Мілані, Києві, Львові?',
+          answer: 'Регулярні точки посадки:\n• Київ: Центральний автовокзал (Деміївська площа, 3) та АС «Київ» (вул. С. Петлюри, 32).\n• Львів: Центральний автовокзал (вул. Стрийська, 109).\n• Рим (Roma): Autostazione Tiburtina.\n• Мілан (Milano): Автостанція Lampugnano.\n• Болонья: Autostazione di Bologna.'
+        },
+        {
+          id: 'travel-with-pets',
+          category: 'Тварини',
+          question: 'Чи дозволено перевезення домашніх тварин (котів, собак) до Італії?',
+          answer: 'Так, перевезення котів та невеликих собак (до 8-10 кг) можливе за попереднім погодженням з перевізником у переносці з твердим водонепроникним дном та з міжнародним ветпаспортом і чіпом.'
+        },
+        {
+          id: 'bus-amenities',
+          category: 'Комфорт у дорозі',
+          question: 'Які зручності є в автобусах на рейсах між Україною та Італією?',
+          answer: 'Усі міжнародні рейси BUSNET обслуговуються сучасними туристичними автобусами (Van Hool, Setra, Mercedes-Benz).\n\nНа борту є: Wi-Fi, розетки 220V та USB, клімат-контроль, сидіння зі збільшеним простором для ніг, біотуалет та гарячі напої.'
+        }
+      ]
+    },
+    booking: {
+      back: 'Назад',
+      toHome: 'На головну',
+      step1Title: 'Підтвердження',
+      step1TitleAccent: 'вибору',
+      step1Desc: 'Перевірте маршрут і час перед введенням даних',
+      step1Number: 'Крок 1 із 3',
+      directTrip: 'Прямий рейс',
+      inTransit: 'в дорозі',
+      dayPlus: (days: number) => `+${days} д.`,
+      singleTicket: '1 квиток',
+      continue: 'Продовжити',
+      step2Title: 'Пасажири та контакти',
+      step2AuthHeader: 'Авторизація',
+      step2AuthSub: 'Для підтвердження збереження квитків',
+      loginTab: 'Вхід',
+      registerTab: 'Реєстрація',
+      authorizedAs: 'Ви авторизовані',
+      contactsHeader: 'Контактна інформація',
+      emailLabel: 'Email (для квитка)',
+      phoneLabel: 'Номер телефону',
+      passengerNum: (num: number) => `ПАСАЖИР 0${num}`,
+      firstNameLabel: "Ім'я",
+      lastNameLabel: 'Прізвище',
+      discountLabel: 'Знижка',
+      birthDateLabel: 'Дата народження (для підтвердження знижки)',
+      addPassenger: 'Додати пасажира',
+      totalLabel: (count: number) => `Загальна вартість (${count} пас.)`,
+      confirmButton: 'Підтвердити квитки',
+      discounts: {
+        none: 'Без знижки (Повний)',
+        child: 'Дитячий',
+        child_50: 'Діти до 4 років (-50%)',
+        child_30: 'Діти від 4 до 12 років (-30%)',
+        student_10: 'Студенти (-10%)',
+        senior_10: 'Пенсіонери 60+ (-10%)'
+      },
+      step3Welcome: 'Вітаємо в Busnet!',
+      step3WelcomeSub: 'Ваше бронювання успішно оформлено та збережено в кабінеті.',
+      step3BookingNumber: 'Номер бронювання',
+      step3CopyNumber: 'Скопіювати номер',
+      step3TotalToPay: 'Сума до сплати / сплачено',
+      step3EmailContact: 'Контактний Email',
+      step3GoToDashboard: 'Перейти до кабінету'
+    },
+    dashboard: {
+      welcome: (name: string) => `Привіт, ${name}! 👋`,
+      subtitle: 'Ваш персональний кабінет рейсів Україна — Італія (BUSNET)',
+      activeTickets: 'Активні квитки',
+      totalTrips: 'Всього поїздок',
+      bonusPoints: 'Бонусні бали',
+      passengers: 'Пасажири',
+      nearestTrip: 'Найближчий запланований рейс',
+      ticketConfirmed: 'Квиток підтверджено',
+      from: 'Звідки',
+      to: 'Куди',
+      date: 'Дата',
+      departure: 'Відправлення',
+      seats: 'Місця',
+      boardingPass: 'Посадковий талон',
+      allTickets: 'Всі квитки',
+      noActiveTrips: 'Активних поїздок не заплановано',
+      noActiveTripsSub: 'Оберіть потрібний рейс онлайн — розрахунок готівкою з водієм перед виїздом.',
+      findTicket: 'Знайти квиток',
+      offerBadge: 'Спеціальна пропозиція',
+      offerTitle: 'Прямі рейси до Риму, Мілана та Болоньї',
+      offerDesc: 'Бронюйте місця заздалегідь без передоплати. Оплата готівкою водієві при посадці в автобус.',
+      bookNow: 'Забронювати квиток',
+      tabs: {
+        overview: 'Огляд',
+        tickets: 'Мої квитки',
+        passengers: 'Пасажири',
+        bonuses: 'Бонуси',
+        search: 'Пошук',
+        notifications: 'Сповіщення',
+        support: 'Підтримка',
+        forum: 'Форум',
+        profile: 'Профіль',
+        settings: 'Налаштування',
+        history: 'Історія'
+      }
+    },
     seo: {
       title: 'Популярні автобусні маршрути по Європі',
       desc: 'Busnet UA пропонує найшвидші та найдешевші автобусні квитки з України в Польщу, Італію, Німеччину та інші країни ЄС. Завдяки нашій унікальній AI-технології пошуку, ви можете знайти оптимальний маршрут з Києва, Львова, Одеси та Дніпра до Варшави, Берліна, Риму та Мілана за лічені секунди. Бронюйте квитки онлайн без передоплати та насолоджуйтесь комфортною подорожжю з перевіреними перевізниками.'
@@ -789,6 +999,124 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
         { title: 'Refunds', desc: 'Guaranteed 100% refund for cancellations made 24 hours prior.', icon: 'refund' }
       ]
     },
+    faq: {
+      title: 'Frequently Asked',
+      titleAccent: 'Questions (FAQ)',
+      items: [
+        {
+          id: 'baggage-allowance',
+          category: 'Luggage',
+          question: 'How much baggage is included in the bus ticket price Ukraine — Italy?',
+          answer: 'The standard BUSNET ticket includes:\n• 1 carry-on piece (up to 5 kg, dimensions up to 40×30×20 cm) in the bus cabin.\n• 1 or 2 main suitcases in the luggage compartment (total weight up to 30-40 kg depending on the carrier).\n\nAdditional luggage must be agreed with the dispatcher prior to travel.'
+        },
+        {
+          id: 'pay-to-driver',
+          category: 'Payment',
+          question: 'Can I book a ticket without prepayment and pay the driver upon boarding?',
+          answer: 'Yes! BUSNET provides convenient free online seat booking without entering bank card details.\n\nYou book your seat online and pay in cash directly to the bus crew when boarding (accepted in EUR € or UAH ₴).'
+        },
+        {
+          id: 'departure-stations',
+          category: 'Routes & Stations',
+          question: 'Where exactly do buses depart and arrive in Rome, Milan, Kyiv, and Lviv?',
+          answer: 'Regular stations:\n• Kyiv: Central Bus Station (Demiivska Sq., 3) and Bus Station Kyiv (32 S. Petliury St.).\n• Lviv: Central Bus Station (109 Stryiska St.).\n• Rome (Roma): Autostazione Tiburtina.\n• Milan (Milano): Lampugnano Bus Station.\n• Bologna: Autostazione di Bologna.'
+        },
+        {
+          id: 'travel-with-pets',
+          category: 'Pets',
+          question: 'Is it allowed to travel with pets (cats, dogs) to Italy?',
+          answer: 'Yes, transporting cats and small dogs (up to 8-10 kg) is permitted with prior carrier consent in a secure carrier box with an international veterinary passport and microchip.'
+        },
+        {
+          id: 'bus-amenities',
+          category: 'Comfort',
+          question: 'What amenities are available on buses between Ukraine and Italy?',
+          answer: 'All international BUSNET trips are serviced by modern coaches (Van Hool, Setra, Mercedes-Benz).\n\nOnboard features: Free Wi-Fi, 220V and USB outlets, climate control, ergonomic reclining seats with extra legroom, restroom, and hot drinks.'
+        }
+      ]
+    },
+    booking: {
+      back: 'Back',
+      toHome: 'To Home',
+      step1Title: 'Selection',
+      step1TitleAccent: 'Confirmation',
+      step1Desc: 'Review the route and departure time before entering details',
+      step1Number: 'Step 1 of 3',
+      directTrip: 'Direct Trip',
+      inTransit: 'in transit',
+      dayPlus: (days: number) => `+${days} d.`,
+      singleTicket: '1 ticket',
+      continue: 'Continue',
+      step2Title: 'Passengers & Contacts',
+      step2AuthHeader: 'Authentication',
+      step2AuthSub: 'To ensure your tickets are securely saved',
+      loginTab: 'Sign In',
+      registerTab: 'Register',
+      authorizedAs: 'Signed In',
+      contactsHeader: 'Contact Information',
+      emailLabel: 'Email (for ticket delivery)',
+      phoneLabel: 'Phone number',
+      passengerNum: (num: number) => `PASSENGER 0${num}`,
+      firstNameLabel: 'First Name',
+      lastNameLabel: 'Last Name',
+      discountLabel: 'Discount',
+      birthDateLabel: 'Date of Birth (to verify discount eligibility)',
+      addPassenger: 'Add Passenger',
+      totalLabel: (count: number) => `Total Price (${count} pax)`,
+      confirmButton: 'Confirm Booking',
+      discounts: {
+        none: 'Standard (Full Fare)',
+        child: 'Child Fare',
+        child_50: 'Children under 4 yrs (-50%)',
+        child_30: 'Children 4 to 12 yrs (-30%)',
+        student_10: 'Students (-10%)',
+        senior_10: 'Seniors 60+ (-10%)'
+      },
+      step3Welcome: 'Welcome to Busnet!',
+      step3WelcomeSub: 'Your booking has been successfully issued and saved to your dashboard.',
+      step3BookingNumber: 'Booking Number',
+      step3CopyNumber: 'Copy Number',
+      step3TotalToPay: 'Amount Due / Paid',
+      step3EmailContact: 'Contact Email',
+      step3GoToDashboard: 'Go to Dashboard'
+    },
+    dashboard: {
+      welcome: (name: string) => `Hello, ${name}! 👋`,
+      subtitle: 'Your personal Ukraine — Italy travel dashboard (BUSNET)',
+      activeTickets: 'Active Tickets',
+      totalTrips: 'Total Trips',
+      bonusPoints: 'Bonus Points',
+      passengers: 'Saved Passengers',
+      nearestTrip: 'Next Scheduled Trip',
+      ticketConfirmed: 'Ticket Confirmed',
+      from: 'From',
+      to: 'To',
+      date: 'Date',
+      departure: 'Departure',
+      seats: 'Seats',
+      boardingPass: 'Boarding Pass',
+      allTickets: 'All Tickets',
+      noActiveTrips: 'No active trips scheduled',
+      noActiveTripsSub: 'Choose your route online — pay cash to driver before departure.',
+      findTicket: 'Search Tickets',
+      offerBadge: 'Special Offer',
+      offerTitle: 'Direct routes to Rome, Milan & Bologna',
+      offerDesc: 'Book seats in advance without prepayment. Pay cash to driver upon boarding.',
+      bookNow: 'Book a Ticket',
+      tabs: {
+        overview: 'Overview',
+        tickets: 'My Tickets',
+        passengers: 'Passengers',
+        bonuses: 'Bonus Points',
+        search: 'Search Trips',
+        notifications: 'Notifications',
+        support: 'Support 24/7',
+        forum: 'Travelers Forum',
+        profile: 'Profile',
+        settings: 'Settings',
+        history: 'Trip History'
+      }
+    },
     seo: {
       title: 'Popular Bus Routes Across Europe',
       desc: 'Busnet UA offers reliable and affordable bus tickets connecting Ukraine with Poland, Italy, Germany, and the EU. Our neural routing engine helps you pick optimal schedules in seconds.'
@@ -1074,6 +1402,124 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
         { title: 'Supporto 24/7', desc: 'Agenti AI e operatori umani pronti ad aiutarti in qualsiasi momento.', icon: 'support' },
         { title: 'Rimborsi', desc: 'Rimborso garantito al 100% per cancellazioni effettuate con 24h di anticipo.', icon: 'refund' }
       ]
+    },
+    faq: {
+      title: 'Domande',
+      titleAccent: 'Frequenti (FAQ)',
+      items: [
+        {
+          id: 'baggage-allowance',
+          category: 'Bagagli',
+          question: 'Quanti bagagli sono inclusi nel prezzo del biglietto Ucraina — Italia?',
+          answer: 'Il biglietto standard BUSNET include:\n• 1 bagaglio a mano (fino a 5 kg, dimensioni max 40×30×20 cm) a bordo.\n• 1 o 2 valigie nel vano bagagli (peso totale fino a 30-40 kg a seconda del vettore).\n\nBagagli extra vanno concordati con l\'assistenza prima della partenza.'
+        },
+        {
+          id: 'pay-to-driver',
+          category: 'Pagamento',
+          question: 'È possibile prenotare il biglietto senza anticipo e pagare all\'autista alla salita?',
+          answer: 'Sì! BUSNET offre la prenotazione online gratuita del posto senza carta di credito.\n\nPrenoti online e paghi l\'intero importo in contanti all\'equipaggio durante la salita a bordo (in Euro € o Hryvnia ₴).'
+        },
+        {
+          id: 'departure-stations',
+          category: 'Tratte & Autostazioni',
+          question: 'Da dove partono e dove arrivano esattamente i pullman a Roma, Milano, Kiev e Leopoli?',
+          answer: 'Fermate regolari:\n• Kiev: Autostazione Centrale (Demiivska 3) e AS Kyiv (via S. Petliury 32).\n• Leopoli (Lviv): Autostazione Centrale (via Stryiska 109).\n• Roma: Autostazione Tiburtina.\n• Milano: Autostazione Lampugnano.\n• Bologna: Autostazione di Bologna.'
+        },
+        {
+          id: 'travel-with-pets',
+          category: 'Animali',
+          question: 'È consentito il trasporto di animali domestici (cani, gatti) verso l\'Italia?',
+          answer: 'Sì, il trasporto di gatti e cani di piccola taglia (fino a 8-10 kg) è consentito previo accordo in trasportino rigido con passaporto veterinario internazionale e microchip.'
+        },
+        {
+          id: 'bus-amenities',
+          category: 'Comfort a bordo',
+          question: 'Quali comfort sono presenti sui pullman tra l\'Ucraina e l\'Italia?',
+          answer: 'Tutte le linee internazionali BUSNET sono operate da moderni autobus granturismo (Van Hool, Setra, Mercedes-Benz).\n\nA bordo: Wi-Fi gratuito, prese 220V e USB, aria condizionata, sedili reclinabili, bagno chimico e bevande calde.'
+        }
+      ]
+    },
+    booking: {
+      back: 'Indietro',
+      toHome: 'Alla Home',
+      step1Title: 'Conferma',
+      step1TitleAccent: 'della scelta',
+      step1Desc: 'Controlla tratta e orario prima di inserire i tuoi dati',
+      step1Number: 'Passo 1 di 3',
+      directTrip: 'Viaggio Diretto',
+      inTransit: 'di viaggio',
+      dayPlus: (days: number) => `+${days} g.`,
+      singleTicket: '1 biglietto',
+      continue: 'Continua',
+      step2Title: 'Passeggeri e Contatti',
+      step2AuthHeader: 'Autenticazione',
+      step2AuthSub: 'Per salvare i tuoi biglietti in modo sicuro',
+      loginTab: 'Accedi',
+      registerTab: 'Registrati',
+      authorizedAs: 'Autenticato come',
+      contactsHeader: 'Informazioni di Contatto',
+      emailLabel: 'Email (per il biglietto)',
+      phoneLabel: 'Numero di telefono',
+      passengerNum: (num: number) => `PASSEGGERO 0${num}`,
+      firstNameLabel: 'Nome',
+      lastNameLabel: 'Cognome',
+      discountLabel: 'Sconto',
+      birthDateLabel: 'Data di nascita (per confermare lo sconto)',
+      addPassenger: 'Aggiungi Passeggero',
+      totalLabel: (count: number) => `Prezzo totale (${count} pass.)`,
+      confirmButton: 'Conferma Prenotazione',
+      discounts: {
+        none: 'Senza sconto (Intero)',
+        child: 'Tariffa Bambini',
+        child_50: 'Bambini fino a 4 anni (-50%)',
+        child_30: 'Bambini da 4 a 12 anni (-30%)',
+        student_10: 'Studenti (-10%)',
+        senior_10: 'Over 60 (-10%)'
+      },
+      step3Welcome: 'Benvenuto in Busnet!',
+      step3WelcomeSub: 'La tua prenotazione è stata emessa e salvata nella tua area personale.',
+      step3BookingNumber: 'Numero di prenotazione',
+      step3CopyNumber: 'Copia numero',
+      step3TotalToPay: 'Totale da pagare / pagato',
+      step3EmailContact: 'Email di contatto',
+      step3GoToDashboard: 'Vai all\'Area Personale'
+    },
+    dashboard: {
+      welcome: (name: string) => `Ciao, ${name}! 👋`,
+      subtitle: 'La tua area personale per i viaggi Ucraina — Italia (BUSNET)',
+      activeTickets: 'Biglietti Attivi',
+      totalTrips: 'Viaggi Totali',
+      bonusPoints: 'Punti Fedeltà',
+      passengers: 'Passeggeri Salvati',
+      nearestTrip: 'Prossimo Viaggio in Programma',
+      ticketConfirmed: 'Biglietto Confermato',
+      from: 'Da',
+      to: 'A',
+      date: 'Data',
+      departure: 'Partenza',
+      seats: 'Posti',
+      boardingPass: 'Carta d\'Imbarco',
+      allTickets: 'Tutti i Biglietti',
+      noActiveTrips: 'Nessun viaggio attivo programmato',
+      noActiveTripsSub: 'Scegli la tua tratta online — paga in contanti all\'autista prima della partenza.',
+      findTicket: 'Cerca Biglietti',
+      offerBadge: 'Offerta Speciale',
+      offerTitle: 'Linee dirette per Roma, Milano e Bologna',
+      offerDesc: 'Prenota i posti in anticipo senza anticipo. Pagamento in contanti alla salita.',
+      bookNow: 'Prenota Biglietto',
+      tabs: {
+        overview: 'Panoramica',
+        tickets: 'I Miei Biglietti',
+        passengers: 'Passeggeri',
+        bonuses: 'Programma Fedeltà',
+        search: 'Cerca Corse',
+        notifications: 'Notifiche',
+        support: 'Assistenza 24/7',
+        forum: 'Forum Viaggiatori',
+        profile: 'Profilo',
+        settings: 'Impostazioni',
+        history: 'Storico Viaggi'
+      }
     },
     seo: {
       title: 'Autobus per l\'Europa | Biglietti Online',
