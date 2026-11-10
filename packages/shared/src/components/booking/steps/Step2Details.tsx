@@ -244,8 +244,13 @@ export default function Step2Details() {
     }
 
     for (let i = 0; i < passengers.length; i++) {
-      if (!passengers[i].firstName.trim() || !passengers[i].lastName.trim()) {
+      const p = passengers[i];
+      if (!p.firstName.trim() || !p.lastName.trim()) {
         setFormError(`Будь ласка, заповніть ім'я та прізвище для пасажира ${i + 1}.`);
+        return;
+      }
+      if (['child_50', 'child_30', 'senior_10'].includes(p.discountType) && !p.birthDate) {
+        setFormError(`Будь ласка, вкажіть дату народження для пасажира ${i + 1} для застосування пільгової знижки.`);
         return;
       }
     }
@@ -502,6 +507,20 @@ export default function Step2Details() {
                     customDiscounts={customDiscountsList}
                   />
                 </div>
+
+                {['child_50', 'child_30', 'senior_10'].includes(passenger.discountType) && (
+                  <div className="space-y-1 sm:col-span-3">
+                    <label className="text-[9px] text-cyan-400 font-black uppercase tracking-widest block">
+                      Дата народження (для підтвердження знижки)
+                    </label>
+                    <input
+                      type="date"
+                      value={passenger.birthDate || ''}
+                      onChange={(e) => updatePassenger(index, { birthDate: e.target.value })}
+                      className="w-full bg-black/40 border border-cyan-400/30 rounded-xl px-3.5 py-2 text-white focus:border-cyan-400 outline-none font-bold text-sm"
+                    />
+                  </div>
+                )}
               </div>
             </motion.div>
           ))}

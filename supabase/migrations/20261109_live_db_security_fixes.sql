@@ -1,119 +1,29 @@
 -- =========================================================================
--- BUSNET LIVE PRODUCTION SECURITY PATCH
--- Exact schema matching: public.users (uid: text, role: text)
--- 1. Close public read leak on bookings (remove USING (true))
--- 2. Secure carrier documents & payouts from self-approval
--- 3. Secure ticket_messages and notifications from phishing / spam
--- 4. Enable claim_guest_booking RPC for public.users
+-- BUSNET LIVE PRODUCTION SECURITY PATCH — STEP 1 of 4
+-- Exact schema: public.users (uid TEXT), payouts.status CHECK ('processing','completed','failed')
+-- ticket_messages columns: id, ticket_id, role, text, sender_name, created_at  (NO user_id)
+-- bookings.contact JSONB  (NO passenger_phone / passenger_email flat columns)
+-- bookings.id — TEXT (not UUID)
+--
+-- WHAT THIS FILE DOES (safe to apply now, does not touch booking reads/writes):
+--   1. Trigger: carrier_documents — non-admin cannot self-approve
+--   2. Trigger: payouts          — non-admin INSERT locked to 'processing'; amount frozen on UPDATE
+--
+-- WHAT THIS FILE INTENTIONALLY OMITS (see comments below):
+--   • bookings SELECT/INSERT RLS  — requires front-end guest-flow fix first (see note A)
+--   • ticket_messages INSERT RLS  — requires confirming how AI writes (see note B)
+--   • notifications INSERT RLS    — low risk, included in Step 3
+--   • claim_guest_booking RPC     — requires bookings.id type + contact format (see note C)
 -- =========================================================================
 
 -- -------------------------------------------------------------------------
--- 1. FIX CRITICAL BOOKINGS DATA LEAK (GDPR & PASSPORT PROTECTION)
+-- 1. CARRIER DOCUMENTS: non-admin cannot approve their own documents
+--
+-- Logic:
+--   • INSERT  → always force status = 'pending'
+--   • UPDATE  → freeze status at OLD value (admin must change it)
+--   • service_role / NULL uid (background jobs) pass through unchanged
 -- -------------------------------------------------------------------------
-ALTER TABLE IF EXISTS public.bookings ENABLE ROW LEVEL SECURITY;
-
--- Drop insecure public read policies
-DROP POLICY IF EXISTS "Allow users to view own bookings" ON public.bookings;
-DROP POLICY IF EXISTS "bookings_select_policy" ON public.bookings;
-DROP POLICY IF EXISTS "bookings_secure_select" ON public.bookings;
-
--- Create hardened SELECT policy:
--- Passengers see ONLY their own bookings
--- Carriers see ONLY bookings for their assigned fleet/carrier_id
--- Admins see all
-CREATE POLICY "bookings_secure_select" ON public.bookings
-FOR SELECT
-USING (
-  -- Passenger: matching user_id
-  (auth.uid() IS NOT NULL AND user_id = auth.uid()::text)
-  
-  -- Carrier: matching carrier_id
-  OR (carrier_id = auth.uid()::text)
-  
-  -- Admin: verified via public.users
-  OR EXISTS (
-    SELECT 1 FROM public.users u
-    WHERE u.uid = auth.uid()::text
-      AND u.role = 'admin'
-  )
-);
-
--- -------------------------------------------------------------------------
--- 2. HARDENED claim_guest_booking RPC (COMPATIBLE WITH public.users)
--- -------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.claim_guest_booking(
-  p_booking_id UUID,
-  p_claim_token UUID DEFAULT NULL,
-  p_user_phone TEXT DEFAULT NULL,
-  p_user_email TEXT DEFAULT NULL
-)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_user_id TEXT := auth.uid()::text;
-  v_booking RECORD;
-  v_clean_phone TEXT;
-BEGIN
-  IF v_user_id IS NULL THEN
-    RETURN FALSE;
-  END IF;
-
-  -- 1. Fetch unclaimed booking
-  SELECT id, user_id, claim_token, passenger_phone, passenger_email
-  INTO v_booking
-  FROM public.bookings
-  WHERE id = p_booking_id
-    AND (user_id IS NULL OR user_id = v_user_id);
-
-  IF NOT FOUND THEN
-    RETURN FALSE;
-  END IF;
-
-  -- 2. Cryptographic claim_token check (from purchaser device)
-  IF p_claim_token IS NOT NULL AND v_booking.claim_token IS NOT NULL THEN
-    IF v_booking.claim_token = p_claim_token THEN
-      UPDATE public.bookings
-      SET user_id = v_user_id,
-          claim_token = NULL
-      WHERE id = p_booking_id;
-      RETURN TRUE;
-    END IF;
-  END IF;
-
-  -- 3. E.164 phone or Email check
-  v_clean_phone := regexp_replace(COALESCE(p_user_phone, ''), '\D', '', 'g');
-
-  IF (
-    (
-      p_user_email IS NOT NULL 
-      AND length(trim(p_user_email)) > 3 
-      AND lower(trim(COALESCE(v_booking.passenger_email, ''))) = lower(trim(p_user_email))
-    )
-    OR
-    (
-      v_clean_phone IS NOT NULL 
-      AND length(v_clean_phone) >= 9
-      AND regexp_replace(COALESCE(v_booking.passenger_phone, ''), '\D', '', 'g') = v_clean_phone
-    )
-  ) THEN
-    UPDATE public.bookings
-    SET user_id = v_user_id,
-        claim_token = NULL
-    WHERE id = p_booking_id;
-    RETURN TRUE;
-  END IF;
-
-  RETURN FALSE;
-END;
-$$;
-
--- -------------------------------------------------------------------------
--- 3. CARRIER FRAUD PREVENTION: CARRIER DOCUMENTS & PAYOUTS
--- -------------------------------------------------------------------------
--- Carriers cannot self-approve their licenses or document status
 CREATE OR REPLACE FUNCTION public.trg_lock_carrier_document_status()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -121,10 +31,14 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.users WHERE uid = auth.uid()::text AND role = 'admin') THEN
+  -- Only restrict authenticated non-admins; let service_role / cron jobs pass
+  IF auth.uid() IS NOT NULL
+     AND coalesce(public.get_user_role(), '') <> 'admin'
+  THEN
     IF TG_OP = 'INSERT' THEN
       NEW.status := 'pending';
-    ELSIF TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status THEN
+    ELSE
+      -- UPDATE: restore old status regardless of what carrier sent
       NEW.status := OLD.status;
     END IF;
   END IF;
@@ -138,7 +52,14 @@ CREATE TRIGGER trg_carrier_doc_status
   FOR EACH ROW
   EXECUTE FUNCTION public.trg_lock_carrier_document_status();
 
--- Payouts: carrier cannot insert payout with status='completed'
+-- -------------------------------------------------------------------------
+-- 2. PAYOUTS: non-admin cannot insert with status='completed' or change amount
+--
+-- payouts.status CHECK allows: 'processing' | 'completed' | 'failed'
+-- So we lock INSERT to 'processing' (valid per CHECK).
+-- On UPDATE we freeze both status AND amount for non-admins.
+-- service_role (backend payout processor) passes through.
+-- -------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.trg_lock_payout_status()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -146,11 +67,16 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.users WHERE uid = auth.uid()::text AND role = 'admin') THEN
+  IF auth.uid() IS NOT NULL
+     AND coalesce(public.get_user_role(), '') <> 'admin'
+  THEN
     IF TG_OP = 'INSERT' THEN
-      NEW.status := 'pending';
-    ELSIF TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status THEN
+      -- Force initial status to 'processing' — valid per CHECK constraint
+      NEW.status := 'processing';
+    ELSE
+      -- UPDATE: carrier cannot change status or amount
       NEW.status := OLD.status;
+      NEW.amount := OLD.amount;
     END IF;
   END IF;
   RETURN NEW;
@@ -163,20 +89,64 @@ CREATE TRIGGER trg_payout_status
   FOR EACH ROW
   EXECUTE FUNCTION public.trg_lock_payout_status();
 
--- -------------------------------------------------------------------------
--- 4. TICKET MESSAGES & NOTIFICATIONS SPAM PROTECTION
--- -------------------------------------------------------------------------
-DROP POLICY IF EXISTS "service_role_insert_message" ON public.ticket_messages;
-CREATE POLICY "ticket_messages_secure_insert" ON public.ticket_messages
-FOR INSERT
-WITH CHECK (
-  auth.uid() IS NOT NULL AND (
-    user_id = auth.uid()::text 
-    OR EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE uid = auth.uid()::text 
-        AND role IN ('admin', 'carrier', 'support')
-    )
-  )
-);
+-- =========================================================================
+-- NOTES FOR STEPS 2–4 (do NOT apply until each prerequisite is met)
+-- =========================================================================
 
+-- NOTE A — bookings SELECT / INSERT RLS (Step 2, after front-end fix)
+-- -----------------------------------------------------------------------
+-- Current issue:
+--   Guest flow does: supabase.rpc('create_booking').then(read back the row).
+--   If we close USING(true) on SELECT before fixing the front-end,
+--   the confirmation screen will stay blank because the returned row is blocked.
+--
+-- Front-end fix needed FIRST:
+--   In useBookingStore.confirmBooking() — the RPC already returns
+--   { booking_id, total_price, claim_token, … } in its JSONB response.
+--   The store should NOT do a second .select() after the RPC call.
+--   Once confirmed this is not happening, we can safely:
+--     DROP POLICY "Allow users to view own bookings" ON public.bookings;
+--     -- (the existing carrier + admin SELECT policies already exist)
+--
+-- INSERT on bookings for anon (WITH CHECK (true)) is a separate step:
+--   Must be closed AFTER create_booking RPC is confirmed to work for guests,
+--   because guests currently bypass RPC and insert directly.
+--   Step: replace anon INSERT policy with: WITH CHECK (false) for anon,
+--   and trust all booking creation goes through create_booking RPC.
+
+
+-- NOTE B — ticket_messages INSERT RLS (Step 3)
+-- -----------------------------------------------------------------------
+-- ticket_messages has NO user_id column.
+-- Columns: id UUID, ticket_id TEXT, role TEXT, text TEXT, sender_name TEXT, created_at.
+--
+-- Current policies that exist (from 20260518_consolidated_idempotent.sql):
+--   • passenger_insert_message  — role='user'  AND ticket belongs to auth.uid()
+--   • carrier_insert_message    — role='carrier' AND ticket.carrier_id = auth.uid()
+--   • admin_insert_message      — jwt user_metadata.role = 'admin'
+--   • service_role_insert_message — WITH CHECK (true)   ← the open one
+--   • ai_insert_messages (possibly) — unknown
+--
+-- Question before closing service_role_insert_message:
+--   Does the AI support bot write ticket_messages via service_role key (Edge Function)?
+--   If YES → simply DROP the open policy; Edge Functions bypass RLS when using service_role.
+--   If NO  → we need to know what role / key it uses before closing.
+--
+-- Action item: check Supabase Edge Functions dashboard — does search-altrans-trips
+--   or any support function call supabase.from('ticket_messages').insert()?
+--   If it uses createClient(url, SERVICE_ROLE_KEY) → safe to drop.
+
+
+-- NOTE C — claim_guest_booking RPC (Step 4)
+-- -----------------------------------------------------------------------
+-- Needs confirmed schema before writing:
+--   1. bookings.id type: TEXT or UUID? (migrations show TEXT; live DB may differ)
+--   2. bookings.contact JSONB format: {"email":"...","phone":"..."} confirmed from useBookingStore
+--   3. Does create_booking already return claim_token? If not, need to add it.
+--
+-- Once confirmed, the function signature will be:
+--   claim_guest_booking(p_booking_id TEXT, p_claim_token UUID, p_user_email TEXT, p_user_phone TEXT)
+--   It reads contact->>'email' and contact->>'phone' from bookings row.
+--   It also needs bookings to have a claim_token column (UUID, nullable).
+--   Adding: ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS claim_token UUID;
+--   And create_booking RPC needs to: generate claim_token := gen_random_uuid() and return it.
