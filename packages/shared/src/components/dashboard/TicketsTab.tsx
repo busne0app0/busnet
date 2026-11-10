@@ -87,9 +87,9 @@ export const TicketsTab: React.FC<TicketsTabProps> = ({ tickets, onCancelTicket,
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
+    <div className="space-y-6 max-w-5xl w-full mx-auto pb-12 min-w-0 overflow-hidden">
       {/* Заголовок та фільтр */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/60 p-4 sm:p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/60 p-4 sm:p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md w-full min-w-0">
         <div>
           <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white flex items-center gap-2">
             Мої квитки
@@ -140,14 +140,14 @@ export const TicketsTab: React.FC<TicketsTabProps> = ({ tickets, onCancelTicket,
 
               <div className="flex flex-col lg:flex-row justify-between gap-6 pl-2">
                 {/* Інформація про рейс */}
-                <div className="flex-1 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-lg sm:text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
-                      <MapPin className="w-5 h-5 text-cyan-400 shrink-0" />
-                      {ticket.route}
+                <div className="flex-1 space-y-4 min-w-0">
+                  <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
+                    <h3 className="text-base sm:text-xl font-extrabold text-white tracking-tight flex items-center gap-2 min-w-0 flex-1 break-words">
+                      <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400 shrink-0" />
+                      <span className="break-words">{ticket.route}</span>
                     </h3>
                     <span
-                      className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                      className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shrink-0 ${
                         isActive
                           ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30'
                           : isCompleted
@@ -188,19 +188,19 @@ export const TicketsTab: React.FC<TicketsTabProps> = ({ tickets, onCancelTicket,
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <span className="font-semibold text-slate-300">№ квитка:</span>
-                    <span className="font-mono bg-slate-800 px-2 py-0.5 rounded text-cyan-300 text-[11px]">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 min-w-0">
+                    <span className="font-semibold text-slate-300 shrink-0">№ квитка:</span>
+                    <span className="font-mono bg-slate-800 px-2 py-0.5 rounded text-cyan-300 text-[11px] truncate max-w-[140px] sm:max-w-none">
                       {ticket.id}
                     </span>
                     {ticket.carrier && (
-                      <span className="ml-auto text-[11px] text-slate-400">Перевізник: {ticket.carrier}</span>
+                      <span className="ml-auto text-[11px] text-slate-400 truncate">Перевізник: {ticket.carrier}</span>
                     )}
                   </div>
                 </div>
 
                 {/* Блок дій (Кнопки) */}
-                <div className="flex flex-row lg:flex-col justify-end gap-2.5 border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-800">
+                <div className="flex flex-col sm:flex-row lg:flex-col justify-end gap-2.5 border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-800 w-full sm:w-auto min-w-0">
                   {isActive && (
                     <>
                       <button

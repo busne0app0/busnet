@@ -16,6 +16,7 @@ import {
   Check
 } from 'lucide-react';
 import { getTripCurrencySymbol } from '@busnet/shared/lib/currencyUtils';
+import { useLanguage } from '@busnet/shared/context/LanguageContext';
 
 // Компонент фірмового стильного випадаючого списку знижок
 function DiscountDropdown({
@@ -23,11 +24,13 @@ function DiscountDropdown({
   onChange,
   childAvailable,
   customDiscounts,
+  t,
 }: {
   value?: string;
   onChange: (val: string) => void;
   childAvailable: boolean;
   customDiscounts: { id: string; label: string; value: number }[];
+  t?: any;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -44,10 +47,10 @@ function DiscountDropdown({
 
   // Якщо в базі знижки не задані — показуємо офіційні стандартні знижки перевізника
   const defaultDiscounts = [
-    { id: 'child_50', label: 'Діти до 4 років', value: 50 },
-    { id: 'child_30', label: 'Діти від 4 до 12 років', value: 30 },
-    { id: 'student_10', label: 'Студенти', value: 10 },
-    { id: 'senior_10', label: 'Пенсіонери (60+)', value: 10 },
+    { id: 'child_50', label: t?.booking?.discounts?.child_50 || 'Діти до 4 років', value: 50 },
+    { id: 'child_30', label: t?.booking?.discounts?.child_30 || 'Діти від 4 до 12 років', value: 30 },
+    { id: 'student_10', label: t?.booking?.discounts?.student_10 || 'Студенти', value: 10 },
+    { id: 'senior_10', label: t?.booking?.discounts?.senior_10 || 'Пенсіонери (60+)', value: 10 },
   ];
 
   const activeCustom = customDiscounts.length > 0
@@ -55,8 +58,8 @@ function DiscountDropdown({
     : defaultDiscounts;
 
   const options = [
-    { id: 'none', label: 'Без знижки (Повний)', value: 0 },
-    ...(childAvailable ? [{ id: 'child', label: 'Дитячий', value: 50 }] : []),
+    { id: 'none', label: t?.booking?.discounts?.none || 'Без знижки (Повний)', value: 0 },
+    ...(childAvailable ? [{ id: 'child', label: t?.booking?.discounts?.child || 'Дитячий', value: 50 }] : []),
     ...activeCustom
   ];
 
@@ -149,6 +152,8 @@ export default function Step2Details() {
     signInWithGoogle,
     loading: authLoading
   } = useAuthStore();
+
+  const { t } = useLanguage();
 
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [authEmail, setAuthEmail] = useState('');
@@ -293,7 +298,7 @@ export default function Step2Details() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-white font-black uppercase tracking-widest italic animate-pulse">Опрацювання запиту...</p>
+            <p className="text-white font-black uppercase tracking-widest italic animate-pulse">{t.booking?.processingRequest || 'Опрацювання запиту...'}</p>
           </div>
         </div>
       )}
@@ -304,10 +309,10 @@ export default function Step2Details() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
             <div>
               <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-                <LogIn className="text-cyan-400" size={18} /> Авторизація
+                <LogIn className="text-cyan-400" size={18} /> {t.booking?.step2AuthHeader || 'Авторизація'}
               </h3>
               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">
-                Для підтвердження збереження квитків
+                {t.booking?.step2AuthSub || 'Для підтвердження збереження квитків'}
               </p>
             </div>
 
@@ -320,7 +325,7 @@ export default function Step2Details() {
                   : 'text-slate-400 hover:text-white'
                   }`}
               >
-                Вхід
+                {t.booking?.loginTab || 'Вхід'}
               </button>
               <button
                 type="button"
@@ -330,7 +335,7 @@ export default function Step2Details() {
                   : 'text-slate-400 hover:text-white'
                   }`}
               >
-                Реєстрація
+                {t.booking?.registerTab || 'Реєстрація'}
               </button>
             </div>
           </div>
@@ -341,7 +346,7 @@ export default function Step2Details() {
                 <input
                   type="text"
                   required
-                  placeholder="Ім'я"
+                  placeholder={t.booking?.firstNameLabel || "Ім'я"}
                   value={regFirstName}
                   onChange={(e) => setRegFirstName(e.target.value)}
                   className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-cyan-400 font-bold placeholder:text-slate-600 text-sm"
@@ -349,7 +354,7 @@ export default function Step2Details() {
                 <input
                   type="text"
                   required
-                  placeholder="Прізвище"
+                  placeholder={t.booking?.lastNameLabel || 'Прізвище'}
                   value={regLastName}
                   onChange={(e) => setRegLastName(e.target.value)}
                   className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-cyan-400 font-bold placeholder:text-slate-600 text-sm"
@@ -363,7 +368,7 @@ export default function Step2Details() {
                 <input
                   type="email"
                   required
-                  placeholder="Ваш Email"
+                  placeholder={t.booking?.emailPlaceholder || 'Ваш Email'}
                   value={authEmail}
                   onChange={(e) => setAuthEmail(e.target.value)}
                   className="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-3 py-2.5 text-white outline-none focus:border-cyan-400 font-bold placeholder:text-slate-600 text-sm"
@@ -374,7 +379,7 @@ export default function Step2Details() {
                 <input
                   type="password"
                   required
-                  placeholder="Ваш пароль"
+                  placeholder={t.booking?.passwordPlaceholder || 'Ваш пароль'}
                   value={authPass}
                   onChange={(e) => setAuthPass(e.target.value)}
                   className="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-3 py-2.5 text-white outline-none focus:border-cyan-400 font-bold placeholder:text-slate-600 text-sm"
@@ -391,7 +396,7 @@ export default function Step2Details() {
                 type="submit"
                 className="w-full sm:w-auto px-6 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase tracking-widest rounded-xl text-xs transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)]"
               >
-                {authMode === 'login' ? 'Увійти' : 'Зареєструватися'}
+                {authMode === 'login' ? (t.booking?.loginSubmit || 'Увійти') : (t.booking?.registerSubmit || 'Зареєструватися')}
               </button>
 
               <button
@@ -417,7 +422,7 @@ export default function Step2Details() {
               <UserCheck size={16} />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase text-emerald-400 tracking-wider">Ви авторизовані</p>
+              <p className="text-[10px] font-black uppercase text-emerald-400 tracking-wider">{t.booking?.authorizedAs || 'Ви авторизовані'}</p>
               <p className="text-xs sm:text-sm font-bold text-white">{user?.email}</p>
             </div>
           </div>
@@ -427,11 +432,11 @@ export default function Step2Details() {
       {/* 1. КОНТАКТНІ ДАНІ */}
       <div className="p-5 sm:p-7 rounded-[28px] bg-white/5 border border-white/10 backdrop-blur-xl">
         <h3 className="text-base sm:text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <Mail className="text-cyan-400" size={18} /> Контактна інформація
+          <Mail className="text-cyan-400" size={18} /> {t.booking?.contactsHeader || 'Контактна інформація'}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest block">Email (для квитка)</label>
+            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest block">{t.booking?.emailLabel || 'Email (для квитка)'}</label>
             <input
               type="email"
               value={mainContact.email}
@@ -441,7 +446,7 @@ export default function Step2Details() {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest block">Номер телефону</label>
+            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest block">{t.booking?.phoneLabel || 'Номер телефону'}</label>
             <input
               type="tel"
               value={mainContact.phone}
@@ -466,7 +471,7 @@ export default function Step2Details() {
             >
               <div className="flex justify-between items-center mb-4">
                 <span className="px-3 py-1 rounded-full bg-cyan-400/10 text-cyan-400 text-[10px] font-black uppercase tracking-widest border border-cyan-400/20">
-                  ПАСАЖИР 0{index + 1}
+                  {t.booking?.passengerNum ? t.booking.passengerNum(index + 1) : `ПАСАЖИР 0${index + 1}`}
                 </span>
                 {index > 0 && (
                   <button
@@ -480,18 +485,18 @@ export default function Step2Details() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Ім'я</label>
+                  <label className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">{t.booking?.firstNameLabel || "Ім'я"}</label>
                   <input
-                    placeholder="Ім'я"
+                    placeholder={t.booking?.firstNameLabel || "Ім'я"}
                     value={passenger.firstName}
                     onChange={(e) => updatePassenger(index, { firstName: e.target.value })}
                     className="w-full bg-black/20 border border-white/5 rounded-xl px-3.5 py-2 text-white focus:border-cyan-400 outline-none font-bold text-sm"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Прізвище</label>
+                  <label className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">{t.booking?.lastNameLabel || 'Прізвище'}</label>
                   <input
-                    placeholder="Прізвище"
+                    placeholder={t.booking?.lastNameLabel || 'Прізвище'}
                     value={passenger.lastName}
                     onChange={(e) => updatePassenger(index, { lastName: e.target.value })}
                     className="w-full bg-black/20 border border-white/5 rounded-xl px-3.5 py-2 text-white focus:border-cyan-400 outline-none font-bold text-sm"
@@ -499,19 +504,20 @@ export default function Step2Details() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Знижка</label>
+                  <label className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">{t.booking?.discountLabel || 'Знижка'}</label>
                   <DiscountDropdown
                     value={passenger.discountType}
                     onChange={(val) => updatePassenger(index, { discountType: val })}
                     childAvailable={childDiscountAvailable}
                     customDiscounts={customDiscountsList}
+                     t={t}
                   />
                 </div>
 
                 {['child_50', 'child_30', 'senior_10'].includes(passenger.discountType) && (
                   <div className="space-y-1 sm:col-span-3">
                     <label className="text-[9px] text-cyan-400 font-black uppercase tracking-widest block">
-                      Дата народження (для підтвердження знижки)
+                      {t.booking?.birthDateLabel || 'Дата народження (для підтвердження знижки)'}
                     </label>
                     <input
                       type="date"
@@ -533,7 +539,7 @@ export default function Step2Details() {
           className="w-full py-4 border-2 border-dashed border-cyan-400/30 hover:border-cyan-400/60 rounded-[24px] text-cyan-400 hover:text-white transition-all flex items-center justify-center gap-2.5 group bg-cyan-950/20 active:scale-[0.98]"
         >
           <Plus size={20} className="group-hover:rotate-180 transition-transform duration-500 text-cyan-400" />
-          <span className="text-xs font-black uppercase tracking-widest italic">Додати пасажира</span>
+          <span className="text-xs font-black uppercase tracking-widest italic">{t.booking?.addPassenger || 'Додати пасажира'}</span>
         </button>
       </div>
 
@@ -559,7 +565,7 @@ export default function Step2Details() {
       <div className="p-4 sm:p-5 rounded-2xl bg-[#141928]/95 border border-white/10 shadow-xl flex items-center justify-between gap-4 mt-2">
         <div>
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">
-            Загальна вартість ({passengers.length} пас.)
+            {t.booking?.totalLabel ? t.booking.totalLabel(passengers.length) : `Загальна вартість (${passengers.length} пас.)`}
           </p>
           <div className="flex items-baseline gap-1">
             <span className="text-2xl sm:text-3xl font-black text-cyan-400 tracking-tight">
@@ -577,7 +583,7 @@ export default function Step2Details() {
           disabled={selectedTrip?.price == null}
           className="neon-gradient-btn min-h-11 px-6 sm:px-8 py-3 rounded-xl font-black uppercase tracking-wider text-xs sm:text-sm text-black shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap"
         >
-          Підтвердити квитки
+          {t.booking?.confirmButton || 'Підтвердити квитки'}
         </button>
       </div>
     </div>

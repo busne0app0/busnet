@@ -1,42 +1,74 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <!-- Головна сторінка сервісу BUSNET -->
+  <!-- Головна сторінка BUSNET UA (включає пошук, маршрути та FAQ) -->
   <url>
-    <loc>https://bus-net.it/</loc>
-    <lastmod>2026-11-09</lastmod>
+    <loc>https://busnetua.it/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
 
-  <!-- Секція маршрутів -->
+  <!-- Сторінка оформлення та вибору квитків -->
   <url>
-    <loc>https://bus-net.it/#routes</loc>
-    <lastmod>2026-11-09</lastmod>
-    <changefreq>weekly</changefreq>
+    <loc>https://busnetua.it/booking</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
 
-  <!-- База знань та часті запитання (FAQ) для Google та AI Overviews -->
+  <!-- Форум пасажирів та попутників -->
   <url>
-    <loc>https://bus-net.it/#faq</loc>
-    <lastmod>2026-11-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-  </url>
-
-  <!-- Форум пасажирів та перевізників -->
-  <url>
-    <loc>https://bus-net.it/forum</loc>
-    <lastmod>2026-11-09</lastmod>
+    <loc>https://busnetua.it/forum</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
 
-  <!-- Контакти та диспетчерська служба -->
+  <!-- Контакти та офіційна підтримка -->
   <url>
-    <loc>https://bus-net.it/#contacts</loc>
-    <lastmod>2026-11-09</lastmod>
+    <loc>https://busnetua.it/contacts</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+  </url>
+
+  <!-- Умови використання платформи -->
+  <url>
+    <loc>https://busnetua.it/terms</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Умови онлайн-бронювання -->
+  <url>
+    <loc>https://busnetua.it/booking-terms</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Правила скасування та повернення -->
+  <url>
+    <loc>https://busnetua.it/refund-policy</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Політика конфіденційності (GDPR) -->
+  <url>
+    <loc>https://busnetua.it/privacy</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Політика використання файлів Cookie -->
+  <url>
+    <loc>https://busnetua.it/cookies</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url>
 </urlset>

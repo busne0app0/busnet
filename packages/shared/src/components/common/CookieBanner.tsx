@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, Cookie, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useLanguage } from '@busnet/shared/context/LanguageContext';
 
 declare global {
   interface Window {
@@ -8,8 +10,36 @@ declare global {
   }
 }
 
+const bannerTexts = {
+  uk: {
+    title: 'Файли cookie та приватність',
+    text: 'Ми використовуємо обов\'язкові технічні та анонімні аналітичні файли cookie відповідно до норм ePrivacy та GDPR для коректної роботи пошуку рейсів по Європі.',
+    moreInfo: 'Детальніше у Політиці Cookie',
+    acceptAll: 'Прийняти всі',
+    essentialOnly: 'Тільки необхідні',
+  },
+  en: {
+    title: 'Cookie Consent & Privacy',
+    text: 'We use strictly necessary technical cookies and anonymized analytics in compliance with the EU ePrivacy Directive and GDPR to provide European travel booking.',
+    moreInfo: 'Read our Cookie Policy',
+    acceptAll: 'Accept All',
+    essentialOnly: 'Essential Only',
+  },
+  it: {
+    title: 'Informativa Cookie e Privacy',
+    text: 'Utilizziamo cookie tecnici essenziali e analisi aggregate anonime nel pieno rispetto della Direttiva ePrivacy e del GDPR per i viaggi in autobus in tutta Europa.',
+    moreInfo: 'Leggi l\'Informativa Cookie',
+    acceptAll: 'Accetta Tutti',
+    essentialOnly: 'Solo Necessari',
+  },
+};
+
 export const CookieBanner: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
+  const { langKey } = useLanguage();
+
+  const currentLang = (langKey === 'it' ? 'it' : langKey === 'en' ? 'en' : 'uk') as keyof typeof bannerTexts;
+  const t = bannerTexts[currentLang];
 
   useEffect(() => {
     try {
@@ -69,46 +99,49 @@ export const CookieBanner: React.FC = () => {
           transition={{ duration: 0.35, ease: 'easeOut' }}
           className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-50 pointer-events-auto"
         >
-          <div className="bg-[#0b1323]/95 backdrop-blur-xl border border-neon-cyan/30 rounded-2xl p-5 shadow-[0_10px_35px_rgba(0,0,0,0.6)] shadow-cyan-950/40 relative">
+          <div className="bg-[#0b1323]/95 backdrop-blur-xl border border-cyan-500/30 rounded-2xl p-4 sm:p-5 shadow-[0_10px_35px_rgba(0,0,0,0.6)] shadow-cyan-950/40 relative">
             {/* Кнопка закриття (відхилення) */}
             <button
               type="button"
               onClick={handleDecline}
               aria-label="Закрити"
-              className="absolute top-3.5 right-3.5 text-slate-400 hover:text-white p-1 rounded-lg transition-colors"
+              className="absolute top-3.5 right-3.5 text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
 
             <div className="flex items-start gap-3.5 pr-6">
-              <div className="p-2 rounded-xl bg-neon-cyan/10 border border-neon-cyan/20 text-neon-cyan shrink-0">
+              <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0">
                 <Cookie className="w-5 h-5" />
               </div>
-              <div>
-                <h3 className="text-white text-sm font-bold flex items-center gap-2">
-                  Файли cookie та приватність
-                  <ShieldCheck className="w-4 h-4 text-neon-cyan inline" />
+              <div className="space-y-1">
+                <h3 className="text-white text-sm font-bold flex items-center gap-1.5">
+                  {t.title}
+                  <ShieldCheck className="w-4 h-4 text-cyan-400 inline" />
                 </h3>
-                <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
-                  Ми використовуємо файли cookie відповідно до норм ePrivacy та GDPR ЄС для аналітики та покращення роботи сервісу квитків Україна — Італія.
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  {t.text}{' '}
+                  <Link to="/cookies" className="text-cyan-400 hover:underline font-semibold block mt-0.5">
+                    {t.moreInfo} →
+                  </Link>
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 mt-4 pt-3 border-t border-white/5">
+            <div className="flex items-center gap-2 mt-3.5 pt-3 border-t border-white/5">
               <button
                 type="button"
                 onClick={handleAcceptAll}
-                className="flex-1 py-2 px-3 rounded-xl bg-neon-cyan hover:bg-cyan-400 text-black font-extrabold text-xs uppercase tracking-wider transition-all shadow-[0_0_12px_rgba(0,229,255,0.25)] text-center cursor-pointer"
+                className="flex-1 py-2 px-3 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-black font-black text-xs uppercase tracking-wider transition-all shadow-[0_0_12px_rgba(6,182,212,0.3)] text-center cursor-pointer"
               >
-                Прийняти всі
+                {t.acceptAll}
               </button>
               <button
                 type="button"
                 onClick={handleDecline}
-                className="py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-bold text-xs uppercase tracking-wider transition-colors border border-white/5 text-center cursor-pointer"
+                className="py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-bold text-xs uppercase tracking-wider transition-colors border border-white/10 text-center cursor-pointer"
               >
-                Тільки необхідні
+                {t.essentialOnly}
               </button>
             </div>
           </div>
@@ -119,4 +152,3 @@ export const CookieBanner: React.FC = () => {
 };
 
 export default CookieBanner;
-

@@ -102,16 +102,16 @@ const PassengersTab: React.FC<PassengersTabProps> = ({ passengers, onDelete, onA
               `}>
                 {p.avatar}
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                    <h4 className="text-lg font-bold text-white tracking-tight">{p.name}</h4>
+                    <h4 className="text-base sm:text-lg font-bold text-white tracking-tight truncate">{p.name}</h4>
                     {p.role === 'Основний' && (
                       <span className="text-[8px] bg-[#00c8ff]/20 text-[#00c8ff] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-[0_0_10px_rgba(0,200,255,0.1)]">
                         Me
                       </span>
                     )}
                 </div>
-                <p className="text-xs text-[#7a9ab5] font-medium mt-0.5 italic">{p.doc}</p>
+                <p className="text-xs text-[#7a9ab5] font-medium mt-0.5 italic truncate">{p.doc}</p>
               </div>
               <div className="flex gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
                 <button 

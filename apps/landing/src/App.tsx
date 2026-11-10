@@ -18,6 +18,14 @@ import InvitePage from '@busnet/shared/pages/InvitePage';
 import MainLayout from '@busnet/shared/components/layout/MainLayout';
 import { CookieBanner } from '@busnet/shared/components/common/CookieBanner';
 
+// Окремі публічні юридичні сторінки (з прямими URL для користувачів та SEO/AI краулерів)
+import TermsPage from '@busnet/shared/pages/legal/TermsPage';
+import PrivacyPage from '@busnet/shared/pages/legal/PrivacyPage';
+import CookiesPage from '@busnet/shared/pages/legal/CookiesPage';
+import BookingTermsPage from '@busnet/shared/pages/legal/BookingTermsPage';
+import RefundPolicyPage from '@busnet/shared/pages/legal/RefundPolicyPage';
+import ContactsPage from '@busnet/shared/pages/legal/ContactsPage';
+
 export default function App() {
   const initAuth = useAuthStore(state => state.initAuth);
   useEffect(() => {
@@ -40,6 +48,14 @@ export default function App() {
               <Route path="/bridge" element={<DashboardBridge />} />
               <Route path="/cyber-terminal" element={<CyberTerminal />} />
               <Route path="/invite/:role/:referralId" element={<InvitePage />} />
+
+              {/* 6 публічних юридичних сторінок */}
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/cookies" element={<CookiesPage />} />
+              <Route path="/booking-terms" element={<BookingTermsPage />} />
+              <Route path="/refund-policy" element={<RefundPolicyPage />} />
+              <Route path="/contacts" element={<ContactsPage />} />
             </Routes>
           </BrowserRouter>
         </SearchProvider>

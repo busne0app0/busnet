@@ -53,8 +53,11 @@
 
   html, body {
     scroll-behavior: smooth;
+    width: 100%;
     max-width: 100%;
-    overflow-x: clip;
+    overflow-x: hidden;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
     background: #030712;
   }
 
@@ -224,6 +227,7 @@
     );
     background-size: 300% auto;
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     animation: holographic-shine 10s linear infinite;
     position: relative;
@@ -248,6 +252,7 @@
   .text-gradient-silver {
     background: linear-gradient(to bottom, #ffffff 0%, #a5a5a5 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 

@@ -33,7 +33,7 @@ const parseRoute = (routeStr?: string) => {
 export const OverviewTab: React.FC<OverviewTabProps> = ({ setActiveTab, tickets, passengersCount }) => {
   const { user } = useAuthStore();
   const { selectedTrip, passengers: bookingPassengers } = useBookingStore();
-  const { language } = useLanguage();
+  const { t, language } = useLanguage();
   const [showQR, setShowQR] = useState(false);
   
   const userName = user?.firstName || 'Пасажир';
@@ -71,16 +71,16 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ setActiveTab, tickets,
     <motion.div 
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6 max-w-6xl mx-auto pb-12"
+      className="space-y-6 max-w-6xl w-full mx-auto pb-12 min-w-0 overflow-hidden"
     >
       {/* Привітання */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            Привіт, {userName}! 👋
+            {t.dashboard?.welcome ? t.dashboard.welcome(userName) : `Привіт, ${userName}! 👋`}
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            Ваш персональний кабінет рейсів Україна — Італія (BUSNET)
+            {t.dashboard?.subtitle || 'Ваш персональний кабінет рейсів Україна — Італія (BUSNET)'}
           </p>
         </div>
       </div>
@@ -89,13 +89,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ setActiveTab, tickets,
       <div className="relative rounded-3xl bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 border border-cyan-500/30 p-6 sm:p-8 overflow-hidden shadow-2xl">
         <div className="relative z-10 max-w-lg space-y-3">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 rounded-full text-[10px] font-black uppercase tracking-wider">
-            <Sparkles size={12} /> Спеціальна пропозиція
+            <Sparkles size={12} /> {t.dashboard?.offerBadge || 'Спеціальна пропозиція'}
           </div>
           <h2 className="text-xl sm:text-3xl font-black text-white tracking-tight">
-            Прямі рейси до Риму, Мілана та Болоньї
+            {t.dashboard?.offerTitle || 'Прямі рейси до Риму, Мілана та Болоньї'}
           </h2>
           <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-            Бронюйте місця заздалегідь без передоплати. Оплата готівкою водієві при посадці в автобус.
+            {t.dashboard?.offerDesc || 'Бронюйте місця заздалегідь без передоплати. Оплата готівкою водієві при посадці в автобус.'}
           </p>
           <div className="pt-2">
             <button 
@@ -105,7 +105,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ setActiveTab, tickets,
               }}
               className="px-6 py-3 bg-cyan-400 hover:bg-cyan-300 text-black text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] active:scale-95 cursor-pointer"
             >
-              Забронювати квиток
+              {t.dashboard?.bookNow || 'Забронювати квиток'}
             </button>
           </div>
         </div>
@@ -119,10 +119,10 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ setActiveTab, tickets,
       {/* Статистичні плашки */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
-          { label: "Активні квитки", val: activeTicketsCount, icon: Ticket, sub: nextBooking ? `Рейс: ${nextBooking.date}` : "Немає рейсів", color: "text-cyan-400", bg: "bg-cyan-500/10 border-cyan-500/20" },
-          { label: "Всього поїздок", val: activeTicketsCount + historyTicketsCount, icon: TrendingUp, sub: "Архів рейсів", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
-          { label: "Бонусні бали", val: loyaltyPoints, icon: Star, sub: loyaltyPoints >= 2000 ? "Gold статус" : "Silver статус", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
-          { label: "Пасажири", val: passengersCount, icon: Users, sub: "Збережені профілі", color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" }
+          { label: t.dashboard?.activeTickets || "Активні квитки", val: activeTicketsCount, icon: Ticket, sub: nextBooking ? `Рейс: ${nextBooking.date}` : (t.dashboard?.noActiveTrips || "Немає рейсів"), color: "text-cyan-400", bg: "bg-cyan-500/10 border-cyan-500/20" },
+          { label: t.dashboard?.totalTrips || "Всього поїздок", val: activeTicketsCount + historyTicketsCount, icon: TrendingUp, sub: t.dashboard?.allTickets || "Архів рейсів", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+          { label: t.dashboard?.bonusPoints || "Бонусні бали", val: loyaltyPoints, icon: Star, sub: loyaltyPoints >= 2000 ? "Gold статус" : "Silver статус", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+          { label: t.dashboard?.passengers || "Пасажири", val: passengersCount, icon: Users, sub: t.dashboard?.savedProfiles || "Збережені профілі", color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" }
         ].map((stat, i) => (
           <div key={i} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 relative overflow-hidden backdrop-blur-md">
             <stat.icon className={`absolute -right-2 -bottom-2 w-16 h-16 opacity-5 ${stat.color}`} />
@@ -139,30 +139,30 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ setActiveTab, tickets,
         {/* Ліва колонка: Картка найближчого рейсу */}
         <div className="space-y-4">
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 px-1 flex items-center gap-2">
-            <Ticket size={16} className="text-cyan-400" /> Найближчий запланований рейс
+            <Ticket size={16} className="text-cyan-400" /> {t.dashboard?.nearestTrip || 'Найближчий запланований рейс'}
           </h3>
 
           {currentTrip ? (
             <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 sm:p-7 relative overflow-hidden shadow-xl shadow-black/50">
               <div className="flex justify-between items-center mb-5">
                 <span className="text-[10px] font-black uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-3 py-1 rounded-full">
-                  Квиток підтверджено
+                  {t.dashboard?.ticketConfirmed || 'Квиток підтверджено'}
                 </span>
                 <span className="text-xs font-mono text-slate-400">ID: {currentTrip.id}</span>
               </div>
 
               {/* Міста */}
-              <div className="flex items-center justify-between gap-3 mb-6">
-                <div>
-                  <p className="text-xs text-slate-400 uppercase font-bold">Звідки</p>
-                  <p className="text-xl sm:text-2xl font-black text-white">{currentTrip.from}</p>
+              <div className="flex items-center justify-between gap-2 sm:gap-3 mb-6 min-w-0">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-slate-400 uppercase font-bold">{t.dashboard?.from || 'Звідки'}</p>
+                  <p className="text-lg sm:text-2xl font-black text-white truncate">{currentTrip.from}</p>
                 </div>
-                <div className="flex items-center text-cyan-400 px-2">
-                  <ArrowRight size={22} />
+                <div className="flex items-center text-cyan-400 px-1 sm:px-2 shrink-0">
+                  <ArrowRight size={20} className="sm:w-5 sm:h-5" />
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-slate-400 uppercase font-bold">Куди</p>
-                  <p className="text-xl sm:text-2xl font-black text-white">{currentTrip.to}</p>
+                <div className="text-right min-w-0 flex-1">
+                  <p className="text-xs text-slate-400 uppercase font-bold">{t.dashboard?.to || 'Куди'}</p>
+                  <p className="text-lg sm:text-2xl font-black text-white truncate">{currentTrip.to}</p>
                 </div>
               </div>
 
@@ -170,18 +170,18 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ setActiveTab, tickets,
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-slate-950/60 rounded-2xl border border-slate-800/80 mb-6">
                 <div>
                   <p className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
-                    <Calendar size={12} className="text-cyan-400" /> Дата
+                    <Calendar size={12} className="text-cyan-400" /> {t.dashboard?.date || 'Дата'}
                   </p>
                   <p className="text-xs font-bold text-white mt-0.5">{currentTrip.date}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
-                    <Clock size={12} className="text-cyan-400" /> Відправлення
+                    <Clock size={12} className="text-cyan-400" /> {t.dashboard?.departure || 'Відправлення'}
                   </p>
                   <p className="text-xs font-bold text-white mt-0.5">{currentTrip.depTime}</p>
                 </div>
                 <div className="col-span-2 sm:col-span-1">
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">Місця</p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">{t.dashboard?.seats || 'Місця'}</p>
                   <p className="text-xs font-black text-cyan-300 mt-0.5">№ {currentTrip.seats}</p>
                 </div>
               </div>
@@ -192,13 +192,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ setActiveTab, tickets,
                   onClick={() => setShowQR(true)}
                   className="flex-1 py-3 bg-cyan-400 hover:bg-cyan-300 text-black text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <QrCode size={16} /> Посадковий талон
+                  <QrCode size={16} /> {t.dashboard?.boardingPass || 'Посадковий талон'}
                 </button>
                 <button 
                   onClick={() => setActiveTab('tickets')}
                   className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-all cursor-pointer"
                 >
-                  Всі квитки
+                  {t.dashboard?.allTickets || 'Всі квитки'}
                 </button>
               </div>
             </div>
@@ -207,9 +207,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ setActiveTab, tickets,
               <div className="w-14 h-14 rounded-2xl bg-slate-800/80 flex items-center justify-center text-slate-400 mb-1">
                 <Ticket size={28} />
               </div>
-              <h4 className="text-base font-bold text-white">Активних поїздок не заплановано</h4>
+              <h4 className="text-base font-bold text-white">{t.dashboard?.noActiveTrips || 'Активних поїздок не заплановано'}</h4>
               <p className="text-xs text-slate-400 max-w-xs">
-                Оберіть потрібний рейс онлайн — розрахунок готівкою з водієм перед виїздом.
+                {t.dashboard?.noActiveTripsSub || 'Оберіть потрібний рейс онлайн — розрахунок готівкою з водієм перед виїздом.'}
               </p>
               <button 
                 onClick={() => {
@@ -218,7 +218,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ setActiveTab, tickets,
                 }}
                 className="mt-2 px-6 py-2.5 bg-cyan-400 hover:bg-cyan-300 text-black text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer active:scale-95"
               >
-                Знайти квиток
+                {t.dashboard?.findTicket || 'Знайти квиток'}
               </button>
             </div>
           )}

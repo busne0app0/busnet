@@ -10,6 +10,13 @@ import { useLanguage } from '@busnet/shared/context/LanguageContext';
 import { supabase } from '@busnet/shared/supabase/config';
 import { Trip } from '../../busnet/types';
 
+function addDays(isoDate: string, days: number): string {
+  if (!days) return isoDate;
+  const d = new Date(isoDate);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
 const ALTRANS_CARRIER_UID = 'ec987229-0773-49b9-bac8-69d562a794d1';
 
 export default function BookingStepper() {
@@ -22,7 +29,7 @@ export default function BookingStepper() {
   const stepsMeta = [
     { id: 1, label: t.booking?.step1Title || 'Підтвердження' },
     { id: 2, label: t.booking?.step2Title?.split(' ')[0] || 'Пасажири' },
-    { id: 3, label: t.booking?.step3BookingNumber ? 'Готово' : 'Готово' }
+    { id: 3, label: t.booking?.step3Done || 'Готово' }
   ];
 
   useEffect(() => {
@@ -175,7 +182,7 @@ export default function BookingStepper() {
     return (
       <div className="w-full max-w-5xl mx-auto px-4 py-24 flex flex-col items-center justify-center gap-4">
         <Loader2 className="w-12 h-12 text-cyan-400 animate-spin" />
-        <p className="text-white text-xs font-black uppercase tracking-widest">Відновлення даних рейсу...</p>
+        <p className="text-white text-xs font-black uppercase tracking-widest">{t.booking?.restoringTrip || 'Відновлення даних рейсу...'}</p>
       </div>
     );
   }
@@ -233,7 +240,7 @@ export default function BookingStepper() {
           <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-slate-400">
             <span className="text-[10px] font-bold">24/7</span>
           </div>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">AI Підтримка готова допомогти вам</p>
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{t.booking?.supportReady || 'AI Підтримка готова допомогти вам'}</p>
         </div>
         <p className="text-[10px] text-slate-600 font-bold italic tracking-tighter">Powered by Busnet Neural Engine 2026</p>
       </div>

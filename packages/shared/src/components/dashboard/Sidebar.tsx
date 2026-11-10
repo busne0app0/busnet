@@ -55,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const navGroups: NavGroup[] = [
     {
-      title: 'Головне',
+      title: t.sidebarMain || 'Головне',
       items: [
         { id: 'overview', label: t.overview || 'Огляд', icon: LayoutDashboard },
         { id: 'tickets', label: t.tickets || 'Мої квитки', icon: Ticket, badge: activeTicketsCount || undefined },
@@ -64,7 +64,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       ]
     },
     {
-      title: 'Сервіс',
+      title: t.sidebarService || 'Сервіс',
       items: [
         { id: 'search', label: t.search || 'Пошук', icon: Search },
         { id: 'notifications', label: t.notifications || 'Сповіщення', icon: Bell, badge: unreadCount || undefined },
@@ -72,13 +72,13 @@ const Sidebar: React.FC<SidebarProps> = ({
       ]
     },
     {
-      title: 'Спільнота',
+      title: t.sidebarCommunity || 'Спільнота',
       items: [
         { id: 'forum', label: t.forum || 'Форум', icon: ClipboardList },
       ]
     },
     {
-      title: 'Акаунт',
+      title: t.sidebarAccount || 'Акаунт',
       items: [
         { id: 'profile', label: t.profile || 'Профіль', icon: User },
         { id: 'settings', label: t.settings || 'Налаштування', icon: Settings },

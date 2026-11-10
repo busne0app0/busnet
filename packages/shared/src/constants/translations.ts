@@ -264,6 +264,14 @@ export interface TranslationSchema {
     step3TotalToPay: string;
     step3EmailContact: string;
     step3GoToDashboard: string;
+    step3Done: string;
+    restoringTrip: string;
+    supportReady: string;
+    processingRequest: string;
+    emailPlaceholder: string;
+    passwordPlaceholder: string;
+    loginSubmit: string;
+    registerSubmit: string;
   };
   dashboard: {
     welcome: (name: string) => string;
@@ -301,6 +309,11 @@ export interface TranslationSchema {
       settings: string;
       history: string;
     };
+    sidebarMain: string;
+    sidebarService: string;
+    sidebarCommunity: string;
+    sidebarAccount: string;
+    savedProfiles: string;
   };
   seo: {
     title: string;
@@ -674,7 +687,15 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       step3CopyNumber: 'Скопіювати номер',
       step3TotalToPay: 'Сума до сплати / сплачено',
       step3EmailContact: 'Контактний Email',
-      step3GoToDashboard: 'Перейти до кабінету'
+      step3GoToDashboard: 'Перейти до кабінету',
+      step3Done: 'Готово',
+      restoringTrip: 'Відновлення даних рейсу...',
+      supportReady: 'AI Підтримка готова допомогти вам',
+      processingRequest: 'Опрацювання запиту...',
+      emailPlaceholder: 'Ваш Email',
+      passwordPlaceholder: 'Ваш пароль',
+      loginSubmit: 'Увійти',
+      registerSubmit: 'Зареєструватися',
     },
     dashboard: {
       welcome: (name: string) => `Привіт, ${name}! 👋`,
@@ -711,7 +732,12 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
         profile: 'Профіль',
         settings: 'Налаштування',
         history: 'Історія'
-      }
+      },
+      sidebarMain: 'Головне',
+      sidebarService: 'Сервіс',
+      sidebarCommunity: 'Спільнота',
+      sidebarAccount: 'Акаунт',
+      savedProfiles: 'Збережені профілі'
     },
     seo: {
       title: 'Популярні автобусні маршрути по Європі',
@@ -1078,7 +1104,15 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       step3CopyNumber: 'Copy Number',
       step3TotalToPay: 'Amount Due / Paid',
       step3EmailContact: 'Contact Email',
-      step3GoToDashboard: 'Go to Dashboard'
+      step3GoToDashboard: 'Go to Dashboard',
+      step3Done: 'Done',
+      restoringTrip: 'Restoring trip data...',
+      supportReady: 'AI Support is ready to help you',
+      processingRequest: 'Processing request...',
+      emailPlaceholder: 'Your Email',
+      passwordPlaceholder: 'Your password',
+      loginSubmit: 'Sign In',
+      registerSubmit: 'Register',
     },
     dashboard: {
       welcome: (name: string) => `Hello, ${name}! 👋`,
@@ -1115,7 +1149,12 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
         profile: 'Profile',
         settings: 'Settings',
         history: 'Trip History'
-      }
+      },
+      sidebarMain: 'Main',
+      sidebarService: 'Services',
+      sidebarCommunity: 'Community',
+      sidebarAccount: 'Account',
+      savedProfiles: 'Saved Profiles'
     },
     seo: {
       title: 'Popular Bus Routes Across Europe',
@@ -1482,7 +1521,15 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       step3CopyNumber: 'Copia numero',
       step3TotalToPay: 'Totale da pagare / pagato',
       step3EmailContact: 'Email di contatto',
-      step3GoToDashboard: 'Vai all\'Area Personale'
+      step3GoToDashboard: 'Vai all\'Area Personale',
+      step3Done: 'Fatto',
+      restoringTrip: 'Ripristino dati del viaggio...',
+      supportReady: 'Il supporto AI è pronto ad aiutarti',
+      processingRequest: 'Elaborazione richiesta...',
+      emailPlaceholder: 'La tua Email',
+      passwordPlaceholder: 'La tua password',
+      loginSubmit: 'Accedi',
+      registerSubmit: 'Registrati',
     },
     dashboard: {
       welcome: (name: string) => `Ciao, ${name}! 👋`,
@@ -1519,7 +1566,12 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
         profile: 'Profilo',
         settings: 'Impostazioni',
         history: 'Storico Viaggi'
-      }
+      },
+      sidebarMain: 'Principale',
+      sidebarService: 'Servizi',
+      sidebarCommunity: 'Comunità',
+      sidebarAccount: 'Account',
+      savedProfiles: 'Profili Salvati'
     },
     seo: {
       title: 'Autobus per l\'Europa | Biglietti Online',

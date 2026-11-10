@@ -51,7 +51,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   };
 
   return (
-    <div className="flex h-[100dvh] max-h-[100dvh] bg-[#030712] text-slate-100 font-sans overflow-hidden">
+    <div className="flex h-[100dvh] max-h-[100dvh] w-full max-w-full bg-[#030712] text-slate-100 font-sans overflow-hidden overscroll-none">
       
       {/* Затемнення фону при відкритому сайдбарі */}
       {isSidebarOpen && (
@@ -74,10 +74,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       />
 
       {/* Основна робоча область */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+      <div className="flex-1 min-w-0 w-full max-w-full flex flex-col h-full overflow-hidden relative">
         
         {/* Верхній бар (Header) */}
-        <header className="h-16 bg-[#0b1323]/90 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-6 flex items-center justify-between z-40 shrink-0">
+        <header className="h-16 w-full max-w-full bg-[#0b1323]/90 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-6 flex items-center justify-between z-40 shrink-0">
           <div className="flex items-center gap-3">
             {/* Збільшена сенсорна кнопка меню (легко натискати пальцем на ходу) */}
             <button 
@@ -125,15 +125,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </header>
 
         {/* Скроліруєма область контенту */}
-        <main className="flex-1 overflow-y-auto p-3.5 sm:p-6 md:p-8 relative custom-scrollbar overscroll-contain">
-          <div className="max-w-6xl mx-auto pb-6">
+        <main className="flex-1 min-w-0 w-full max-w-full overflow-y-auto overflow-x-hidden p-3 sm:p-6 md:p-8 relative custom-scrollbar overscroll-y-contain overscroll-x-none">
+          <div className="max-w-6xl w-full mx-auto pb-6 min-w-0">
             {children}
           </div>
         </main>
 
         {/* Нижня навігація для смартфонів (Bottom Navigation) */}
         <nav
-          className="md:hidden flex items-center justify-around bg-[#0b1323]/95 backdrop-blur-xl border-t border-slate-800/90 shrink-0 z-40 px-2 pt-1.5"
+          className="md:hidden w-full max-w-full flex items-center justify-around bg-[#0b1323]/95 backdrop-blur-xl border-t border-slate-800/90 shrink-0 z-40 px-1 pt-1.5 overflow-hidden"
           style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 10px)' }}
         >
           <button 

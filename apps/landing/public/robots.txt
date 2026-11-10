@@ -1,4 +1,27 @@
+# ==================================================
+# BUSNET UA
+# INTERNATIONAL BUS BOOKING PLATFORM
+# https://busnetua.it
+# SEO + AI DISCOVERY 2026
+# ==================================================
+
+# 1. GENERAL SEARCH ENGINES (Google, Bing, Yahoo, DuckDuckGo)
 User-agent: *
+Allow: /
+
+# Private application areas (No indexing)
+Disallow: /admin
+Disallow: /carrier
+Disallow: /agent
+Disallow: /driver
+Disallow: /api/
+
+# 2. GOOGLE AI (Gemini / AI Overviews Grounding) - ALLOW SEARCH
+User-agent: Google-Extended
+Allow: /
+
+# 3. OPENAI CHATGPT SEARCH (Real-time citation) - ALLOW SEARCH
+User-agent: OAI-SearchBot
 Allow: /
 Disallow: /admin
 Disallow: /carrier
@@ -6,4 +29,52 @@ Disallow: /agent
 Disallow: /driver
 Disallow: /api/
 
-Sitemap: https://bus-net.it/sitemap.xml
+# 4. OPENAI USER-INITIATED BROWSING - ALLOW SEARCH
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /admin
+Disallow: /carrier
+Disallow: /agent
+Disallow: /driver
+Disallow: /api/
+
+# 5. OPENAI MODEL TRAINING - DISALLOW TRAINING
+User-agent: GPTBot
+Disallow: /
+
+# 6. ANTHROPIC CLAUDE SEARCH - ALLOW SEARCH
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /admin
+Disallow: /carrier
+Disallow: /agent
+Disallow: /driver
+Disallow: /api/
+
+# 7. ANTHROPIC USER-INITIATED BROWSING - ALLOW SEARCH
+User-agent: Claude-User
+Allow: /
+Disallow: /admin
+Disallow: /carrier
+Disallow: /agent
+Disallow: /driver
+Disallow: /api/
+
+# 8. ANTHROPIC MODEL TRAINING - DISALLOW TRAINING
+User-agent: ClaudeBot
+Disallow: /
+
+# 9. PERPLEXITY AI SEARCH - ALLOW SEARCH
+User-agent: PerplexityBot
+Allow: /
+Disallow: /admin
+Disallow: /carrier
+Disallow: /agent
+Disallow: /driver
+Disallow: /api/
+
+# ==================================================
+# XML SITEMAP
+# ==================================================
+
+Sitemap: https://busnetua.it/sitemap.xml

@@ -7,6 +7,7 @@ import Header from './Header';
 import { Link } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { useLanguage } from '@busnet/shared/context/LanguageContext';
+import { LegalModal } from '../common/LegalModal';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -27,17 +28,18 @@ const SOCIAL_URLS = {
 
 const PATHS = {
   about: '/#about',
-  contacts: '/#contacts',
+  contacts: '/contacts',
   forum: '/forum',
   routes: '/',
-  help: '/#help',                // TODO: сторінка допомоги
-  refunds: '/#refunds',          // TODO: правила повернення коштів
-  partner: '/#partners',         // TODO: «Стати партнером» для перевізників
-  carrierCabinet: '/#carrier',   // TODO: вхід у кабінет перевізника
-  agents: '/#agents',            // TODO: агентська програма
-  terms: '/forum',               // УВАГА: раніше «Умови сервісу» вели на /forum. Заміни на справжню сторінку умов.
-  privacy: '/#privacy',          // TODO: політика конфіденційності / обробки персональних даних
-  cookies: '/#cookies',          // TODO: політика cookie
+  help: '/contacts',
+  refunds: '/refund-policy',
+  bookingTerms: '/booking-terms',
+  partner: '/#partners',
+  carrierCabinet: '/#carrier',
+  agents: '/#agents',
+  terms: '/terms',
+  privacy: '/privacy',
+  cookies: '/cookies',
 };
 
 /* ---------- Іконки соцмереж (лінійні, у стилі lucide) ---------- */
@@ -81,6 +83,10 @@ const YoutubeIcon = ({ className }: IconProps) => (
 export default function MainLayout({ children }: MainLayoutProps) {
   const { t } = useLanguage();
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [legalModal, setLegalModal] = useState<{ isOpen: boolean; tab: 'terms' | 'privacy' | 'cookies' }>({
+    isOpen: false,
+    tab: 'terms'
+  });
 
   // Нові підписи беруться з перекладів (footer.*), поки їх немає, діє український запасний варіант
   const f = t.footer as any;
@@ -120,6 +126,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
         { label: t.footer.terms, to: PATHS.terms },
         { label: t.footer.privacy, to: PATHS.privacy },
         { label: t.footer.cookies, to: PATHS.cookies },
+        { label: 'Правила бронювання', to: PATHS.bookingTerms },
+        { label: 'Скасування та повернення', to: PATHS.refunds },
       ],
     },
   ]
@@ -200,14 +208,24 @@ export default function MainLayout({ children }: MainLayoutProps) {
                         id={`footer-group-${g.id}`}
                         className={`${open ? 'block pb-2' : 'hidden'} md:block`}
                       >
-                        {g.links.map((link) => (
+                        {g.links.map((link: any) => (
                           <li key={link.label}>
-                            <Link
-                              to={link.to}
-                              className="min-h-[44px] md:min-h-0 md:py-1.5 inline-flex items-center text-[13px] sm:text-sm text-slate-300 sm:text-slate-400 hover:text-neon-cyan active:text-neon-cyan transition-colors"
-                            >
-                              {link.label}
-                            </Link>
+                            {link.action ? (
+                              <button
+                                type="button"
+                                onClick={link.action}
+                                className="min-h-[44px] md:min-h-0 md:py-1.5 inline-flex items-center text-[13px] sm:text-sm text-slate-300 sm:text-slate-400 hover:text-neon-cyan active:text-neon-cyan transition-colors text-left cursor-pointer"
+                              >
+                                {link.label}
+                              </button>
+                            ) : (
+                              <Link
+                                to={link.to}
+                                className="min-h-[44px] md:min-h-0 md:py-1.5 inline-flex items-center text-[13px] sm:text-sm text-slate-300 sm:text-slate-400 hover:text-neon-cyan active:text-neon-cyan transition-colors"
+                              >
+                                {link.label}
+                              </Link>
+                            )}
                           </li>
                         ))}
                       </ul>
@@ -223,6 +241,12 @@ export default function MainLayout({ children }: MainLayoutProps) {
           </p>
         </div>
       </footer>
+
+      <LegalModal
+        isOpen={legalModal.isOpen}
+        onClose={() => setLegalModal(prev => ({ ...prev, isOpen: false }))}
+        defaultTab={legalModal.tab}
+      />
     </div>
   );
 }

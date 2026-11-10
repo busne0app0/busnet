@@ -38,7 +38,7 @@ function formatDayMonth(dateStr?: string, locale: string = 'uk-UA'): string {
 }
 
 // Рахуємо точний час у дорозі та різницю в днях
-function computeTripDuration(depTime?: string, arrTime?: string, depDate?: string, arrDate?: string) {
+function computeTripDuration(depTime?: string, arrTime?: string, depDate?: string, arrDate?: string, langKey?: string) {
   if (!depTime || !arrTime) return { durationText: null, dayDiff: 0 };
 
   const [depH, depM] = depTime.split(':').map(Number);
@@ -66,14 +66,16 @@ function computeTripDuration(depTime?: string, arrTime?: string, depDate?: strin
 
   const hours = Math.floor(diffMinutes / 60);
   const mins = diffMinutes % 60;
-  const durationText = mins > 0 ? `${hours}г ${mins}хв` : `${hours}г`;
+  const hLabel = langKey === 'en' ? 'h' : langKey === 'it' ? 'h' : 'г';
+  const mLabel = langKey === 'en' ? 'min' : langKey === 'it' ? 'min' : 'хв';
+  const durationText = mins > 0 ? `${hours}${hLabel} ${mins}${mLabel}` : `${hours}${hLabel}`;
 
   return { durationText, dayDiff };
 }
 
 export default function Step1Confirmation() {
   const { selectedTrip, setStep } = useBookingStore();
-  const { langKey, locale } = useLanguage();
+  const { t, langKey, locale } = useLanguage();
 
   if (!selectedTrip) return null;
 
@@ -96,7 +98,8 @@ export default function Step1Confirmation() {
     selectedTrip.departureTime,
     selectedTrip.arrivalTime,
     depDateStr,
-    arrDateStr
+    arrDateStr,
+    langKey
   );
 
   const amenities = normalizeAmenities(selectedTrip.amenities);
@@ -113,13 +116,13 @@ export default function Step1Confirmation() {
           className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold mb-2"
         >
           <CheckCircle2 size={14} />
-          <span>Крок 1 із 3</span>
+          <span>{t.booking?.step1Number || 'Крок 1 із 3'}</span>
         </motion.div>
         <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
-          Підтвердження <span className="text-cyan-400">вибору</span>
+          {t.booking?.step1Title || 'Підтвердження'} <span className="text-cyan-400">{t.booking?.step1TitleAccent || 'вибору'}</span>
         </h3>
         <p className="text-slate-400 text-xs mt-0.5">
-          Перевірте маршрут і час перед введенням даних
+          {t.booking?.step1Desc || 'Перевірте маршрут і час перед введенням даних'}
         </p>
       </div>
 
@@ -139,7 +142,7 @@ export default function Step1Confirmation() {
           </div>
           <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1 shrink-0 ml-auto">
             <ShieldCheck size={13} />
-            Прямий рейс
+            {t.booking?.directTrip || 'Прямий рейс'}
           </span>
         </div>
 
@@ -179,7 +182,7 @@ export default function Step1Confirmation() {
             {durationText && (
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-semibold text-slate-300">
                 <Clock size={11} className="text-cyan-400" />
-                <span>{durationText} в дорозі</span>
+                <span>{durationText} {t.booking?.inTransit || 'в дорозі'}</span>
               </div>
             )}
           </div>
@@ -196,7 +199,7 @@ export default function Step1Confirmation() {
                 </span>
                 {dayDiff > 0 && (
                   <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-400/15 border border-amber-400/40 text-amber-400 font-black">
-                    +{dayDiff} д.
+                    {t.booking?.dayPlus ? t.booking.dayPlus(dayDiff) : `+${dayDiff} д.`}
                   </span>
                 )}
                 {arrDateStr && (
@@ -221,7 +224,7 @@ export default function Step1Confirmation() {
         <div className="pt-4 border-t border-white/10 flex items-center justify-between gap-3">
           <div>
             <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
-              1 квиток
+              {t.booking?.singleTicket || '1 квиток'}
             </span>
             <div className="flex items-baseline gap-1">
               <span className="text-2xl sm:text-3xl font-black text-cyan-400 tracking-tight">
@@ -238,7 +241,7 @@ export default function Step1Confirmation() {
             onClick={() => setStep(2)}
             className="neon-gradient-btn min-h-11 px-6 py-2.5 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-transform"
           >
-            <span>Продовжити</span>
+            <span>{t.booking?.continue || 'Продовжити'}</span>
             <ArrowRight size={16} />
           </button>
         </div>

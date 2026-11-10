@@ -23,47 +23,32 @@ import ForumTab from '../components/dashboard/ForumTab';
 import SupportTab from '../components/dashboard/SupportTab';
 import SearchTab from '../components/dashboard/SearchTab';
 import { getPostLoginTarget } from '../constants/roleRoutes';
-
-// Локалізації
-const translations = {
-  ua: {
-    overview: 'Огляд',
-    tickets: 'Мої квитки',
-    passengers: 'Пасажири',
-    bonuses: 'Бонуси',
-    search: 'Пошук',
-    notifications: 'Сповіщення',
-    support: 'Підтримка',
-    forum: 'Форум попутників',
-    profile: 'Профіль',
-    settings: 'Налаштування',
-    history: 'Історія',
-    logout: 'Вийти з кабінету',
-    welcome: 'Привіт, пасажире!',
-    cabinetSub: 'Ваш пасажирський кабінет BUSNET (Україна — Італія)',
-  },
-  en: {
-    overview: 'Overview',
-    tickets: 'My Tickets',
-    passengers: 'Passengers',
-    bonuses: 'Bonuses',
-    search: 'Search',
-    notifications: 'Notifications',
-    support: 'Support',
-    forum: 'Forum',
-    profile: 'Profile',
-    settings: 'Settings',
-    history: 'History',
-    logout: 'Logout',
-    welcome: 'Hello, Passenger!',
-    cabinetSub: 'Your BUSNET passenger cabinet',
-  }
-};
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview');
-  const [lang] = useState('ua'); 
-  const t = translations[lang as keyof typeof translations];
+  const { t: appT } = useLanguage();
+
+  const t = {
+    overview: appT.dashboard?.tabs?.overview || 'Огляд',
+    tickets: appT.dashboard?.tabs?.tickets || 'Мої квитки',
+    passengers: appT.dashboard?.tabs?.passengers || 'Пасажири',
+    bonuses: appT.dashboard?.tabs?.bonuses || 'Бонуси',
+    search: appT.dashboard?.tabs?.search || 'Пошук',
+    notifications: appT.dashboard?.tabs?.notifications || 'Сповіщення',
+    support: appT.dashboard?.tabs?.support || 'Підтримка',
+    forum: appT.dashboard?.tabs?.forum || 'Форум',
+    profile: appT.dashboard?.tabs?.profile || 'Профіль',
+    settings: appT.dashboard?.tabs?.settings || 'Налаштування',
+    history: appT.dashboard?.tabs?.history || 'Історія',
+    sidebarMain: appT.dashboard?.sidebarMain || 'Головне',
+    sidebarService: appT.dashboard?.sidebarService || 'Сервіс',
+    sidebarCommunity: appT.dashboard?.sidebarCommunity || 'Спільнота',
+    sidebarAccount: appT.dashboard?.sidebarAccount || 'Акаунт',
+    logout: appT.header?.logout || 'Вийти з кабінету',
+    welcome: appT.dashboard?.welcome ? appT.dashboard.welcome('пасажире') : 'Привіт, пасажире!',
+    cabinetSub: appT.dashboard?.subtitle || 'Ваш пасажирський кабінет BUSNET (Україна — Італія)',
+  };
   const navigate = useNavigate();
   const { isAuthenticated, user, login, logout } = useAuthStore();
   const { addLog } = useAdminStore();
