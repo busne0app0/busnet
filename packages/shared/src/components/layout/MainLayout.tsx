@@ -89,45 +89,47 @@ export default function MainLayout({ children }: MainLayoutProps) {
   });
 
   // Нові підписи беруться з перекладів (footer.*), поки їх немає, діє український запасний варіант
+  // Приводимо до any, щоб TypeScript не сварився на нові ключі перекладу
   const f = t.footer as any;
+  const h = t.header as any;
 
   const groups = [
     {
       id: 'company',
-      title: f.groupCompany ?? 'BUSNET',
+      title: f?.groupCompany || 'BUSNET',
       links: [
         { label: t.footer.about, to: PATHS.about },
         { label: t.footer.contacts, to: PATHS.contacts },
-        { label: t.header.forum, to: PATHS.forum },
+        { label: h?.forum || 'Форум', to: PATHS.forum },
       ],
     },
     {
       id: 'passengers',
-      title: f.groupPassengers ?? 'Пасажирам',
+      title: f?.groupPassengers || 'Пасажирам',
       links: [
         { label: t.header.routes, to: PATHS.routes },
-        { label: f.help ?? 'Допомога', to: PATHS.help },
-        { label: f.refunds ?? 'Повернення коштів', to: PATHS.refunds },
+        { label: f?.help || 'Допомога', to: PATHS.help },
+        { label: f?.refunds || 'Повернення коштів', to: PATHS.refunds },
       ],
     },
     {
       id: 'carriers',
-      title: f.groupCarriers ?? 'Перевізникам',
+      title: f?.groupCarriers || 'Перевізникам',
       links: [
-        { label: f.becomePartner ?? t.header.partners, to: PATHS.partner },
-        { label: f.carrierCabinet ?? 'Кабінет перевізника', to: PATHS.carrierCabinet },
-        { label: f.agentProgram ?? 'Агентам', to: PATHS.agents },
+        { label: f?.becomePartner || t.header.partners, to: PATHS.partner },
+        { label: f?.carrierCabinet || 'Кабінет перевізника', to: PATHS.carrierCabinet },
+        { label: f?.agentProgram || 'Агентам', to: PATHS.agents },
       ],
     },
     {
       id: 'info',
-      title: f.groupInfo ?? 'Інформація',
+      title: f?.groupInfo || 'Інформація',
       links: [
         { label: t.footer.terms, to: PATHS.terms },
         { label: t.footer.privacy, to: PATHS.privacy },
         { label: t.footer.cookies, to: PATHS.cookies },
-        { label: 'Правила бронювання', to: PATHS.bookingTerms },
-        { label: 'Скасування та повернення', to: PATHS.refunds },
+        { label: f?.bookingTerms || 'Правила бронювання', to: PATHS.bookingTerms },
+        { label: f?.refundPolicy || 'Скасування та повернення', to: PATHS.refunds },
       ],
     },
   ]
@@ -144,7 +146,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   return (
     <div className="min-h-dvh flex flex-col relative overflow-x-clip w-full max-w-full">
       <Header />
-      <main className="flex-1 w-full flex flex-col">
+      <main className="flex-1 w-full flex flex-col pt-16 md:pt-20">
         {children}
       </main>
 

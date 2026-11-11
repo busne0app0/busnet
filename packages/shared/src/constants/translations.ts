@@ -142,6 +142,17 @@ export interface TranslationSchema {
     navLabel: string;
     privacy: string;
     cookies: string;
+    groupCompany: string;
+    groupPassengers: string;
+    groupCarriers: string;
+    groupInfo: string;
+    bookingTerms: string;
+    refundPolicy: string;
+    help: string;
+    refunds: string;
+    becomePartner: string;
+    carrierCabinet: string;
+    agentProgram: string;
   };
   advantages: {
     badge: string;
@@ -484,6 +495,17 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       navLabel: 'Навігація сайтом',
       privacy: 'Політика конфіденційності',
       cookies: 'Файли cookie',
+      groupCompany: 'BUSNET',
+      groupPassengers: 'Пасажирам',
+      groupCarriers: 'Перевізникам',
+      groupInfo: 'Інформація',
+      bookingTerms: 'Правила бронювання',
+      refundPolicy: 'Скасування та повернення',
+      help: 'Допомога',
+      refunds: 'Повернення коштів',
+      becomePartner: 'Стати партнером',
+      carrierCabinet: 'Кабінет перевізника',
+      agentProgram: 'Агентам',
     },
     advantages: {
       badge: 'Переваги платформи',
@@ -901,6 +923,17 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       navLabel: 'Site navigation',
       privacy: 'Privacy Policy',
       cookies: 'Cookie Policy',
+      groupCompany: 'BUSNET',
+      groupPassengers: 'For Passengers',
+      groupCarriers: 'For Carriers',
+      groupInfo: 'Information',
+      bookingTerms: 'Booking Rules',
+      refundPolicy: 'Cancellation and Refund',
+      help: 'Help & FAQ',
+      refunds: 'Refunds',
+      becomePartner: 'Become a Partner',
+      carrierCabinet: 'Carrier Cabinet',
+      agentProgram: 'Agents',
     },
     advantages: {
       badge: 'Platform Advantages',
@@ -1318,6 +1351,17 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
       navLabel: 'Navigazione sito',
       privacy: 'Informativa sulla privacy',
       cookies: 'Politica sui cookie',
+      groupCompany: 'BUSNET',
+      groupPassengers: 'Ai Passeggeri',
+      groupCarriers: 'Ai Vettori',
+      groupInfo: 'Informazioni',
+      bookingTerms: 'Regole di prenotazione',
+      refundPolicy: 'Cancellazione e rimborso',
+      help: 'Aiuto e FAQ',
+      refunds: 'Rimborsi',
+      becomePartner: 'Diventa Partner',
+      carrierCabinet: 'Area Vettore',
+      agentProgram: 'Area Agenti',
     },
     advantages: {
       badge: 'Vantaggi della Piattaforma',

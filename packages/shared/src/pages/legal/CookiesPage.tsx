@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LegalPageLayout } from '@busnet/shared/components/layout/LegalPageLayout';
 import { useLanguage } from '@busnet/shared/context/LanguageContext';
-import { Cookie, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Cookie, CheckCircle2, ShieldCheck, ShieldAlert } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function CookiesPage() {
@@ -18,7 +18,8 @@ export default function CookiesPage() {
     try {
       localStorage.setItem('busnet_cookie_consent', status);
       setCurrentConsent(status);
-    } catch {}
+      window.dispatchEvent(new CustomEvent('cookie_consent_updated', { detail: status }));
+    } catch { }
 
     if (typeof window !== 'undefined' && typeof (window as any).gtag === 'function') {
       (window as any).gtag('consent', 'update', {
@@ -33,10 +34,17 @@ export default function CookiesPage() {
       langKey === 'it'
         ? 'Preferenze cookie aggiornate'
         : langKey === 'en'
-        ? 'Cookie preferences updated'
-        : 'Налаштування файлів cookie оновлено'
+          ? 'Cookie preferences updated'
+          : 'Налаштування cookie оновлено',
+      {
+        id: 'cookie-toast',
+        duration: 2500,
+      }
     );
   };
+
+  const isGranted = currentConsent === 'granted';
+  const isDenied = currentConsent === 'denied';
 
   return (
     <LegalPageLayout
@@ -49,38 +57,62 @@ export default function CookiesPage() {
       descIt="Informativa estesa sull'uso dei cookie ai sensi della Direttiva ePrivacy e del GDPR"
     >
       {/* Інтерактивний блок керування згодою */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-cyan-500/30 space-y-3">
-        <div className="flex items-center gap-2 text-cyan-400 font-bold uppercase tracking-wider text-xs">
-          <Cookie size={16} />
-          <span>{langKey === 'it' ? 'Gestione delle Preferenze Cookie' : langKey === 'en' ? 'Manage Cookie Preferences' : 'Керування файлами cookie'}</span>
-        </div>
-        <p className="text-xs text-slate-300">
-          {langKey === 'it'
-            ? `Stato attuale del consenso: `
-            : langKey === 'en'
-            ? `Current consent status: `
-            : `Поточний статус згоди: `}
-          <strong className="text-white uppercase font-mono">
-            {currentConsent === 'granted'
+      <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-cyan-500/30 space-y-4 shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-cyan-400 font-bold uppercase tracking-wider text-xs">
+            <Cookie size={18} />
+            <span>
+              {langKey === 'it' ? 'Gestione Preferenze Cookie' : langKey === 'en' ? 'Manage Cookie Preferences' : 'Керування файлами cookie'}
+            </span>
+          </div>
+
+          {/* Статус-бейдж */}
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${isGranted
+              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+              : isDenied
+                ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                : 'bg-slate-800 text-slate-400 border border-slate-700'
+            }`}>
+            {isGranted ? <ShieldCheck size={14} /> : isDenied ? <ShieldAlert size={14} /> : null}
+            {isGranted
               ? (langKey === 'it' ? 'Tutti accettati' : langKey === 'en' ? 'All accepted' : 'Прийнято всі')
-              : currentConsent === 'denied'
-              ? (langKey === 'it' ? 'Solo tecnici' : langKey === 'en' ? 'Technical only' : 'Тільки необхідні')
-              : (langKey === 'it' ? 'Non impostato' : langKey === 'en' ? 'Not set' : 'Не визначено')}
-          </strong>
+              : isDenied
+                ? (langKey === 'it' ? 'Solo tecnici' : langKey === 'en' ? 'Technical only' : 'Тільки необхідні')
+                : (langKey === 'it' ? 'Non impostato' : langKey === 'en' ? 'Not set' : 'Не обрано')}
+          </span>
+        </div>
+
+        <p className="text-xs text-slate-300 leading-relaxed">
+          {langKey === 'it'
+            ? 'Scegli quali cookie abilitare per la tua navigazione su BUSNET UA:'
+            : langKey === 'en'
+              ? 'Choose which cookies you allow during your browsing on BUSNET UA:'
+              : 'Оберіть, які типи файлів cookie ви дозволяєте використовувати під час навігації:'}
         </p>
-        <div className="flex flex-wrap gap-2 pt-1">
+
+        {/* Кнопки перемикання */}
+        <div className="flex flex-wrap gap-2.5 pt-1">
           <button
             type="button"
             onClick={() => handleUpdateConsent('granted')}
-            className="px-4 py-2 bg-cyan-400 hover:bg-cyan-300 text-black font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all shadow-[0_0_12px_rgba(6,182,212,0.3)] cursor-pointer"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 active:scale-95 cursor-pointer ${isGranted
+                ? 'bg-cyan-400 text-black shadow-[0_0_15px_rgba(6,182,212,0.5)] ring-2 ring-cyan-300 ring-offset-2 ring-offset-slate-900 font-extrabold'
+                : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 hover:border-cyan-400/40'
+              }`}
           >
+            {isGranted && <CheckCircle2 size={15} className="text-black" />}
             {langKey === 'it' ? 'Accetta tutti i cookie' : langKey === 'en' ? 'Accept all cookies' : 'Прийняти всі'}
           </button>
+
           <button
             type="button"
             onClick={() => handleUpdateConsent('denied')}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs uppercase tracking-wider rounded-xl border border-slate-700 transition-all cursor-pointer"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 active:scale-95 cursor-pointer ${isDenied
+                ? 'bg-amber-400 text-black shadow-[0_0_15px_rgba(251,191,36,0.4)] ring-2 ring-amber-300 ring-offset-2 ring-offset-slate-900 font-extrabold'
+                : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 hover:border-slate-500'
+              }`}
           >
+            {isDenied && <CheckCircle2 size={15} className="text-black" />}
             {langKey === 'it' ? 'Rifiuta non necessari' : langKey === 'en' ? 'Refuse non-essential' : 'Тільки необхідні'}
           </button>
         </div>
@@ -195,4 +227,3 @@ export default function CookiesPage() {
     </LegalPageLayout>
   );
 }
-

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Plus, Settings, Trash2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
 import toast from 'react-hot-toast';
 import { supabase } from '@busnet/shared/supabase/config';
+import { useLanguage } from '@busnet/shared/context/LanguageContext';
 
 interface Passenger {
   id: string;
@@ -19,7 +19,36 @@ interface PassengersTabProps {
   onAdd: (name: string, doc: string) => void;
 }
 
-const PassengersTab: React.FC<PassengersTabProps> = ({ passengers, onDelete, onAdd }) => {
+const DOC_PREFIX_REGEX = /^(Паспорт|Passport|Documento):\s*/i;
+
+export const PassengersTab: React.FC<PassengersTabProps> = ({ passengers, onDelete, onAdd }) => {
+  const { language } = useLanguage();
+  const currentLang = (language || 'UK').toUpperCase();
+
+  const l = {
+    title: currentLang === 'EN' ? 'Passengers' : currentLang === 'IT' ? 'Passeggero' : 'Пасажири',
+    subtitle: currentLang === 'EN'
+      ? 'Saved passenger profiles for fast 1-click booking'
+      : currentLang === 'IT'
+        ? 'Profili salvati per prenotazioni veloci in 1 clic'
+        : 'Збережені профілі для швидкого бронювання в один клік',
+    addBtn: currentLang === 'EN' ? 'Add Passenger' : currentLang === 'IT' ? 'Aggiungi Passeggero' : 'Додати пасажира',
+    editModalTitle: currentLang === 'EN' ? 'Edit Passenger' : currentLang === 'IT' ? 'Modifica Passeggero' : 'Редагувати пасажира',
+    addModalTitle: currentLang === 'EN' ? 'New Passenger' : currentLang === 'IT' ? 'Nuovo Passeggero' : 'Новий пасажир',
+    nameLabel: currentLang === 'EN' ? 'First and Last Name' : currentLang === 'IT' ? 'Nome e Cognome' : "Ім'я та Прізвище",
+    namePlaceholder: currentLang === 'EN' ? 'Anna Smith' : currentLang === 'IT' ? 'Maria Rossi' : 'Ірина Сидоренко',
+    docLabel: currentLang === 'EN' ? 'Passport / Document #' : currentLang === 'IT' ? 'N. Documento / Passaporto' : 'Номер документа / паспорта',
+    saveBtn: currentLang === 'EN' ? 'Save Passenger' : currentLang === 'IT' ? 'Salva Passeggero' : 'Зберегти пасажира',
+    updateBtn: currentLang === 'EN' ? 'Update Passenger' : currentLang === 'IT' ? 'Aggiorna Passeggero' : 'Оновити пасажира',
+    fillAllError: currentLang === 'EN' ? 'Please fill in all fields' : currentLang === 'IT' ? 'Compila tutti i campi' : 'Заповніть всі поля',
+    updateSuccess: currentLang === 'EN' ? 'Passenger updated' : currentLang === 'IT' ? 'Passeggero aggiornato' : 'Профіль оновлено',
+    updateError: currentLang === 'EN' ? 'Failed to update' : currentLang === 'IT' ? 'Errore di aggiornamento' : 'Помилка оновлення',
+    primaryEditHint: currentLang === 'EN' ? 'Edit primary profile in the Profile tab' : currentLang === 'IT' ? 'Modifica il profilo principale nella scheda Profilo' : 'Редагуйте основний профіль у вкладці «Профіль»',
+    meBadge: currentLang === 'EN' ? 'Me' : currentLang === 'IT' ? 'Io' : 'Я',
+    editTooltip: currentLang === 'EN' ? 'Edit' : currentLang === 'IT' ? 'Modifica' : 'Редагувати',
+    deleteTooltip: currentLang === 'EN' ? 'Delete' : currentLang === 'IT' ? 'Elimina' : 'Видалити',
+  };
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState<Passenger | null>(null);
   const [newName, setNewName] = useState('');
@@ -28,9 +57,27 @@ const PassengersTab: React.FC<PassengersTabProps> = ({ passengers, onDelete, onA
   const [editName, setEditName] = useState('');
   const [editDoc, setEditDoc] = useState('');
 
+  // Очищення тільки номеру документа для інпута
+  const cleanDocNumber = (rawDoc: string) => {
+    return (rawDoc || '').replace(DOC_PREFIX_REGEX, '').trim();
+  };
+
+  // Відображення локалізованого префікса документа на екрані (без зміни самої бази)
+  const displayDoc = (rawDoc: string) => {
+    if (!rawDoc) return '';
+    const numberOnly = cleanDocNumber(rawDoc);
+    const prefix = currentLang === 'EN' ? 'Passport: ' : currentLang === 'IT' ? 'Documento: ' : 'Паспорт: ';
+    return `${prefix}${numberOnly}`;
+  };
+
   const handleEditClick = (p: Passenger) => {
+    // Якщо це віртуальний 'primary' пасажир, нагадуємо редагувати в Профілі
+    if (p.id === 'primary') {
+      toast(l.primaryEditHint, { icon: '👤' });
+      return;
+    }
     setEditName(p.name);
-    setEditDoc(p.doc.replace('Паспорт: ', ''));
+    setEditDoc(cleanDocNumber(p.doc));
     setShowEditModal(p);
   };
 
@@ -38,144 +85,174 @@ const PassengersTab: React.FC<PassengersTabProps> = ({ passengers, onDelete, onA
     e.preventDefault();
     if (!showEditModal) return;
     if (!editName.trim() || !editDoc.trim()) {
-      toast.error('Заповніть всі поля');
+      toast.error(l.fillAllError);
       return;
     }
-    
+
+    const cleanName = editName.trim();
+    const nameParts = cleanName.split(' ');
+    const firstName = nameParts[0] || cleanName;
+    const lastName = nameParts.slice(1).join(' ') || '';
+
     try {
+      // ✅ Зберігаємо завжди стабільний канонічний префікс 'Паспорт: '
+      const canonicalDoc = `Паспорт: ${cleanDocNumber(editDoc)}`;
+
       const { error } = await supabase
         .from('passengers')
         .update({
-          name: editName,
-          doc: `Паспорт: ${editDoc}`
+          name: cleanName,
+          first_name: firstName,
+          last_name: lastName,
+          doc: canonicalDoc
         })
         .eq('id', showEditModal.id);
-      
+
       if (error) throw error;
-      
-      toast.success('Профіль оновлено');
+
+      // Локально оновлюємо дані у вибраного пасажира
+      showEditModal.name = cleanName;
+      showEditModal.doc = canonicalDoc;
+
+      toast.success(l.updateSuccess);
       setShowEditModal(null);
     } catch (e) {
-      toast.error('Помилка оновлення');
+      toast.error(l.updateError);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim() || !newDoc.trim()) {
-      toast.error('Заповніть всі поля');
+      toast.error(l.fillAllError);
       return;
     }
-    onAdd(newName, newDoc);
+    onAdd(newName.trim(), cleanDocNumber(newDoc));
     setNewName('');
     setNewDoc('');
     setShowAddModal(false);
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+    <div className="space-y-8 max-w-6xl w-full mx-auto pb-12">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white">Пасажири</h2>
-          <p className="text-sm text-[#7a9ab5]">Збережені профілі для швидкого бронювання в один клік</p>
+          <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">{l.title}</h2>
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">{l.subtitle}</p>
         </div>
-        <button 
+        <button
+          type="button"
           onClick={() => setShowAddModal(true)}
-          className="bg-[#00c8ff] text-black px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,200,255,0.3)]"
+          className="bg-cyan-400 hover:bg-cyan-300 text-black px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] active:scale-95 cursor-pointer"
         >
-          <Plus size={16} /> Додати пасажира
+          <Plus size={16} /> {l.addBtn}
         </button>
       </div>
 
+      {/* Список карток */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <AnimatePresence>
-          {passengers.map((p) => (
-            <motion.div 
-              key={p.id} 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-[#141c2e] border border-[#1e3a5f] rounded-2xl p-6 flex items-center gap-4 group hover:border-[#00c8ff]/30 transition-all shadow-lg"
-            >
-              <div className={`w-14 h-14 rounded-full flex items-center justify-center font-black text-xl shadow-lg border-2 border-white/5
-                ${p.id === 'primary' ? 'bg-gradient-to-br from-[#00c8ff] to-[#0099cc]' : 'bg-gradient-to-br from-[#1e2a40] to-[#141c2e]'}
-              `}>
-                {p.avatar}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                    <h4 className="text-base sm:text-lg font-bold text-white tracking-tight truncate">{p.name}</h4>
-                    {p.role === 'Основний' && (
-                      <span className="text-[8px] bg-[#00c8ff]/20 text-[#00c8ff] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-[0_0_10px_rgba(0,200,255,0.1)]">
-                        Me
+          {passengers.map((p) => {
+            const isPrimary = p.id === 'primary' || p.role === 'Основний';
+            return (
+              <motion.div
+                key={p.id}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 sm:p-6 flex items-center gap-4 group hover:border-cyan-500/40 transition-all shadow-xl shadow-black/40"
+              >
+                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center font-black text-lg sm:text-xl shadow-lg border border-white/10 shrink-0 ${isPrimary ? 'bg-gradient-to-br from-cyan-400 to-blue-600 text-black' : 'bg-slate-800 text-white'
+                  }`}>
+                  {p.avatar || p.name?.[0] || 'U'}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-base font-bold text-white tracking-tight truncate">{p.name}</h4>
+                    {isPrimary && (
+                      <span className="text-[9px] bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        {l.meBadge}
                       </span>
                     )}
+                  </div>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5 truncate">{displayDoc(p.doc)}</p>
                 </div>
-                <p className="text-xs text-[#7a9ab5] font-medium mt-0.5 italic truncate">{p.doc}</p>
-              </div>
-              <div className="flex gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                <button 
-                  onClick={() => handleEditClick(p)}
-                  className="p-2 bg-[#1a2235] text-[#7a9ab5] hover:text-[#00c8ff] rounded-lg border border-[#1e3a5f] transition-all active:scale-90"
-                >
-                    <Settings size={14} />
-                </button>
-                {p.id !== 'primary' && (
-                  <button 
-                    onClick={() => onDelete(p.id)}
-                    className="p-2 bg-[#1a2235] text-[#7a9ab5] hover:text-[#f44336] rounded-lg border border-[#1e3a5f] transition-all active:scale-90"
+
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleEditClick(p)}
+                    className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-cyan-400 rounded-xl border border-slate-700 transition-all active:scale-90 cursor-pointer"
+                    title={l.editTooltip}
                   >
-                      <Trash2 size={14} />
+                    <Settings size={15} />
                   </button>
-                )}
-              </div>
-            </motion.div>
-          ))}
+                  {!isPrimary && (
+                    <button
+                      type="button"
+                      onClick={() => onDelete(p.id)}
+                      className="p-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-xl border border-rose-500/20 transition-all active:scale-90 cursor-pointer"
+                      title={l.deleteTooltip}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
       </div>
 
-      {/* Edit Passenger Modal */}
+      {/* Модалка редагування */}
       <AnimatePresence>
         {showEditModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-[#111827] border border-white/10 rounded-[2rem] p-8 max-w-md w-full relative"
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-slate-900 border border-slate-700 rounded-3xl p-6 sm:p-8 max-w-md w-full relative shadow-2xl"
             >
-              <button 
+              <button
+                type="button"
                 onClick={() => setShowEditModal(null)}
-                className="absolute top-6 right-6 text-[#4a6a85] hover:text-white transition-colors"
+                className="absolute top-5 right-5 p-2 text-slate-400 hover:text-white rounded-full bg-slate-800/60 cursor-pointer"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
-              <h3 className="text-xl font-black italic uppercase tracking-tighter text-white mb-8">Редагувати профіль</h3>
-              
-              <form onSubmit={handleUpdate} className="space-y-6">
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-[#4a6a85] mb-2 tracking-widest pl-1">Ім'я та Прізвище</label>
-                  <input 
+
+              <h3 className="text-lg font-black uppercase text-white mb-6">{l.editModalTitle}</h3>
+
+              <form onSubmit={handleUpdate} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider pl-1">{l.nameLabel}</label>
+                  <input
+                    type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    placeholder="Прізвище Ім'я"
-                    className="w-full bg-black/20 border border-[#1e3a5f] rounded-2xl px-5 py-4 text-white text-sm focus:border-[#00c8ff] outline-none transition-all placeholder:text-[#4a6a85]"
+                    placeholder={l.namePlaceholder}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-400 rounded-xl px-4 py-3 text-white text-sm outline-none transition-all"
                   />
                 </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-[#4a6a85] mb-2 tracking-widest pl-1">Номер документа</label>
-                  <input 
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider pl-1">{l.docLabel}</label>
+                  <input
+                    type="text"
                     value={editDoc}
                     onChange={(e) => setEditDoc(e.target.value)}
                     placeholder="AA 123456"
-                    className="w-full bg-black/20 border border-[#1e3a5f] rounded-2xl px-5 py-4 text-white text-sm focus:border-[#00c8ff] outline-none transition-all placeholder:text-[#4a6a85]"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-400 rounded-xl px-4 py-3 text-white text-sm outline-none transition-all font-mono"
                   />
                 </div>
-                <button 
+
+                <button
                   type="submit"
-                  className="w-full py-4 bg-[#00c8ff] text-black text-[12px] font-black uppercase tracking-widest rounded-2xl hover:bg-white transition-all shadow-[0_10px_20px_rgba(0,200,255,0.2)]"
+                  className="w-full py-3.5 mt-2 bg-cyan-400 hover:bg-cyan-300 text-black text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] active:scale-95 cursor-pointer"
                 >
-                  Оновити пасажира
+                  {l.updateBtn}
                 </button>
               </form>
             </motion.div>
@@ -183,49 +260,54 @@ const PassengersTab: React.FC<PassengersTabProps> = ({ passengers, onDelete, onA
         )}
       </AnimatePresence>
 
-      {/* Add Passenger Modal */}
+      {/* Модалка додавання */}
       <AnimatePresence>
         {showAddModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-[#111827] border border-white/10 rounded-[2rem] p-8 max-w-md w-full relative"
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-slate-900 border border-slate-700 rounded-3xl p-6 sm:p-8 max-w-md w-full relative shadow-2xl"
             >
-              <button 
+              <button
+                type="button"
                 onClick={() => setShowAddModal(false)}
-                className="absolute top-6 right-6 text-[#4a6a85] hover:text-white transition-colors"
+                className="absolute top-5 right-5 p-2 text-slate-400 hover:text-white rounded-full bg-slate-800/60 cursor-pointer"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
-              <h3 className="text-xl font-black italic uppercase tracking-tighter text-white mb-8">Новий пасажир</h3>
-              
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-[#4a6a85] mb-2 tracking-widest pl-1">Ім'я та Прізвище</label>
-                  <input 
+
+              <h3 className="text-lg font-black uppercase text-white mb-6">{l.addModalTitle}</h3>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider pl-1">{l.nameLabel}</label>
+                  <input
                     autoFocus
+                    type="text"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    placeholder="Прізвище Ім'я"
-                    className="w-full bg-black/20 border border-[#1e3a5f] rounded-2xl px-5 py-4 text-white text-sm focus:border-[#00c8ff] outline-none transition-all placeholder:text-[#4a6a85]"
+                    placeholder={l.namePlaceholder}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-400 rounded-xl px-4 py-3 text-white text-sm outline-none transition-all"
                   />
                 </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-[#4a6a85] mb-2 tracking-widest pl-1">Номер документа</label>
-                  <input 
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider pl-1">{l.docLabel}</label>
+                  <input
+                    type="text"
                     value={newDoc}
                     onChange={(e) => setNewDoc(e.target.value)}
                     placeholder="AA 123456"
-                    className="w-full bg-black/20 border border-[#1e3a5f] rounded-2xl px-5 py-4 text-white text-sm focus:border-[#00c8ff] outline-none transition-all placeholder:text-[#4a6a85]"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-400 rounded-xl px-4 py-3 text-white text-sm outline-none transition-all font-mono"
                   />
                 </div>
-                <button 
+
+                <button
                   type="submit"
-                  className="w-full py-4 bg-[#00c8ff] text-black text-[12px] font-black uppercase tracking-widest rounded-2xl hover:bg-white transition-all shadow-[0_10px_20px_rgba(0,200,255,0.2)]"
+                  className="w-full py-3.5 mt-2 bg-cyan-400 hover:bg-cyan-300 text-black text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] active:scale-95 cursor-pointer"
                 >
-                  Зберегти пасажира
+                  {l.saveBtn}
                 </button>
               </form>
             </motion.div>

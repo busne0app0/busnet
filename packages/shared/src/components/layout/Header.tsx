@@ -17,6 +17,8 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const isHomePage = location.pathname === '/';
+
   const burgerRef = useRef<HTMLButtonElement>(null);
   const pendingAnchor = useRef<string | null>(null);
 
@@ -127,7 +129,6 @@ export default function Header() {
       toast.error(t.header.cabinetUnavailable || 'Кабінет тимчасово недоступний');
       return;
     }
-    // For passenger on landing use SPA router, for dashboards use cross-app navigation
     if (target.url === '/dashboard') {
       navigate('/dashboard');
     } else {
@@ -153,25 +154,26 @@ export default function Header() {
     return user?.firstName ? t.header.profileOf(user.firstName) : t.header.cabinet;
   };
 
+  // Шапка непрозора, якщо сторінка прокручена АБО якщо ми не на головній сторінці
+  const shouldHaveSolidBg = scrolled || !isHomePage;
+
   return (
     <>
       <header
-        className={`fixed top-0 w-full z-50 transition-[background,box-shadow] duration-300 ${
-          isMenuOpen
+        className={`fixed top-0 w-full z-50 transition-[background,box-shadow] duration-300 ${isMenuOpen
             ? 'bg-transparent h-16 md:h-20'
-            : scrolled
-              ? 'bg-busnet-bg/95 lg:bg-busnet-bg/90 lg:backdrop-blur-xl shadow-[0_1px_0_rgba(255,255,255,0.06),0_4px_20px_rgba(0,0,0,0.4)] h-16 md:h-20'
+            : shouldHaveSolidBg
+              ? 'bg-[#0A0D14]/95 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.5)] h-16 md:h-20'
               : 'bg-transparent h-16 md:h-20'
-        }`}
+          }`}
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-full flex items-center justify-between gap-2 sm:gap-4">
 
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 cursor-pointer shrink min-w-0">
-            <img src="/icon.png" alt="BUSNET UA" className="w-8 h-8 md:w-9 md:h-9 object-contain shrink-0 rounded-lg drop-shadow-[0_0_8px_rgba(0,212,255,0.35)]" />
-            <span className="text-[15px] min-[360px]:text-base tracking-[0.08em] min-[360px]:tracking-[0.14em] font-semibold uppercase truncate">
-              <span className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.15)]">BUSNET</span>
-              <span className="ml-1 text-neon-cyan drop-shadow-[0_0_10px_rgba(0,212,255,0.5)]">UA</span>
+          {/* Logo (тільки текст, без картинки) */}
+          <Link to="/" className="flex items-center cursor-pointer shrink min-w-0">
+            <span className="text-[17px] min-[360px]:text-lg tracking-[0.1em] min-[360px]:tracking-[0.15em] font-black uppercase truncate">
+              <span className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">BUSNET</span>
+              <span className="ml-1.5 text-neon-cyan drop-shadow-[0_0_12px_rgba(0,212,255,0.6)]">UA</span>
             </span>
           </Link>
 
@@ -211,11 +213,10 @@ export default function Header() {
                   lang={lang.toLowerCase()}
                   aria-pressed={language === lang}
                   onClick={() => setLanguage(lang)}
-                  className={`px-2 py-1 rounded-full text-[10px] font-bold transition-all focus-visible:ring-2 focus-visible:ring-neon-cyan ${
-                    language === lang
+                  className={`px-2 py-1 rounded-full text-[10px] font-bold transition-all focus-visible:ring-2 focus-visible:ring-neon-cyan ${language === lang
                       ? 'bg-neon-cyan text-busnet-bg shadow-[0_0_10px_#00D4FF]'
                       : 'text-slate-300 hover:text-white'
-                  }`}
+                    }`}
                 >
                   {lang === 'UK' ? 'UA' : lang}
                 </button>
@@ -279,11 +280,10 @@ export default function Header() {
                           setLanguage(lang);
                           setIsMobileLangOpen(false);
                         }}
-                        className={`min-h-[40px] px-3 py-2 rounded-xl text-xs font-black transition-all ${
-                          language === lang
+                        className={`min-h-[40px] px-3 py-2 rounded-xl text-xs font-black transition-all ${language === lang
                             ? 'bg-neon-cyan text-busnet-bg'
                             : 'text-slate-400 hover:text-white hover:bg-white/10'
-                        }`}
+                          }`}
                       >
                         {lang === 'UK' ? 'UA' : lang}
                       </button>
