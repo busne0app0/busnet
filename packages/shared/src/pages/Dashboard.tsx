@@ -1,3 +1,4 @@
+import { CommunityTab } from '@busnet/shared/components/dashboard/CommunityTab';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -689,12 +690,12 @@ export default function Dashboard() {
           {activeTab === 'bonuses' && <BonusesTab tickets={userTickets} />}
           {activeTab === 'profile' && <ProfileTab />}
           {activeTab === 'settings' && <SettingsTab notifs={notifs} setNotifs={setNotifs} />}
-          {activeTab === 'notifications' && <NotificationsTab notifications={dashboardNotifications} />}
+          {activeTab === 'notifications' && <NotificationsTab />}
           {activeTab === 'forum' && (
-            <ForumTab
-              forumPosts={dashboardForumPosts}
-              handleLike={handleLike}
-              onCreatePost={handleCreatePost}
+            <CommunityTab
+              onNavigateToTicket={(from, to) => {
+                setActiveTab('search');
+              }}
             />
           )}
           {activeTab === 'support' && <SupportTab />}
