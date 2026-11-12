@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
-import MainLayout from '../components/layout/MainLayout';
-import { ConnectTab } from '../connect/components/ConnectTab';
+import { ConnectApp } from '../connect/components/ConnectApp';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ConnectTabType } from '../connect/types/connect.types';
 
@@ -37,15 +36,11 @@ export default function ConnectPage({ defaultTab }: ConnectPageProps) {
   }, []);
 
   return (
-    <MainLayout>
-      <div className="pt-20 min-h-screen bg-[#070b14]">
-        <ConnectTab
-          defaultTab={effectiveTab}
-          onNavigateToTicket={(from, to) => {
-            navigate(`/booking?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
-          }}
-        />
-      </div>
-    </MainLayout>
+    <ConnectApp
+      defaultTab={effectiveTab}
+      onNavigateToTicket={(from, to) => {
+        navigate(`/booking?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+      }}
+    />
   );
 }

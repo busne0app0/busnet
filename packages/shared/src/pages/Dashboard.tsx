@@ -19,7 +19,7 @@ import ProfileTab from '../components/dashboard/ProfileTab';
 import SettingsTab from '../components/dashboard/SettingsTab';
 import NotificationsTab from '../components/dashboard/NotificationsTab';
 import ForumTab from '../components/dashboard/ForumTab';
-import { ConnectTab } from '../connect/components/ConnectTab';
+import { ConnectPromoCard } from '../components/dashboard/ConnectPromoCard';
 import SupportTab from '../components/dashboard/SupportTab';
 import SearchTab from '../components/dashboard/SearchTab';
 import { getPostLoginTarget } from '../constants/roleRoutes';
@@ -693,11 +693,7 @@ export default function Dashboard() {
           {activeTab === 'settings' && <SettingsTab notifs={notifs} setNotifs={setNotifs} />}
           {activeTab === 'notifications' && <NotificationsTab />}
           {(activeTab === 'connect' || activeTab === 'forum') && (
-            <ConnectTab
-              onNavigateToTicket={(from, to) => {
-                setActiveTab('search');
-              }}
-            />
+            <ConnectPromoCard />
           )}
           {activeTab === 'support' && <SupportTab />}
         </motion.div>
