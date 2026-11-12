@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useState } from 'react';
 import { ConnectNavbar } from './ConnectNavbar';
 import { HomeView } from './views/HomeView';
@@ -11,11 +13,11 @@ import { CreatePostModal } from './CreatePostModal';
 import { CommentsDrawer } from './CommentsDrawer';
 import { ReportModal } from './ReportModal';
 import { useConnectStore } from '../store/useConnectStore';
-import { ConnectPost, ConnectReportPayload } from '../types/connect.types';
+import type { ConnectPost, ConnectTabType } from '../types/connect.types';
 
 interface ConnectTabProps {
   onNavigateToTicket?: (from: string, to: string) => void;
-  defaultTab?: 'home' | 'community' | 'messages' | 'groups' | 'discover' | 'notifications' | 'profile';
+  defaultTab?: ConnectTabType;
 }
 
 export const ConnectTab: React.FC<ConnectTabProps> = ({
@@ -59,16 +61,16 @@ export const ConnectTab: React.FC<ConnectTabProps> = ({
   }, [initConnect]);
 
   return (
-    <div className="w-full min-h-[calc(100vh-120px)] bg-[#070b14] text-slate-100 flex flex-col">
+    <div className="flex min-h-[calc(100dvh-120px)] w-full flex-col bg-[#070b14] text-slate-100">
       {/* 7-Section Navigation Bar */}
       <ConnectNavbar
         activeTab={activeTab}
         onSelectTab={setActiveTab}
-        unreadCount={2}
+
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6">
+      <main aria-busy={isLoading} className="mx-auto w-full min-w-0 max-w-5xl flex-1 px-4 py-6 sm:px-6">
         {activeTab === 'home' && (
           <HomeView
             posts={posts}
@@ -153,4 +155,3 @@ export const ConnectTab: React.FC<ConnectTabProps> = ({
     </div>
   );
 };
-
