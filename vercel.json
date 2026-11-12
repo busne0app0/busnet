@@ -1,6 +1,17 @@
 {
   "cleanUrls": true,
   "rewrites": [
+    {
+      "source": "/connect/post/:slug",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|TelegramBot|WhatsApp|Viber|Twitterbot|LinkedInBot|Slackbot|Discordbot|SkypeUriPreview|Applebot|Googlebot|bingbot|DuckDuckBot|YandexBot).*"
+        }
+      ],
+      "destination": "/api/connect-prerender?slug=:slug"
+    },
     { "source": "/admin/:path*", "destination": "/admin/index.html" },
     { "source": "/carrier/:path*", "destination": "/carrier/index.html" },
     { "source": "/agent/:path*", "destination": "/agent/index.html" },
