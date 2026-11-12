@@ -129,7 +129,11 @@
   }
 
   body {
-    @apply bg-busnet-bg font-sans antialiased text-slate-100;
+    background-color: var(--color-busnet-bg, #030712);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: #f1f5f9;
     overflow-x: hidden;
   }
   

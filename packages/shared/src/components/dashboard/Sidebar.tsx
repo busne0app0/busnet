@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import {
   X, LogOut, LayoutDashboard, Ticket, Users, Star,
   Search, Bell, MessageSquare, ClipboardList, User,
-  Settings, History
+  Settings, History, Globe, Sparkles
 } from 'lucide-react';
 
 import { useAuthStore } from '@busnet/shared/store/useAuthStore';
@@ -74,7 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     {
       title: t.sidebarCommunity || 'Спільнота',
       items: [
-        { id: 'forum', label: t.forum || 'Форум', icon: ClipboardList },
+        { id: 'connect', label: 'BUSNET CONNECT', icon: Globe },
       ]
     },
     {
@@ -135,7 +135,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onClick={() => { setActiveTab(item.id); closeSidebar(); }}
                 className={`
                   w-full flex items-center gap-4 px-6 py-3 text-xs font-medium transition-all relative border-l-2
-                  ${activeTab === item.id
+                  ${activeTab === item.id || (item.id === 'connect' && activeTab === 'forum')
                     ? 'bg-[#00c8ff]/10 text-[#00c8ff] border-[#00c8ff]'
                     : 'text-[#7a9ab5] hover:bg-[#1a2235] hover:text-[#e8f4ff] border-transparent'}
                 `}

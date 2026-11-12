@@ -1,11 +1,10 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { ErrorBoundary } from './ErrorBoundary';
 import { SearchProvider } from '../../context/SearchContext';
 import { LanguageProvider } from '../../context/LanguageContext';
 import { useAuthStore } from '../../store/useAuthStore';
-import { ForumPage } from '../../pages';
 
 interface AppShellProps {
   basename?: string;
@@ -31,7 +30,8 @@ export function AppShell({ basename = '/', children }: AppShellProps) {
           <BrowserRouter basename={normalizedBasename}>
             <Toaster position="top-center" toastOptions={{ style: { background: '#111520', color: '#fff' } }} />
             <Routes>
-              <Route path="/forum" element={<ForumPage />} />
+              <Route path="/forum" element={<Navigate to="/connect/community" replace />} />
+              <Route path="/forum/*" element={<Navigate to="/connect/community" replace />} />
               {children}
             </Routes>
           </BrowserRouter>

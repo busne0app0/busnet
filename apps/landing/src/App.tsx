@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from '@busnet/shared/components/common/ErrorBoundary';
 import { ProtectedRoute } from '@busnet/shared/components/common/ProtectedRoute';
 import { SearchProvider } from '@busnet/shared/context/SearchContext';
@@ -10,7 +10,8 @@ import { Toaster } from 'react-hot-toast';
 import HomePage from '@busnet/shared/pages/HomePage';
 import BookingPage from '@busnet/shared/pages/BookingPage';
 import AuthPage from '@busnet/shared/pages/AuthPage';
-import ForumPage from '@busnet/shared/pages/ForumPage';
+import ConnectPage from '@busnet/shared/pages/ConnectPage';
+import ConnectPostPage from '@busnet/shared/pages/ConnectPostPage';
 import Dashboard from '@busnet/shared/pages/Dashboard';
 import { DashboardBridge } from '@busnet/shared/pages/DashboardBridge';
 import CyberTerminal from '@busnet/shared/pages/CyberTerminal';
@@ -41,7 +42,14 @@ export default function App() {
             <CookieBanner />
             <Routes>
               <Route element={<MainLayout><HomePage /></MainLayout>} path="/" />
-              <Route element={<ForumPage />} path="/forum" />
+              {/* BUSNET CONNECT — Соціальна платформа та її розділи */}
+              <Route path="/connect" element={<ConnectPage />} />
+              <Route path="/connect/community" element={<ConnectPage defaultTab="community" />} />
+              <Route path="/connect/:tab" element={<ConnectPage />} />
+              <Route path="/connect/post/:id" element={<ConnectPostPage />} />
+              {/* Повний редірект зі старого /forum на новий розділ /connect/community */}
+              <Route path="/forum" element={<Navigate to="/connect/community" replace />} />
+              <Route path="/forum/*" element={<Navigate to="/connect/community" replace />} />
               <Route element={<BookingPage />} path="/booking" />
               <Route element={<AuthPage />} path="/auth" />
               <Route path="/dashboard" element={<ProtectedRoute loginUrl="/auth"><Dashboard /></ProtectedRoute>} />

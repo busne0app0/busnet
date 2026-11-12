@@ -29,7 +29,8 @@ const SOCIAL_URLS = {
 const PATHS = {
   about: '/#about',
   contacts: '/contacts',
-  forum: '/forum',
+  connect: '/connect',
+  forum: '/connect/community',
   routes: '/',
   help: '/contacts',
   refunds: '/refund-policy',
@@ -100,7 +101,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
       links: [
         { label: t.footer.about, to: PATHS.about },
         { label: t.footer.contacts, to: PATHS.contacts },
-        { label: h?.forum || 'Форум', to: PATHS.forum },
+        { label: 'BUSNET CONNECT', to: PATHS.connect },
       ],
     },
     {

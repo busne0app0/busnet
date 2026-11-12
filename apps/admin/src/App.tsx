@@ -3,10 +3,11 @@ import { ProtectedRoute } from '@busnet/shared/components/common/ProtectedRoute'
 import { AppShell } from '@busnet/shared/components/common/AppShell';
 
 import {
-  AdminLayout, DashboardTab, ForumPage,
+  AdminLayout, DashboardTab,
   LiveTripsTab, ApprovalsTab, ConflictsTab, CarriersTab, AgentsTab, RoutesTab,
   FinanceTab, RefundsTab, TransactionsTab, InvoicesTab,
-  CRMTab, MarketingTab, SupportTab, SettingsTab, LogsTab, SecurityTab, NetworkTab
+  CRMTab, MarketingTab, SupportTab, SettingsTab, LogsTab, SecurityTab, NetworkTab,
+  ConnectAdminTab
 } from '@busnet/shared/pages';
 import PortalLogin from '@busnet/shared/components/auth/PortalLogin';
 import { Shield } from 'lucide-react';
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="invoices" element={<InvoicesTab />} />
         <Route path="network" element={<NetworkTab />} />
         <Route path="crm" element={<CRMTab />} />
+        <Route path="connect" element={<ConnectAdminTab />} />
         <Route path="marketing" element={<MarketingTab />} />
         <Route path="support" element={<SupportTab />} />
         <Route path="settings" element={<SettingsTab />} />

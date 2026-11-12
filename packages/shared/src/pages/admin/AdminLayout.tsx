@@ -86,6 +86,7 @@ const AdminLayout: React.FC = () => {
     { id: 'carriers', label: 'Партнери', icon: Handshake, path: '/carriers' },
     { id: 'finance', label: 'Фінанси', icon: CreditCard, path: '/finance' },
     { id: 'crm', label: 'Клієнти', icon: Users, path: '/crm' },
+    { id: 'connect', label: 'CONNECT', icon: Globe, path: '/connect' },
   ];
   
   const isOwner = user?.adminRole === 'owner' || user?.email === 'tania.nyshuta@gmail.com' || user?.email?.includes('root');

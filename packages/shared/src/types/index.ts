@@ -19,6 +19,11 @@ export interface User {
   loyaltyPoints?: number;
   secretKey?: string;
   address?: string;
+  bio?: string;
+  website?: string;
+  instagram?: string;
+  telegram?: string;
+  city?: string;
   createdAt?: any;
 }
 

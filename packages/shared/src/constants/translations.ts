@@ -337,7 +337,7 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
     header: {
       routes: 'Маршрути',
       partners: 'Партнерам',
-      forum: 'Форум',
+      forum: 'BUSNET CONNECT',
       bookingBadge: 'Бронювання 24/7',
       login: 'Увійти',
       langLabel: 'Мова',
@@ -750,7 +750,7 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
         search: 'Пошук',
         notifications: 'Сповіщення',
         support: 'Підтримка',
-        forum: 'Форум',
+        forum: 'BUSNET CONNECT',
         profile: 'Профіль',
         settings: 'Налаштування',
         history: 'Історія'
@@ -771,7 +771,7 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
     header: {
       routes: 'Routes',
       partners: 'Partners',
-      forum: 'Forum',
+      forum: 'BUSNET CONNECT',
       bookingBadge: 'Booking 24/7',
       login: 'Log in',
       langLabel: 'Language',
@@ -1178,7 +1178,7 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
         search: 'Search Trips',
         notifications: 'Notifications',
         support: 'Support 24/7',
-        forum: 'Travelers Forum',
+        forum: 'BUSNET CONNECT',
         profile: 'Profile',
         settings: 'Settings',
         history: 'Trip History'
@@ -1199,7 +1199,7 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
     header: {
       routes: 'Tratte',
       partners: 'Partner',
-      forum: 'Forum',
+      forum: 'BUSNET CONNECT',
       bookingBadge: 'Prenotazioni 24/7',
       login: 'Accedi',
       langLabel: 'Lingua',
@@ -1606,7 +1606,7 @@ export const translations: Record<Language, TranslationSchema> & { UA?: Translat
         search: 'Cerca Corse',
         notifications: 'Notifiche',
         support: 'Assistenza 24/7',
-        forum: 'Forum Viaggiatori',
+        forum: 'BUSNET CONNECT',
         profile: 'Profilo',
         settings: 'Impostazioni',
         history: 'Storico Viaggi'
